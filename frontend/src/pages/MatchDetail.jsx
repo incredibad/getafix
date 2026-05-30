@@ -1,9 +1,22 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Circle, Shirt, BarChart2, Zap } from 'lucide-react'
+import { ArrowLeft, Circle, Shirt, BarChart2, Zap, Eye, EyeOff } from 'lucide-react'
 import api from '../api/client'
 import { formatMatchDateTime } from '../utils/date'
 import toast from 'react-hot-toast'
+
+function Spoiler({ revealed, onReveal, children }) {
+  if (revealed) return <>{children}</>
+  return (
+    <div
+      className="blur-sm select-none cursor-pointer transition-all duration-200"
+      onClick={onReveal}
+      title="Click to reveal"
+    >
+      {children}
+    </div>
+  )
+}
 
 function Section({ title, icon: Icon, children }) {
   return (
@@ -19,13 +32,7 @@ function Section({ title, icon: Icon, children }) {
 
 function EventRow({ event }) {
   const isHome = event._is_home
-  const icons = {
-    goal: '⚽',
-    yellow_card: '🟨',
-    red_card: '🟥',
-    substitution: '🔄',
-    var: '📺',
-  }
+  const icons = { goal: '⚽', yellow_card: '🟨', red_card: '🟥', substitution: '🔄', var: '📺' }
   const icon = icons[event.type] || '•'
   const detail = event.detail && event.detail !== event.type ? event.detail : null
 
@@ -75,7 +82,8 @@ function StatBar({ label, home, away }) {
 function LineupGrid({ lineup }) {
   return (
     <div className="mb-4">
-      <p className="text-xs text-slate-400 font-semibold mb-2">{lineup.team}
+      <p className="text-xs text-slate-400 font-semibold mb-2">
+        {lineup.team}
         {lineup.formation && <span className="text-slate-600 ml-2">{lineup.formation}</span>}
       </p>
       <div className="grid grid-cols-2 gap-1">
@@ -110,6 +118,7 @@ export default function MatchDetail() {
   const navigate = useNavigate()
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [revealed, setRevealed] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -144,22 +153,36 @@ export default function MatchDetail() {
 
   const { fixture, events, stats, lineups } = detail
   const isLive = fixture.status === 'LIVE'
+  const hasScore = fixture.status !== 'SCHEDULED'
 
-  // Partition events by team
-  const homeEvents = events.map(e => ({
-    ...e,
-    _is_home: e.team === fixture.home_team.name,
-  }))
+  const homeEvents = events.map(e => ({ ...e, _is_home: e.team === fixture.home_team.name }))
 
   return (
     <div className="p-4 sm:p-6 pt-16 lg:pt-6 max-w-2xl mx-auto">
-      <button onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-slate-400 hover:text-white mb-4 text-sm transition-colors">
-        <ArrowLeft size={16} /> Back to fixtures
-      </button>
+      {/* Nav row */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
+        >
+          <ArrowLeft size={16} /> Back to fixtures
+        </button>
+        {hasScore && (
+          <button
+            onClick={() => setRevealed(r => !r)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            {revealed ? <EyeOff size={15} /> : <Eye size={15} />}
+            {revealed ? 'Hide' : 'Reveal'}
+          </button>
+        )}
+      </div>
 
       {/* Match header */}
-      <div className="rounded-xl border p-5 mb-4 text-center" style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}>
+      <div
+        className="rounded-xl border p-5 mb-4 text-center"
+        style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}
+      >
         <div className="flex items-center justify-center gap-1.5 mb-3">
           {fixture.competition.emblem_url && (
             <img src={fixture.competition.emblem_url} alt="" className="w-4 h-4 object-contain opacity-70" />
@@ -181,8 +204,8 @@ export default function MatchDetail() {
 
           {/* Score */}
           <div className="flex flex-col items-center gap-1 px-2">
-            {fixture.status !== 'SCHEDULED' ? (
-              <>
+            {hasScore ? (
+              <Spoiler revealed={revealed} onReveal={() => setRevealed(true)}>
                 <div className="text-3xl font-bold text-white tabular-nums">
                   {fixture.score_home ?? 0} – {fixture.score_away ?? 0}
                 </div>
@@ -191,7 +214,7 @@ export default function MatchDetail() {
                     HT: {fixture.score_ht_home}–{fixture.score_ht_away}
                   </span>
                 )}
-              </>
+              </Spoiler>
             ) : (
               <span className="text-slate-400 text-sm">{formatMatchDateTime(fixture.utc_date)} AEST</span>
             )}
@@ -217,24 +240,24 @@ export default function MatchDetail() {
           </div>
         </div>
 
-        {fixture.venue && (
-          <p className="text-xs text-slate-500 mt-3">{fixture.venue}</p>
-        )}
+        {fixture.venue && <p className="text-xs text-slate-500 mt-3">{fixture.venue}</p>}
         {fixture.status === 'SCHEDULED' && (
           <p className="text-xs text-slate-500 mt-2">{formatMatchDateTime(fixture.utc_date)} AEST</p>
         )}
       </div>
 
-      {/* Events */}
+      {/* Events — blurred since goals reveal the score */}
       {events.length > 0 && (
         <Section title="Match Events" icon={Zap}>
-          <div className="space-y-0.5">
-            {homeEvents.map((e, i) => <EventRow key={i} event={e} />)}
-          </div>
+          <Spoiler revealed={revealed} onReveal={() => setRevealed(true)}>
+            <div className="space-y-0.5">
+              {homeEvents.map((e, i) => <EventRow key={i} event={e} />)}
+            </div>
+          </Spoiler>
         </Section>
       )}
 
-      {/* Stats */}
+      {/* Stats — not blurred, these don't reveal the result */}
       {stats.length >= 2 && (
         <Section title="Statistics" icon={BarChart2}>
           <div className="flex justify-between text-xs text-slate-400 mb-3">
@@ -257,7 +280,7 @@ export default function MatchDetail() {
         </Section>
       )}
 
-      {/* Lineups */}
+      {/* Lineups — not blurred */}
       {lineups.length > 0 && (
         <Section title="Lineups" icon={Shirt}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

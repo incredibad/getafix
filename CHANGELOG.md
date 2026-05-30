@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.2] — 2026-05-31
+
+### Added
+- Score obfuscation: scores are blurred by default on the Fixtures list and Match Detail pages; click an individual score to reveal it, or use the Eye/EyeOff button in the page header to reveal/hide all scores at once; state always resets to hidden on page load
+
 ## [0.4.1] — 2026-05-31
 
 ### Changed
