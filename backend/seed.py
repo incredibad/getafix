@@ -23,8 +23,8 @@ KNOWN_COMPETITIONS = [
     {"name": "FIFA World Cup",          "short_name": "WC",  "country": "World",         "football_data_id": "WC",  "api_football_id": 1,   "preferred_source": "football_data", "competition_type": "cup"},
     {"name": "European Championship",   "short_name": "EC",  "country": "Europe",        "football_data_id": "EC",  "api_football_id": 4,   "preferred_source": "football_data", "competition_type": "cup"},
     # API-Football only competitions
-    {"name": "AFC Asian Cup",           "short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 7,   "preferred_source": "api_football",  "competition_type": "cup"},
-    {"name": "AFC World Cup Qualifying","short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 29,  "preferred_source": "api_football",  "competition_type": "cup"},
+    {"name": "AFC Asian Cup",           "short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 7,   "preferred_source": "api_football",  "competition_type": "cup",    "espn_slug": "afc.asian.cup"},
+    {"name": "AFC World Cup Qualifying","short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 29,  "preferred_source": "api_football",  "competition_type": "cup",    "espn_slug": "fifa.worldq.afc"},
     {"name": "A-League Men",            "short_name": None,  "country": "Australia",     "football_data_id": None,  "api_football_id": 188, "preferred_source": "api_football",  "competition_type": "league"},
     {"name": "International Friendlies","short_name": None,  "country": "World",         "football_data_id": None,  "api_football_id": 10,  "preferred_source": "api_football",  "competition_type": "cup"},
     {"name": "Europa League",           "short_name": "EL",  "country": "Europe",        "football_data_id": None,  "api_football_id": 3,   "preferred_source": "api_football",  "competition_type": "cup"},

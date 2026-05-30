@@ -27,9 +27,13 @@ Base.metadata.create_all(bind=engine)
 
 # Column migrations for existing databases
 with engine.connect() as _conn:
-    _cols = {row[1] for row in _conn.execute(text("PRAGMA table_info(teams)"))}
-    if "espn_id" not in _cols:
+    _team_cols = {row[1] for row in _conn.execute(text("PRAGMA table_info(teams)"))}
+    if "espn_id" not in _team_cols:
         _conn.execute(text("ALTER TABLE teams ADD COLUMN espn_id INTEGER"))
+        _conn.commit()
+    _comp_cols = {row[1] for row in _conn.execute(text("PRAGMA table_info(competitions)"))}
+    if "espn_slug" not in _comp_cols:
+        _conn.execute(text("ALTER TABLE competitions ADD COLUMN espn_slug VARCHAR"))
         _conn.commit()
 
 seed_competitions()

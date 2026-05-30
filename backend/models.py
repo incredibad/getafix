@@ -44,6 +44,7 @@ class Competition(Base):
     competition_type = Column(String, nullable=True)  # 'league' | 'cup'
     football_data_id = Column(String, nullable=True, index=True)  # e.g. "PL"
     api_football_id = Column(Integer, nullable=True, index=True)
+    espn_slug = Column(String, nullable=True)  # e.g. "afc.asian.cup"
     preferred_source = Column(String, nullable=False, default="football_data")
     season = Column(Integer, nullable=True)
 

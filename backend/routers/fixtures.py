@@ -86,6 +86,7 @@ async def _fetch_team_fixtures(team: models.Team, db: Session) -> list[dict]:
     if espn_id and (is_national or not all_fixtures):
         espn_fixtures = await espn.get_team_schedule(espn_id, db)
         if espn_fixtures:
+            _auto_link_competitions(team, espn_fixtures, db)
             all_fixtures = _merge_espn(all_fixtures, espn_fixtures)
 
     return all_fixtures
@@ -101,6 +102,28 @@ def _merge_espn(primary: list[dict], espn_fixtures: list[dict]) -> list[dict]:
             existing.add(key)
             merged.append(f)
     return merged
+
+
+_ESPN_COMP_KEYWORDS = {
+    "afc asian cup": "AFC Asian Cup",
+    "afc world cup qualifying": "AFC World Cup Qualifying",
+    "fifa world cup qualifying - afc": "AFC World Cup Qualifying",
+    "international friendly": "International Friendlies",
+    "a-league": "A-League Men",
+}
+
+def _match_espn_competition(comp_name: str, db: Session) -> models.Competition | None:
+    name_lower = comp_name.lower()
+    # Try exact keyword map first
+    for keyword, db_name in _ESPN_COMP_KEYWORDS.items():
+        if keyword in name_lower or name_lower in keyword:
+            return db.query(models.Competition).filter(
+                models.Competition.name == db_name
+            ).first()
+    # Fall back to partial match
+    return db.query(models.Competition).filter(
+        models.Competition.name.ilike(f"%{comp_name}%")
+    ).first()
 
 
 def _dedup_key(f: dict) -> str | None:
@@ -119,14 +142,14 @@ def _auto_link_competitions(team: models.Team, fixtures: list[dict], db: Session
         comp_data = f.get("competition", {})
         ext_id = comp_data.get("id")
         comp_name = comp_data.get("name", "")
-        if not ext_id:
-            continue
         source = f.get("source")
+        if not ext_id and source != "espn":
+            continue
+        if not comp_name:
+            continue
         comp = None
 
         if source == "football_data":
-            # FD competition IDs in match data are numeric; find by api_football_id cross-match
-            # or by name since we seed all FD competitions
             comp = db.query(models.Competition).filter(
                 models.Competition.name == comp_name,
                 models.Competition.preferred_source == "football_data",
@@ -135,6 +158,9 @@ def _auto_link_competitions(team: models.Team, fixtures: list[dict], db: Session
             comp = db.query(models.Competition).filter(
                 models.Competition.api_football_id == ext_id
             ).first()
+        elif source == "espn":
+            # ESPN names don't always match DB names exactly — use keyword matching
+            comp = _match_espn_competition(comp_name, db)
 
         if comp and comp.id not in seen_comp_ids:
             seen_comp_ids.add(comp.id)
