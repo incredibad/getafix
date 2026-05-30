@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.11] — 2026-05-31
+
+### Fixed
+- ESPN standings season label now matches the actual data: for the Asian Cup it was showing "Season 2028" (the next tournament's metadata) while displaying 2023 tournament groups labeled "Ended Jan 2024"; now correctly shows "Season 2024" by passing the season year when fetching typed data and using the typed response for metadata
+
 ## [0.4.10] — 2026-05-31
 
 ### Changed
