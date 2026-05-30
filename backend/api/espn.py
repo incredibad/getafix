@@ -205,9 +205,9 @@ def _parse_iso(s: str | None) -> datetime | None:
         return None
 
 
-def _find_recent_seasontypes(data: dict) -> list[tuple[int, str, str, str]]:
+def _find_recent_seasontypes(data: dict) -> list[tuple[int, str, str, str, int]]:
     """
-    Return (seasontype_id, round_name, start_iso, end_iso) for relevant rounds.
+    Return (seasontype_id, round_name, start_iso, end_iso, season_year) for relevant rounds.
 
     Strategy: find the first season (newest-first) that has at least one type
     with hasStandings=True that has already started. Among those types, prefer
@@ -215,12 +215,16 @@ def _find_recent_seasontypes(data: dict) -> list[tuple[int, str, str, str]]:
     infrequent tournament like the Asian Cup), fall back to the single most
     recently ended type so dates still show.
 
+    season_year is included so callers can pass it to the ESPN API to ensure
+    the correct season's metadata is returned (not just the latest/default season).
+
     Returns empty list for simple league tables with no round types.
     """
     now = datetime.now(timezone.utc)
     one_year_ago = now - timedelta(days=365)
 
     for s in data.get("seasons", []):
+        season_year = s.get("year")
         started = []
         for t in s.get("types", []):
             if not t.get("hasStandings"):
@@ -228,19 +232,19 @@ def _find_recent_seasontypes(data: dict) -> list[tuple[int, str, str, str]]:
             start = _parse_iso(t.get("startDate"))
             end = _parse_iso(t.get("endDate"))
             if start and start <= now:
-                started.append((int(t["id"]), t.get("name", f"Round {t['id']}"), t["startDate"], t["endDate"], end))
+                started.append((int(t["id"]), t.get("name", f"Round {t['id']}"), t["startDate"], t["endDate"], end, season_year))
 
         if not started:
             continue
 
-        recent = [(i, n, sd, ed) for (i, n, sd, ed, end) in started if end and end >= one_year_ago]
+        recent = [(i, n, sd, ed, sy) for (i, n, sd, ed, end, sy) in started if end and end >= one_year_ago]
         if recent:
-            return recent
+            return [(i, n, sd, ed, sy) for (i, n, sd, ed, sy) in recent]
 
         # Nothing within the last year — return the single most recently ended type
         # (handles infrequent tournaments like the Asian Cup)
         latest = max(started, key=lambda x: x[4] or datetime.min.replace(tzinfo=timezone.utc))
-        return [(latest[0], latest[1], latest[2], latest[3])]
+        return [(latest[0], latest[1], latest[2], latest[3], latest[5])]
 
     return []
 
@@ -314,10 +318,16 @@ async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 2
         if seasontypes:
             all_tables = []
             multi = len(seasontypes) > 1
-            for st_id, st_name, st_start, st_end in seasontypes:
-                typed = await _get_v2(f"/{slug}/standings", {"seasontype": st_id})
+            meta_data = None  # use first successful typed response for season metadata
+            for st_id, st_name, st_start, st_end, season_year in seasontypes:
+                params = {"seasontype": st_id}
+                if season_year:
+                    params["season"] = season_year
+                typed = await _get_v2(f"/{slug}/standings", params)
                 if not typed.get("children"):
                     continue
+                if meta_data is None:
+                    meta_data = typed
                 partial = _parse_standings(typed)
                 for table in partial["tables"]:
                     if multi:
@@ -327,7 +337,7 @@ async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 2
                     table["end_date"] = st_end
                     all_tables.append(table)
             if all_tables:
-                result = _parse_standings(data)
+                result = _parse_standings(meta_data or data)
                 result["tables"] = all_tables
                 _cache.set_cached(db, cache_key, result)
                 return result
