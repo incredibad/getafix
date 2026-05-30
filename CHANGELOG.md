@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.12] — 2026-05-31
+
+### Changed
+- Fixture cards are no longer whole-card clickable; a 30px ChevronRight button on the right edge navigates to match detail, only shown for FINISHED and LIVE matches
+- Lock icon and revealed score now share a fixed height so revealing a score no longer shifts card height
+
 ## [0.4.11] — 2026-05-31
 
 ### Fixed

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Users, Circle, Eye, EyeOff, Lock } from 'lucide-react'
-
-const SOURCE_LABELS = { fd: 'FD', apf: 'APF', espn: 'ESPN', football_data: 'FD', api_football: 'APF' }
+import { RefreshCw, Users, Circle, Eye, EyeOff, Lock, ChevronRight } from 'lucide-react'
 import api from '../api/client'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import toast from 'react-hot-toast'
+
+const SOURCE_LABELS = { fd: 'FD', apf: 'APF', espn: 'ESPN', football_data: 'FD', api_football: 'APF' }
 
 function StatusBadge({ fixture }) {
   const { status, minute } = fixture
@@ -28,69 +28,81 @@ function TeamCrest({ url, name, size = 20 }) {
   return <img src={url} alt={name} style={{ width: size, height: size }} className="object-contain" />
 }
 
-function FixtureCard({ fixture, revealed, onRevealScore, onClick }) {
+function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail }) {
   const { home_team, away_team, competition, utc_date, status, score_home, score_away, source } = fixture
   const isLive = status === 'LIVE'
   const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
+  const hasDetail = status === 'FINISHED' || status === 'LIVE'
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left p-3 sm:p-4 rounded-xl transition-colors hover:bg-white/5 border"
+    <div
+      className="relative w-full p-3 sm:p-4 rounded-xl border"
       style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {competition.emblem_url && (
-            <img src={competition.emblem_url} alt="" className="w-4 h-4 object-contain opacity-70 flex-shrink-0" />
-          )}
-          <span className="text-xs text-slate-500 truncate">{competition.name}</span>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {source && <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{SOURCE_LABELS[source] ?? source}</span>}
-          <StatusBadge fixture={fixture} />
-          {status === 'SCHEDULED' && (
-            <span className="text-xs text-slate-400">{formatMatchTime(utc_date)}</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-          <span className="text-sm font-medium text-slate-200 truncate text-right">
-            {home_team.short_name || home_team.name}
-          </span>
-          <TeamCrest url={home_team.crest_url} name={home_team.name} />
+      <div className={hasDetail ? 'pr-4' : ''}>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {competition.emblem_url && (
+              <img src={competition.emblem_url} alt="" className="w-4 h-4 object-contain opacity-70 flex-shrink-0" />
+            )}
+            <span className="text-xs text-slate-500 truncate">{competition.name}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {source && <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{SOURCE_LABELS[source] ?? source}</span>}
+            <StatusBadge fixture={fixture} />
+            {status === 'SCHEDULED' && (
+              <span className="text-xs text-slate-400">{formatMatchTime(utc_date)}</span>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-16">
-          {hasScore ? (
-            !revealed ? (
-              <div
-                className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors flex items-center justify-center"
-                onClick={e => { e.stopPropagation(); onRevealScore() }}
-                title="Click to reveal score"
-              >
-                <Lock size={16} />
-              </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+            <span className="text-sm font-medium text-slate-200 truncate text-right">
+              {home_team.short_name || home_team.name}
+            </span>
+            <TeamCrest url={home_team.crest_url} name={home_team.name} />
+          </div>
+
+          <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-16">
+            {hasScore ? (
+              !revealed ? (
+                <div
+                  className="h-7 flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
+                  onClick={e => { e.stopPropagation(); onRevealScore() }}
+                  title="Click to reveal score"
+                >
+                  <Lock size={16} />
+                </div>
+              ) : (
+                <div className="h-7 flex items-center justify-center text-lg font-bold text-white tabular-nums">
+                  {score_home ?? 0} – {score_away ?? 0}
+                </div>
+              )
             ) : (
-              <div className="text-lg font-bold text-white tabular-nums">
-                {score_home ?? 0} – {score_away ?? 0}
-              </div>
-            )
-          ) : (
-            <span className="text-slate-500 text-sm font-medium">vs</span>
-          )}
-        </div>
+              <span className="text-slate-500 text-sm font-medium">vs</span>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <TeamCrest url={away_team.crest_url} name={away_team.name} />
-          <span className="text-sm font-medium text-slate-200 truncate">
-            {away_team.short_name || away_team.name}
-          </span>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <TeamCrest url={away_team.crest_url} name={away_team.name} />
+            <span className="text-sm font-medium text-slate-200 truncate">
+              {away_team.short_name || away_team.name}
+            </span>
+          </div>
         </div>
       </div>
-    </button>
+
+      {hasDetail && (
+        <button
+          onClick={onViewDetail}
+          className="absolute right-0 top-0 h-full w-[30px] flex items-center justify-center text-slate-600 hover:text-slate-400 hover:bg-white/5 transition-colors rounded-r-xl"
+          title="View match details"
+        >
+          <ChevronRight size={13} />
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -288,7 +300,7 @@ export default function Fixtures() {
                             fixture={f}
                             revealed={isRevealed(fid)}
                             onRevealScore={() => revealOne(fid)}
-                            onClick={() => navigate(`/fixtures/${f.source}/${f.external_id}`)}
+                            onViewDetail={() => navigate(`/fixtures/${f.source}/${f.external_id}`)}
                           />
                         )
                       })}
