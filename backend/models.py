@@ -26,6 +26,7 @@ class Team(Base):
     team_type = Column(String, nullable=True)  # 'club' | 'national'
     football_data_id = Column(Integer, nullable=True, index=True)
     api_football_id = Column(Integer, nullable=True, index=True)
+    espn_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     followed = relationship("FollowedTeam", back_populates="team", uselist=False)

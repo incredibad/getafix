@@ -9,6 +9,7 @@ import schemas
 from auth import get_current_user
 from api import football_data as fd
 from api import api_football as apf
+from api import espn
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -64,20 +65,51 @@ async def get_fixtures(
 
 
 async def _fetch_team_fixtures(team: models.Team, db: Session) -> list[dict]:
-    fixtures = []
+    all_fixtures: list[dict] = []
+    is_national = team.team_type == "national"
 
     if team.football_data_id:
-        fixtures = await fd.get_team_matches(team.football_data_id, db)
-        if fixtures:
-            _auto_link_competitions(team, fixtures, db)
-            return fixtures
+        fd_fixtures = await fd.get_team_matches(team.football_data_id, db)
+        if fd_fixtures:
+            all_fixtures.extend(fd_fixtures)
+            _auto_link_competitions(team, fd_fixtures, db)
 
-    if team.api_football_id:
-        fixtures = await apf.get_team_fixtures(team.api_football_id, db)
-        if fixtures:
-            _auto_link_competitions(team, fixtures, db)
+    if not all_fixtures and team.api_football_id:
+        apf_fixtures = await apf.get_team_fixtures(team.api_football_id, db)
+        if apf_fixtures:
+            all_fixtures.extend(apf_fixtures)
+            _auto_link_competitions(team, apf_fixtures, db)
 
-    return fixtures
+    # ESPN: supplement national teams (friendlies/qualifiers outside FD/APF scope)
+    # or serve as fallback for any team with no primary-source data
+    espn_id = getattr(team, "espn_id", None)
+    if espn_id and (is_national or not all_fixtures):
+        espn_fixtures = await espn.get_team_schedule(espn_id, db)
+        if espn_fixtures:
+            all_fixtures = _merge_espn(all_fixtures, espn_fixtures)
+
+    return all_fixtures
+
+
+def _merge_espn(primary: list[dict], espn_fixtures: list[dict]) -> list[dict]:
+    """Append ESPN fixtures not already present in primary sources, matched by date+teams."""
+    existing: set[str] = {k for f in primary if (k := _dedup_key(f))}
+    merged = list(primary)
+    for f in espn_fixtures:
+        key = _dedup_key(f)
+        if key and key not in existing:
+            existing.add(key)
+            merged.append(f)
+    return merged
+
+
+def _dedup_key(f: dict) -> str | None:
+    date = f.get("utc_date", "")[:10]
+    home = f.get("home_team", {}).get("name", "").lower().strip()
+    away = f.get("away_team", {}).get("name", "").lower().strip()
+    if not date or not home or not away:
+        return None
+    return f"{date}:{min(home, away)}:{max(home, away)}"
 
 
 def _auto_link_competitions(team: models.Team, fixtures: list[dict], db: Session):

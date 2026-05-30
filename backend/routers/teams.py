@@ -9,6 +9,7 @@ import cache as _cache
 from auth import get_current_user
 from api import football_data as fd
 from api import api_football as apf
+from api import espn
 
 SEARCH_CACHE_TTL_HOURS = 24 * 7  # 7 days
 
@@ -34,6 +35,7 @@ def list_followed_teams(
             team_type=team.team_type,
             football_data_id=team.football_data_id,
             api_football_id=team.api_football_id,
+            espn_id=team.espn_id,
             is_followed=True,
         ))
     return result
@@ -79,6 +81,12 @@ async def follow_team(
         if fd_id:
             team.football_data_id = fd_id
 
+    # Auto-resolve ESPN ID for national teams (covers qualifiers/friendlies)
+    if not team.espn_id and data.team_type == "national":
+        espn_id = await espn.find_espn_id_by_name(data.name, db)
+        if espn_id:
+            team.espn_id = espn_id
+
     existing = db.query(models.FollowedTeam).filter(models.FollowedTeam.team_id == team.id).first()
     if not existing:
         db.add(models.FollowedTeam(team_id=team.id))
@@ -94,6 +102,7 @@ async def follow_team(
         team_type=team.team_type,
         football_data_id=team.football_data_id,
         api_football_id=team.api_football_id,
+        espn_id=team.espn_id,
         is_followed=True,
     )
 

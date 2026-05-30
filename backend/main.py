@@ -17,12 +17,21 @@ _file_handler.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(levelname
 logging.getLogger().addHandler(_file_handler)
 logging.getLogger().setLevel(logging.INFO)
 
+from sqlalchemy import text
 from database import Base, engine
 import models
 from routers import auth, teams, fixtures, standings, matches, competitions, admin
 from seed import seed_competitions
 
 Base.metadata.create_all(bind=engine)
+
+# Column migrations for existing databases
+with engine.connect() as _conn:
+    _cols = {row[1] for row in _conn.execute(text("PRAGMA table_info(teams)"))}
+    if "espn_id" not in _cols:
+        _conn.execute(text("ALTER TABLE teams ADD COLUMN espn_id INTEGER"))
+        _conn.commit()
+
 seed_competitions()
 
 
