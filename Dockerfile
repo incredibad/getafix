@@ -2,7 +2,7 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
@@ -22,5 +22,5 @@ RUN mkdir -p /data && chown appuser:appuser /data
 
 USER appuser
 
-EXPOSE 7285
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7285"]
+EXPOSE 4220
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4220"]
