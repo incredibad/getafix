@@ -1,0 +1,14 @@
+services:
+  footrack:
+    image: incredibad/footrack:latest
+    container_name: footrack
+    ports:
+      - "7285:7285"
+    volumes:
+      - footrack_data:/data
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+    restart: unless-stopped
+
+volumes:
+  footrack_data:
