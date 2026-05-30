@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1] — 2026-05-31
+
+### Fixed
+- FD fixture fetch now uses date range instead of status filter, so upcoming matches with "TIMED" status (e.g. World Cup fixtures) are included
+- FD team ID auto-resolution via competition team list scan when following a new team
+- Team search deduplication and 7-day cache
+- APF season fallback (tries current year then previous year) for league fixture lookups
+- docker-compose.yml now references external `footrack_data` volume correctly
+
 ## [0.1.0] — 2026-05-31
 
 ### Added

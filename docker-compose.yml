@@ -12,3 +12,4 @@ services:
 
 volumes:
   footrack_data:
+    external: true

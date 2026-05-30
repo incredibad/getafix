@@ -91,6 +91,8 @@ async def get_team_matches(
     db: Session,
     ttl_hours: float = 24,
 ) -> list[dict]:
+    from datetime import date, timedelta
+
     cache_key = f"fd:team_matches:{fd_team_id}"
     live_cache_key = f"fd:team_matches_live:{fd_team_id}"
 
@@ -102,7 +104,9 @@ async def get_team_matches(
         return cached.get("matches", [])
 
     try:
-        data = await _get(f"/teams/{fd_team_id}/matches", {"status": "SCHEDULED,LIVE,IN_PLAY,PAUSED,FINISHED,EXTRA_TIME,PENALTY_SHOOTOUT", "limit": 30}, db)
+        date_from = (date.today() - timedelta(days=60)).isoformat()
+        date_to = (date.today() + timedelta(days=120)).isoformat()
+        data = await _get(f"/teams/{fd_team_id}/matches", {"dateFrom": date_from, "dateTo": date_to, "limit": 50}, db)
         matches = [_parse_fixture(m) for m in data.get("matches", [])]
         _cache.set_cached(db, cache_key, {"matches": matches})
 
@@ -283,6 +287,27 @@ def _parse_lineups_fd(match: dict) -> list:
                 "substitutes": subs,
             })
     return lineups
+
+
+async def find_team_id_by_name(name: str, db: Session, team_type: str | None = None) -> int | None:
+    """Scan FD competition team lists to resolve an FD team ID by name.
+    Results are cached 7 days per competition so this is cheap after first run."""
+    from config import FD_COMPETITIONS
+
+    name_lower = name.lower()
+    if team_type == "national":
+        order = ["WC", "EC", "CL", "PL", "PD", "BL1", "SA", "FL1", "DED", "PPL", "ELC", "BSA"]
+    else:
+        order = ["PL", "PD", "BL1", "SA", "FL1", "CL", "DED", "PPL", "ELC", "BSA", "WC", "EC"]
+
+    for comp_code in order:
+        teams = await get_competition_teams(comp_code, db)
+        for team in teams:
+            t_name = team.get("name", "").lower()
+            t_short = (team.get("short_name") or "").lower()
+            if name_lower in t_name or t_name in name_lower or (t_short and name_lower in t_short):
+                return team["football_data_id"]
+    return None
 
 
 async def search_teams(query: str, db: Session) -> list[dict]:

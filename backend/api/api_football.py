@@ -105,29 +105,44 @@ async def get_team_fixtures(
     season: int = CURRENT_YEAR,
     ttl_hours: float = 24,
 ) -> list[dict]:
-    cache_key = f"apf:team_fixtures:{apf_team_id}:{season}"
-    live_cache_key = f"apf:team_fixtures_live:{apf_team_id}:{season}"
+    # Try primary season; if empty, fall back to previous year.
+    # API-Football labels the 2025-26 season as "2025", so in early/mid year
+    # the "current" season is current_year - 1 for most European leagues.
+    for try_season in (season, season - 1):
+        cache_key = f"apf:team_fixtures:{apf_team_id}:{try_season}"
+        live_cache_key = f"apf:team_fixtures_live:{apf_team_id}:{try_season}"
 
-    cached = _cache.get_cached(db, cache_key, ttl_hours)
-    if cached:
-        live_cached = _cache.get_cached(db, live_cache_key, 1 / 60)
-        if live_cached:
-            return live_cached.get("fixtures", cached.get("fixtures", []))
-        return cached.get("fixtures", [])
+        cached = _cache.get_cached(db, cache_key, ttl_hours)
+        if cached is not None:
+            fixtures = cached.get("fixtures", [])
+            if fixtures:
+                live_cached = _cache.get_cached(db, live_cache_key, 1 / 60)
+                if live_cached:
+                    return live_cached.get("fixtures", fixtures)
+                return fixtures
+            # cached but empty — only skip to fallback if this was the primary season
+            if try_season == season:
+                continue
+            return []
 
-    try:
-        data = await _get("/fixtures", {"team": apf_team_id, "season": season}, db)
-        fixtures = [_parse_fixture(f) for f in data.get("response", [])]
-        _cache.set_cached(db, cache_key, {"fixtures": fixtures})
+        try:
+            data = await _get("/fixtures", {"team": apf_team_id, "season": try_season}, db)
+            fixtures = [_parse_fixture(f) for f in data.get("response", [])]
+            _cache.set_cached(db, cache_key, {"fixtures": fixtures})
 
-        live = [f for f in fixtures if f["status"] == "LIVE"]
-        if live:
-            _cache.set_cached(db, live_cache_key, {"fixtures": fixtures})
+            if fixtures:
+                live = [f for f in fixtures if f["status"] == "LIVE"]
+                if live:
+                    _cache.set_cached(db, live_cache_key, {"fixtures": fixtures})
+                return fixtures
+            # Empty result — try previous year (loop continues)
+        except Exception as e:
+            logger.error(f"API-Football team fixtures error (team {apf_team_id}, season {try_season}): {e}")
+            if try_season == season:
+                continue
+            return []
 
-        return fixtures
-    except Exception as e:
-        logger.error(f"API-Football team fixtures error (team {apf_team_id}): {e}")
-        return []
+    return []
 
 
 async def get_competition_standings(
@@ -136,23 +151,26 @@ async def get_competition_standings(
     season: int = CURRENT_YEAR,
     ttl_hours: float = 24,
 ) -> dict | None:
-    cache_key = f"apf:standings:{league_id}:{season}"
-    cached = _cache.get_cached(db, cache_key, ttl_hours)
-    if cached:
-        return cached
+    for try_season in (season, season - 1):
+        cache_key = f"apf:standings:{league_id}:{try_season}"
+        cached = _cache.get_cached(db, cache_key, ttl_hours)
+        if cached is not None:
+            return cached if cached else None
 
-    try:
-        data = await _get("/standings", {"league": league_id, "season": season}, db)
-        response = data.get("response", [])
-        if not response:
-            return None
-        result = _parse_standings(response[0])
-        result["cached_at"] = _cache.cached_at_str(db, cache_key)
-        _cache.set_cached(db, cache_key, result)
-        return result
-    except Exception as e:
-        logger.error(f"API-Football standings error (league {league_id}): {e}")
-        return None
+        try:
+            data = await _get("/standings", {"league": league_id, "season": try_season}, db)
+            response = data.get("response", [])
+            if response:
+                result = _parse_standings(response[0])
+                result["cached_at"] = _cache.cached_at_str(db, cache_key)
+                _cache.set_cached(db, cache_key, result)
+                return result
+            # No standings for this season — try previous year
+            _cache.set_cached(db, cache_key, {})
+        except Exception as e:
+            logger.error(f"API-Football standings error (league {league_id}, season {try_season}): {e}")
+
+    return None
 
 
 def _parse_standings(league_resp: dict) -> dict:
