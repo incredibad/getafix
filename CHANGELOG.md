@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.3] — 2026-05-31
+
+### Changed
+- Score obfuscation: replaced blur effect with a flat lock icon (Lock from lucide-react); click the icon to reveal the score, Eye/EyeOff button still reveals/hides all at once
+
 ## [0.4.2] — 2026-05-31
 
 ### Added
