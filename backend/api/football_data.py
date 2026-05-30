@@ -152,6 +152,8 @@ def _parse_standings(data: dict, source: str) -> dict:
             "emblem_url": comp.get("emblem"),
         },
         "season": season.get("startDate", "")[:4] if season.get("startDate") else None,
+        "start_date": season.get("startDate"),
+        "end_date": season.get("endDate"),
         "source": source,
         "tables": [],
     }

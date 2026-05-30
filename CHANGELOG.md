@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.6] — 2026-05-31
+
+### Added
+- Standings group/round headings now show a status badge: pulsing green "Active" if current, "Ended Mon YYYY" (slate) if finished, "Starts Mon YYYY" (blue) if upcoming
+- Applies to all providers: ESPN rounds get per-round dates; football-data.org groups inherit the season start/end dates
+
 ## [0.4.5] — 2026-05-31
 
 ### Fixed

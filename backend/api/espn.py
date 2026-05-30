@@ -205,10 +205,10 @@ def _parse_iso(s: str | None) -> datetime | None:
         return None
 
 
-def _find_recent_seasontypes(data: dict) -> list[tuple[int, str]]:
+def _find_recent_seasontypes(data: dict) -> list[tuple[int, str, str, str]]:
     """
-    Return (seasontype_id, round_name) for every round in the most recent
-    season that has standings data and started within the last year.
+    Return (seasontype_id, round_name, start_iso, end_iso) for every round in
+    the most recent season that has standings data and started within the last year.
     Returns an empty list for simple league tables (no round types).
     """
     now = datetime.now(timezone.utc)
@@ -236,7 +236,7 @@ def _find_recent_seasontypes(data: dict) -> list[tuple[int, str]]:
         start = _parse_iso(t.get("startDate"))
         end = _parse_iso(t.get("endDate"))
         if start and end and start <= now and end >= one_year_ago:
-            result.append((int(t["id"]), t.get("name", f"Round {t['id']}")))
+            result.append((int(t["id"]), t.get("name", f"Round {t['id']}"), t["startDate"], t["endDate"]))
 
     return result
 
@@ -310,7 +310,7 @@ async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 2
         if seasontypes:
             all_tables = []
             multi = len(seasontypes) > 1
-            for st_id, st_name in seasontypes:
+            for st_id, st_name, st_start, st_end in seasontypes:
                 typed = await _get_v2(f"/{slug}/standings", {"seasontype": st_id})
                 if not typed.get("children"):
                     continue
@@ -319,6 +319,8 @@ async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 2
                     if multi:
                         group = table.get("group") or ""
                         table["group"] = f"{st_name}: {group}" if group else st_name
+                    table["start_date"] = st_start
+                    table["end_date"] = st_end
                     all_tables.append(table)
             if all_tables:
                 result = _parse_standings(data)
