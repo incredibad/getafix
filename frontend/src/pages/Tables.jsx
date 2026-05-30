@@ -3,13 +3,35 @@ import { RefreshCw, Trophy, ChevronDown } from 'lucide-react'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 
-function StandingsTable({ table, group, stage }) {
+function RoundStatus({ startDate, endDate }) {
+  if (!startDate && !endDate) return null
+  const now = new Date()
+  const start = startDate ? new Date(startDate) : null
+  const end = endDate ? new Date(endDate) : null
+  const fmt = (d) => d.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })
+
+  if (end && end < now) {
+    return <span className="text-xs text-slate-600 font-normal normal-case ml-2">Ended {fmt(end)}</span>
+  }
+  if (start && start > now) {
+    return <span className="text-xs text-blue-500 font-normal normal-case ml-2">Starts {fmt(start)}</span>
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-green-500 font-normal normal-case ml-2">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+      Active
+    </span>
+  )
+}
+
+function StandingsTable({ table, group, stage, startDate, endDate }) {
   const label = group || stage || null
   return (
     <div className="mb-4">
       {label && (
-        <p className="text-xs text-slate-500 uppercase tracking-wide mb-2 px-1">
+        <p className="text-xs text-slate-500 uppercase tracking-wide mb-2 px-1 flex items-center">
           {label.replace(/_/g, ' ')}
+          <RoundStatus startDate={startDate} endDate={endDate} />
         </p>
       )}
       <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
@@ -85,7 +107,7 @@ function AccordionItem({ comp, open, onToggle }) {
       {open && (
         <div className="px-4 pt-3 pb-4 border-t" style={{ borderColor: 'var(--border)' }}>
           {comp.groups.map((g, i) => (
-            <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} />
+            <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} />
           ))}
         </div>
       )}
@@ -120,8 +142,8 @@ export default function Tables() {
       const key = s.competition.name
       if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, groups: [] }
       const groups = s.tables?.length > 0
-        ? s.tables
-        : [{ table: s.table || [], group: s.group, stage: s.stage }]
+        ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
+        : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
       map[key].groups.push(...groups.filter(g => g.table?.length > 0))
     }
     return Object.values(map)

@@ -119,6 +119,8 @@ def _expand_groups(standings: dict) -> list[dict]:
             "stage": t.get("stage"),
             "group": t.get("group"),
             "table": t["table"],
-            "tables": [],  # strip nested tables to match flat schema
+            "start_date": t.get("start_date"),
+            "end_date": t.get("end_date"),
+            "tables": [],
         })
     return results if results else []
