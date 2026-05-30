@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Users, Circle } from 'lucide-react'
+import { RefreshCw, Users, Circle, Eye, EyeOff } from 'lucide-react'
 import api from '../api/client'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import toast from 'react-hot-toast'
@@ -21,25 +21,16 @@ function StatusBadge({ fixture }) {
   return null
 }
 
-function Score({ fixture }) {
-  const { status, score_home, score_away } = fixture
-  if (status === 'SCHEDULED') return null
-  if (score_home == null && score_away == null) return null
-  return (
-    <div className="text-lg font-bold text-white tabular-nums">
-      {score_home ?? 0} – {score_away ?? 0}
-    </div>
-  )
-}
-
 function TeamCrest({ url, name, size = 20 }) {
   if (!url) return <span className="text-slate-600 text-xs">{name?.[0] ?? '?'}</span>
   return <img src={url} alt={name} style={{ width: size, height: size }} className="object-contain" />
 }
 
-function FixtureCard({ fixture, onClick }) {
-  const { home_team, away_team, competition, utc_date, status } = fixture
+function FixtureCard({ fixture, revealed, onRevealScore, onClick }) {
+  const { home_team, away_team, competition, utc_date, status, score_home, score_away } = fixture
   const isLive = status === 'LIVE'
+  const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
+
   return (
     <button
       onClick={onClick}
@@ -60,6 +51,7 @@ function FixtureCard({ fixture, onClick }) {
           )}
         </div>
       </div>
+
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
           <span className="text-sm font-medium text-slate-200 truncate text-right">
@@ -67,11 +59,21 @@ function FixtureCard({ fixture, onClick }) {
           </span>
           <TeamCrest url={home_team.crest_url} name={home_team.name} />
         </div>
+
         <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-16">
-          {status !== 'SCHEDULED' ? <Score fixture={fixture} /> : (
+          {hasScore ? (
+            <div
+              className={`text-lg font-bold text-white tabular-nums transition-all duration-200 ${!revealed ? 'blur-sm cursor-pointer select-none' : ''}`}
+              onClick={!revealed ? e => { e.stopPropagation(); onRevealScore() } : undefined}
+              title={!revealed ? 'Click to reveal score' : undefined}
+            >
+              {score_home ?? 0} – {score_away ?? 0}
+            </div>
+          ) : (
             <span className="text-slate-500 text-sm font-medium">vs</span>
           )}
         </div>
+
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <TeamCrest url={away_team.crest_url} name={away_team.name} />
           <span className="text-sm font-medium text-slate-200 truncate">
@@ -115,7 +117,9 @@ export default function Fixtures() {
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeFilter, setActiveFilter] = useState(null) // {type:'team'|'comp', value:string}
+  const [activeFilter, setActiveFilter] = useState(null)
+  const [revealAll, setRevealAll] = useState(false)
+  const [revealedIds, setRevealedIds] = useState(new Set())
   const navigate = useNavigate()
 
   const load = useCallback(async (showToast = false) => {
@@ -139,7 +143,18 @@ export default function Fixtures() {
 
   const handleRefresh = async () => { setRefreshing(true); await load(true) }
 
-  // Unique competitions derived from fixture data, sorted alphabetically
+  const toggleRevealAll = () => {
+    if (revealAll) {
+      setRevealAll(false)
+      setRevealedIds(new Set())
+    } else {
+      setRevealAll(true)
+    }
+  }
+
+  const revealOne = (id) => setRevealedIds(prev => new Set([...prev, id]))
+  const isRevealed = (id) => revealAll || revealedIds.has(id)
+
   const competitions = useMemo(() => {
     const seen = new Set()
     return fixtures
@@ -148,7 +163,6 @@ export default function Fixtures() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [fixtures])
 
-  // Apply active filter
   const visibleFixtures = useMemo(() => {
     if (!activeFilter) return fixtures
     if (activeFilter.type === 'team') {
@@ -168,12 +182,9 @@ export default function Fixtures() {
 
   const grouped = groupByDate(visibleFixtures)
   const dateKeys = Object.keys(grouped)
-  const showFilters = fixtures.length > 0
 
   const setFilter = (type, value) => {
-    setActiveFilter(prev =>
-      prev?.type === type && prev?.value === value ? null : { type, value }
-    )
+    setActiveFilter(prev => prev?.type === type && prev?.value === value ? null : { type, value })
   }
 
   return (
@@ -181,14 +192,25 @@ export default function Fixtures() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-white">Fixtures</h1>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {fixtures.some(f => f.status !== 'SCHEDULED') && (
+              <button
+                onClick={toggleRevealAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                {revealAll ? <EyeOff size={15} /> : <Eye size={15} />}
+                {revealAll ? 'Hide' : 'Reveal'}
+              </button>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -212,67 +234,55 @@ export default function Fixtures() {
         ) : (
           <>
             {/* Filter pills */}
-            {showFilters && (
-              <div className="mb-4 space-y-2">
-                {teams.length > 0 && (
-                  <div
-                    className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6"
-                    style={{ scrollbarWidth: 'none' }}
-                  >
-                    {teams.map(team => (
-                      <FilterPill
-                        key={team.id}
-                        label={team.short_name || team.name}
-                        icon={team.crest_url
-                          ? <img src={team.crest_url} alt="" className="w-3.5 h-3.5 object-contain" />
-                          : null
-                        }
-                        active={activeFilter?.type === 'team' && activeFilter.value === team.name}
-                        onClick={() => setFilter('team', team.name)}
-                      />
-                    ))}
-                  </div>
-                )}
-                {competitions.length > 0 && (
-                  <div
-                    className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6"
-                    style={{ scrollbarWidth: 'none' }}
-                  >
-                    {competitions.map(comp => (
-                      <FilterPill
-                        key={comp.name}
-                        label={comp.name}
-                        icon={comp.emblem_url
-                          ? <img src={comp.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" />
-                          : null
-                        }
-                        active={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
-                        onClick={() => setFilter('comp', comp.name)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="mb-4 space-y-2">
+              {teams.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
+                  {teams.map(team => (
+                    <FilterPill
+                      key={team.id}
+                      label={team.short_name || team.name}
+                      icon={team.crest_url ? <img src={team.crest_url} alt="" className="w-3.5 h-3.5 object-contain" /> : null}
+                      active={activeFilter?.type === 'team' && activeFilter.value === team.name}
+                      onClick={() => setFilter('team', team.name)}
+                    />
+                  ))}
+                </div>
+              )}
+              {competitions.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
+                  {competitions.map(comp => (
+                    <FilterPill
+                      key={comp.name}
+                      label={comp.name}
+                      icon={comp.emblem_url ? <img src={comp.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" /> : null}
+                      active={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
+                      onClick={() => setFilter('comp', comp.name)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
 
-            {/* Fixture list */}
             {dateKeys.length === 0 ? (
-              <div className="py-12 text-center text-slate-500 text-sm">
-                No fixtures match this filter.
-              </div>
+              <div className="py-12 text-center text-slate-500 text-sm">No fixtures match this filter.</div>
             ) : (
               <div className="space-y-1">
                 {dateKeys.map(date => (
                   <div key={date}>
                     <DateGroupHeader label={date} />
                     <div className="space-y-2">
-                      {grouped[date].map(f => (
-                        <FixtureCard
-                          key={`${f.source}:${f.external_id}`}
-                          fixture={f}
-                          onClick={() => navigate(`/fixtures/${f.source}/${f.external_id}`)}
-                        />
-                      ))}
+                      {grouped[date].map(f => {
+                        const fid = `${f.source}:${f.external_id}`
+                        return (
+                          <FixtureCard
+                            key={fid}
+                            fixture={f}
+                            revealed={isRevealed(fid)}
+                            onRevealScore={() => revealOne(fid)}
+                            onClick={() => navigate(`/fixtures/${f.source}/${f.external_id}`)}
+                          />
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
