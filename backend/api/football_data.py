@@ -288,10 +288,15 @@ def _parse_lineups_fd(match: dict) -> list:
 async def search_teams(query: str, db: Session) -> list[dict]:
     try:
         data = await _get("/teams", {"name": query, "limit": 10}, db)
+        q = query.lower()
         results = []
         for team in data.get("teams", []):
+            name = team.get("name", "")
+            short = team.get("shortName") or ""
+            if q not in name.lower() and q not in short.lower():
+                continue
             results.append({
-                "name": team.get("name", ""),
+                "name": name,
                 "short_name": team.get("shortName"),
                 "country": team.get("area", {}).get("name"),
                 "crest_url": team.get("crest"),

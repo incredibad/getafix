@@ -5,9 +5,12 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
+import cache as _cache
 from auth import get_current_user
 from api import football_data as fd
 from api import api_football as apf
+
+SEARCH_CACHE_TTL_HOURS = 24 * 7  # 7 days
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -109,13 +112,29 @@ async def search_teams(
     _: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    fd_results, apf_results = await _do_search(q, db)
+    cache_key = f"team_search:{q.lower().strip()}"
+    raw = _cache.get_cached(db, cache_key, SEARCH_CACHE_TTL_HOURS)
+    if raw is None:
+        fd_results, apf_results = await _do_search(q, db)
+        raw = fd_results + apf_results
+        # Deduplicate before caching
+        seen_names: set[str] = set()
+        deduped_raw = []
+        for r in raw:
+            key = r["name"].lower().strip()
+            if key not in seen_names:
+                seen_names.add(key)
+                deduped_raw.append(r)
+        _cache.set_cached(db, cache_key, {"results": deduped_raw})
+        raw = deduped_raw
+    else:
+        raw = raw.get("results", [])
 
     followed_fd_ids = {t.team.football_data_id for t in db.query(models.FollowedTeam).all() if t.team.football_data_id}
     followed_apf_ids = {t.team.api_football_id for t in db.query(models.FollowedTeam).all() if t.team.api_football_id}
 
     def enrich(r: dict) -> schemas.TeamSearchResult:
-        already = (
+        already = bool(
             (r.get("football_data_id") and r["football_data_id"] in followed_fd_ids)
             or (r.get("api_football_id") and r["api_football_id"] in followed_apf_ids)
         )
@@ -130,16 +149,7 @@ async def search_teams(
                 internal_id = t.id
         return schemas.TeamSearchResult(**r, already_followed=already, internal_id=internal_id)
 
-    combined = [enrich(r) for r in fd_results + apf_results]
-    # Deduplicate by name (prefer football_data entries)
-    seen = set()
-    deduped = []
-    for item in combined:
-        key = item.name.lower().strip()
-        if key not in seen:
-            seen.add(key)
-            deduped.append(item)
-    return deduped
+    return [enrich(r) for r in raw]
 
 
 async def _do_search(q: str, db: Session):

@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("/{match_id}")
 async def get_match_detail(
     match_id: int,
-    source: str = Query(..., regex="^(football_data|api_football)$"),
+    source: str = Query(..., pattern="^(football_data|api_football)$"),
     _: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

@@ -343,11 +343,15 @@ def _int(val) -> int | None:
 async def search_teams(query: str, db: Session) -> list[dict]:
     try:
         data = await _get("/teams", {"search": query}, db)
+        q = query.lower()
         results = []
         for item in data.get("response", [])[:15]:
             team = item.get("team", {})
+            name = team.get("name", "")
+            if q not in name.lower():
+                continue
             results.append({
-                "name": team.get("name", ""),
+                "name": name,
                 "short_name": team.get("code"),
                 "country": team.get("country"),
                 "crest_url": team.get("logo"),
