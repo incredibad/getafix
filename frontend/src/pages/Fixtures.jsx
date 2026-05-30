@@ -47,7 +47,7 @@ function FixtureCard({ fixture, revealed, onRevealScore, onClick }) {
           <span className="text-xs text-slate-500 truncate">{competition.name}</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {source && <span className="text-xs text-slate-600 font-mono">{SOURCE_LABELS[source] ?? source}</span>}
+          {source && <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{SOURCE_LABELS[source] ?? source}</span>}
           <StatusBadge fixture={fixture} />
           {status === 'SCHEDULED' && (
             <span className="text-xs text-slate-400">{formatMatchTime(utc_date)}</span>

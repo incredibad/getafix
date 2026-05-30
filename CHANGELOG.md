@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.10] — 2026-05-31
+
+### Changed
+- Source labels (FD/APF/ESPN) are now styled as small bordered badges rather than plain text
+
 ## [0.4.9] — 2026-05-31
 
 ### Added

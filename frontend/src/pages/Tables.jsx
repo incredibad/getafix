@@ -99,7 +99,7 @@ function AccordionItem({ comp, open, onToggle }) {
             <p className="text-sm font-semibold text-white truncate">{comp.name}</p>
             <div className="flex items-center gap-2">
               {comp.season && <p className="text-xs text-slate-500">Season {comp.season}</p>}
-              {comp.source && <span className="text-xs text-slate-600 font-mono uppercase">{SOURCE_LABELS[comp.source] ?? comp.source}</span>}
+              {comp.source && <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{SOURCE_LABELS[comp.source] ?? comp.source}</span>}
             </div>
           </div>
         </div>
