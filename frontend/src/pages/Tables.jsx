@@ -3,6 +3,8 @@ import { RefreshCw, Trophy, ChevronDown } from 'lucide-react'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 
+const SOURCE_LABELS = { football_data: 'FD', api_football: 'APF', espn: 'ESPN', fd: 'FD', apf: 'APF' }
+
 function RoundStatus({ startDate, endDate }) {
   if (!startDate && !endDate) return null
   const now = new Date()
@@ -95,7 +97,10 @@ function AccordionItem({ comp, open, onToggle }) {
           )}
           <div className="text-left min-w-0">
             <p className="text-sm font-semibold text-white truncate">{comp.name}</p>
-            {comp.season && <p className="text-xs text-slate-500">Season {comp.season}</p>}
+            <div className="flex items-center gap-2">
+              {comp.season && <p className="text-xs text-slate-500">Season {comp.season}</p>}
+              {comp.source && <span className="text-xs text-slate-600 font-mono uppercase">{SOURCE_LABELS[comp.source] ?? comp.source}</span>}
+            </div>
           </div>
         </div>
         <ChevronDown
@@ -140,7 +145,7 @@ export default function Tables() {
     const map = {}
     for (const s of standings) {
       const key = s.competition.name
-      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, groups: [] }
+      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, source: s.source, groups: [] }
       const groups = s.tables?.length > 0
         ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
         : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
