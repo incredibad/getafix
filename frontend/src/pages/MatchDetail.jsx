@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Circle, Shirt, BarChart2, Zap, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Circle, Shirt, BarChart2, Zap, Eye, EyeOff, Lock } from 'lucide-react'
 import api from '../api/client'
 import { formatMatchDateTime } from '../utils/date'
 import toast from 'react-hot-toast'
@@ -9,11 +9,11 @@ function Spoiler({ revealed, onReveal, children }) {
   if (revealed) return <>{children}</>
   return (
     <div
-      className="blur-sm select-none cursor-pointer transition-all duration-200"
+      className="flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-300 transition-colors py-1"
       onClick={onReveal}
       title="Click to reveal"
     >
-      {children}
+      <Lock size={18} />
     </div>
   )
 }

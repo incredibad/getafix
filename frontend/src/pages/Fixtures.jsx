@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Users, Circle, Eye, EyeOff } from 'lucide-react'
+import { RefreshCw, Users, Circle, Eye, EyeOff, Lock } from 'lucide-react'
 import api from '../api/client'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import toast from 'react-hot-toast'
@@ -62,13 +62,19 @@ function FixtureCard({ fixture, revealed, onRevealScore, onClick }) {
 
         <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-16">
           {hasScore ? (
-            <div
-              className={`text-lg font-bold text-white tabular-nums transition-all duration-200 ${!revealed ? 'blur-sm cursor-pointer select-none' : ''}`}
-              onClick={!revealed ? e => { e.stopPropagation(); onRevealScore() } : undefined}
-              title={!revealed ? 'Click to reveal score' : undefined}
-            >
-              {score_home ?? 0} – {score_away ?? 0}
-            </div>
+            !revealed ? (
+              <div
+                className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors flex items-center justify-center"
+                onClick={e => { e.stopPropagation(); onRevealScore() }}
+                title="Click to reveal score"
+              >
+                <Lock size={16} />
+              </div>
+            ) : (
+              <div className="text-lg font-bold text-white tabular-nums">
+                {score_home ?? 0} – {score_away ?? 0}
+              </div>
+            )
           ) : (
             <span className="text-slate-500 text-sm font-medium">vs</span>
           )}
