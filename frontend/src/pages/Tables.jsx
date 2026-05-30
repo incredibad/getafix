@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { RefreshCw, Trophy } from 'lucide-react'
+import { RefreshCw, Trophy, ChevronDown } from 'lucide-react'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 
@@ -59,11 +59,45 @@ function StandingsTable({ table, group, stage }) {
   )
 }
 
+function AccordionItem({ comp, open, onToggle }) {
+  return (
+    <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-white/5 transition-colors"
+        style={{ background: 'var(--surface)' }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {comp.emblem_url && (
+            <img src={comp.emblem_url} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+          )}
+          <div className="text-left min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{comp.name}</p>
+            {comp.season && <p className="text-xs text-slate-500">Season {comp.season}</p>}
+          </div>
+        </div>
+        <ChevronDown
+          size={16}
+          className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open && (
+        <div className="px-4 pt-3 pb-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          {comp.groups.map((g, i) => (
+            <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Tables() {
   const [standings, setStandings] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState(0)
+  const [openName, setOpenName] = useState(null)
 
   const load = async (showToast = false) => {
     try {
@@ -80,7 +114,6 @@ export default function Tables() {
 
   useEffect(() => { load() }, [])
 
-  // Group standings items by competition name, normalising FD/APF (tables[]) and ESPN (table) formats
   const competitions = useMemo(() => {
     const map = {}
     for (const s of standings) {
@@ -94,16 +127,21 @@ export default function Tables() {
     return Object.values(map)
   }, [standings])
 
-  // Clamp active tab if competitions list shrinks on refresh
-  const tabIndex = Math.min(activeTab, Math.max(0, competitions.length - 1))
-  const current = competitions[tabIndex]
+  // Auto-open the first competition once loaded
+  useEffect(() => {
+    if (competitions.length > 0 && openName === null) {
+      setOpenName(competitions[0].name)
+    }
+  }, [competitions])
 
   const handleRefresh = () => { setRefreshing(true); load(true) }
 
+  const toggle = (name) => setOpenName(prev => prev === name ? null : name)
+
   return (
-    <div className="pt-16 lg:pt-6">
+    <div className="p-4 sm:p-6 pt-16 lg:pt-6">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold text-white">Tables</h1>
           <button
             onClick={handleRefresh}
@@ -120,46 +158,22 @@ export default function Tables() {
             <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : competitions.length === 0 ? (
-          <div className="flex flex-col items-center py-16 gap-3 text-center px-4">
+          <div className="flex flex-col items-center py-16 gap-3 text-center">
             <Trophy size={40} className="text-slate-600" />
             <p className="text-slate-300 font-medium">No standings available</p>
             <p className="text-slate-500 text-sm">Follow teams and load their fixtures to see tables.</p>
           </div>
         ) : (
-          <>
-            {/* Tab bar */}
-            <div
-              className="flex gap-1 overflow-x-auto border-b px-4 sm:px-6 mb-5"
-              style={{ borderColor: 'var(--border)', scrollbarWidth: 'none' }}
-            >
-              {competitions.map((comp, i) => (
-                <button
-                  key={comp.name}
-                  onClick={() => setActiveTab(i)}
-                  className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 -mb-px ${
-                    i === tabIndex
-                      ? 'border-green-500 text-white'
-                      : 'border-transparent text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  {comp.emblem_url && (
-                    <img src={comp.emblem_url} alt="" className="w-4 h-4 object-contain" />
-                  )}
-                  {comp.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Active competition tables */}
-            <div className="px-4 sm:px-6 pb-6">
-              {current.season && (
-                <p className="text-xs text-slate-500 mb-4">Season {current.season}</p>
-              )}
-              {current.groups.map((g, i) => (
-                <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} />
-              ))}
-            </div>
-          </>
+          <div className="space-y-2">
+            {competitions.map(comp => (
+              <AccordionItem
+                key={comp.name}
+                comp={comp}
+                open={openName === comp.name}
+                onToggle={() => toggle(comp.name)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
