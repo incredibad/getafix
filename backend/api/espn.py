@@ -5,6 +5,7 @@ No auth or API key required. Used as fallback for international fixtures
 or API-Football on the free tier.
 """
 import logging
+from datetime import datetime, timezone, timedelta
 import httpx
 from sqlalchemy.orm import Session
 
@@ -195,9 +196,60 @@ async def find_espn_id_by_name(name: str, db: Session) -> int | None:
     return None
 
 
-def _parse_standings(data: dict) -> dict:
-    import datetime
+def _parse_iso(s: str | None) -> datetime | None:
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
+
+def _find_best_seasontype(data: dict) -> int | None:
+    """
+    Return the seasontype ID for the most recently active round that has
+    standings, limiting to seasons that ended within the last year.
+    Returns None when there are no round types (simple league table).
+    """
+    now = datetime.now(timezone.utc)
+    one_year_ago = now - timedelta(days=365)
+
+    seasons = data.get("seasons", [])
+    if not seasons:
+        return None
+
+    # ESPN lists seasons newest-first; pick the first whose window ends within the last year or later
+    best_season = None
+    for s in seasons:
+        end = _parse_iso(s.get("endDate"))
+        if end and end >= one_year_ago:
+            best_season = s
+            break
+
+    if not best_season:
+        return None
+
+    types = best_season.get("types", [])
+    if not types:
+        return None
+
+    # Among types with standings, pick the one with the most recent start date
+    # that has already started (start <= now).
+    best_id = None
+    best_start = None
+    for t in types:
+        if not t.get("hasStandings"):
+            continue
+        start = _parse_iso(t.get("startDate"))
+        if start and start <= now:
+            if best_start is None or start > best_start:
+                best_id = int(t["id"])
+                best_start = start
+
+    return best_id
+
+
+def _parse_standings(data: dict) -> dict:
     def _int(v) -> int:
         try:
             return int(float(v)) if v is not None else 0
@@ -245,7 +297,7 @@ def _parse_standings(data: dict) -> dict:
         "season": season_year,
         "source": "espn",
         "tables": tables,
-        "cached_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "cached_at": datetime.utcnow().isoformat() + "Z",
     }
 
 
@@ -257,6 +309,14 @@ async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 2
 
     try:
         data = await _get_v2(f"/{slug}/standings")
+
+        # Auto-select the most recently active round (seasontype) for multi-round competitions
+        seasontype = _find_best_seasontype(data)
+        if seasontype is not None:
+            typed = await _get_v2(f"/{slug}/standings", {"seasontype": seasontype})
+            if typed.get("children"):
+                data = typed
+
         if not data.get("children"):
             _cache.set_cached(db, cache_key, {})
             return None
