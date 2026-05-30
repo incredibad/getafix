@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { RefreshCw, Trophy } from 'lucide-react'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 
-function StandingsTable({ table, stage, group }) {
+function StandingsTable({ table, group, stage }) {
   const label = group || stage || null
   return (
     <div className="mb-4">
       {label && (
-        <p className="text-xs text-slate-500 uppercase tracking-wide mb-2 px-1">{label.replace(/_/g, ' ')}</p>
+        <p className="text-xs text-slate-500 uppercase tracking-wide mb-2 px-1">
+          {label.replace(/_/g, ' ')}
+        </p>
       )}
       <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
@@ -57,30 +59,11 @@ function StandingsTable({ table, stage, group }) {
   )
 }
 
-function CompetitionStandings({ standings }) {
-  const { competition, tables, season, cached_at } = standings
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-3 mb-4">
-        {competition.emblem_url && (
-          <img src={competition.emblem_url} alt="" className="w-7 h-7 object-contain" />
-        )}
-        <div>
-          <h2 className="text-base font-bold text-white">{competition.name}</h2>
-          {season && <p className="text-xs text-slate-500">Season {season}</p>}
-        </div>
-      </div>
-      {tables.map((t, i) => (
-        <StandingsTable key={i} table={t.table} stage={t.stage} group={t.group} />
-      ))}
-    </div>
-  )
-}
-
 export default function Tables() {
   const [standings, setStandings] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
 
   const load = async (showToast = false) => {
     try {
@@ -97,15 +80,36 @@ export default function Tables() {
 
   useEffect(() => { load() }, [])
 
+  // Group standings items by competition name, normalising FD/APF (tables[]) and ESPN (table) formats
+  const competitions = useMemo(() => {
+    const map = {}
+    for (const s of standings) {
+      const key = s.competition.name
+      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, groups: [] }
+      const groups = s.tables?.length > 0
+        ? s.tables
+        : [{ table: s.table || [], group: s.group, stage: s.stage }]
+      map[key].groups.push(...groups.filter(g => g.table?.length > 0))
+    }
+    return Object.values(map)
+  }, [standings])
+
+  // Clamp active tab if competitions list shrinks on refresh
+  const tabIndex = Math.min(activeTab, Math.max(0, competitions.length - 1))
+  const current = competitions[tabIndex]
+
   const handleRefresh = () => { setRefreshing(true); load(true) }
 
   return (
-    <div className="p-4 sm:p-6 pt-16 lg:pt-6">
+    <div className="pt-16 lg:pt-6">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
           <h1 className="text-xl font-bold text-white">Tables</h1>
-          <button onClick={handleRefresh} disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
+          >
             <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             Refresh
           </button>
@@ -115,14 +119,47 @@ export default function Tables() {
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : standings.length === 0 ? (
-          <div className="flex flex-col items-center py-16 gap-3 text-center">
+        ) : competitions.length === 0 ? (
+          <div className="flex flex-col items-center py-16 gap-3 text-center px-4">
             <Trophy size={40} className="text-slate-600" />
             <p className="text-slate-300 font-medium">No standings available</p>
-            <p className="text-slate-500 text-sm">Follow teams and link them to competitions to see tables.</p>
+            <p className="text-slate-500 text-sm">Follow teams and load their fixtures to see tables.</p>
           </div>
         ) : (
-          standings.map((s, i) => <CompetitionStandings key={i} standings={s} />)
+          <>
+            {/* Tab bar */}
+            <div
+              className="flex gap-1 overflow-x-auto border-b px-4 sm:px-6 mb-5"
+              style={{ borderColor: 'var(--border)', scrollbarWidth: 'none' }}
+            >
+              {competitions.map((comp, i) => (
+                <button
+                  key={comp.name}
+                  onClick={() => setActiveTab(i)}
+                  className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex-shrink-0 -mb-px ${
+                    i === tabIndex
+                      ? 'border-green-500 text-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {comp.emblem_url && (
+                    <img src={comp.emblem_url} alt="" className="w-4 h-4 object-contain" />
+                  )}
+                  {comp.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Active competition tables */}
+            <div className="px-4 sm:px-6 pb-6">
+              {current.season && (
+                <p className="text-xs text-slate-500 mb-4">Season {current.season}</p>
+              )}
+              {current.groups.map((g, i) => (
+                <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
