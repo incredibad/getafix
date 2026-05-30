@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0] — 2026-05-31
+
+### Changed
+- Tables page: competitions now displayed in tabs (one tab per competition, scrollable on mobile); groups within each competition are stacked below the active tab
+- Fixtures page: two rows of filter pills — one for followed teams, one for competitions seen in fixture data; pills toggle on/off; tapping the same pill a second time clears the filter
+
 ## [0.3.0] — 2026-05-31
 
 ### Added
