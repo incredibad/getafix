@@ -3,7 +3,7 @@ services:
     image: incredibad/footrack:latest
     container_name: footrack
     ports:
-      - "7285:7285"
+      - "4220:4220"
     volumes:
       - footrack_data:/data
     environment:

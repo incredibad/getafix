@@ -32,7 +32,7 @@ This is non-negotiable — no commit should go out without a changelog entry.
 
 ## Architecture notes
 
-- Port: **7285**
+- Port: **4220**
 - Data volume: `footrack_data` mounted at `/data`
 - Database: SQLite at `/data/footrack.db`
 - Log: rotating file at `/data/app.log` (2 MB, 2 backups)
