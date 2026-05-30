@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, Users, Circle, Eye, EyeOff, Lock } from 'lucide-react'
+
+const SOURCE_LABELS = { fd: 'FD', apf: 'APF', espn: 'ESPN', football_data: 'FD', api_football: 'APF' }
 import api from '../api/client'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import toast from 'react-hot-toast'
@@ -27,7 +29,7 @@ function TeamCrest({ url, name, size = 20 }) {
 }
 
 function FixtureCard({ fixture, revealed, onRevealScore, onClick }) {
-  const { home_team, away_team, competition, utc_date, status, score_home, score_away } = fixture
+  const { home_team, away_team, competition, utc_date, status, score_home, score_away, source } = fixture
   const isLive = status === 'LIVE'
   const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
 
@@ -45,6 +47,7 @@ function FixtureCard({ fixture, revealed, onRevealScore, onClick }) {
           <span className="text-xs text-slate-500 truncate">{competition.name}</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {source && <span className="text-xs text-slate-600 font-mono">{SOURCE_LABELS[source] ?? source}</span>}
           <StatusBadge fixture={fixture} />
           {status === 'SCHEDULED' && (
             <span className="text-xs text-slate-400">{formatMatchTime(utc_date)}</span>

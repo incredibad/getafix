@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.9] — 2026-05-31
+
+### Added
+- Data source label (FD / APF / ESPN) shown on each fixture card and each competition accordion header in Tables
+
 ## [0.4.8] — 2026-05-31
 
 ### Fixed
