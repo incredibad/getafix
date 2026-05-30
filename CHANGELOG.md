@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.8] — 2026-05-31
+
+### Fixed
+- ESPN standings dates now appear for infrequent tournaments (e.g. AFC Asian Cup) where the most recent completed tournament is older than 1 year; falls back to the most recently ended round rather than showing no dates
+
 ## [0.4.7] — 2026-05-31
 
 ### Fixed

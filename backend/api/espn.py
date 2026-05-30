@@ -207,38 +207,42 @@ def _parse_iso(s: str | None) -> datetime | None:
 
 def _find_recent_seasontypes(data: dict) -> list[tuple[int, str, str, str]]:
     """
-    Return (seasontype_id, round_name, start_iso, end_iso) for every round in
-    the most recent season that has standings data and started within the last year.
-    Returns an empty list for simple league tables (no round types).
+    Return (seasontype_id, round_name, start_iso, end_iso) for relevant rounds.
+
+    Strategy: find the first season (newest-first) that has at least one type
+    with hasStandings=True that has already started. Among those types, prefer
+    ones that ended within the last year. If none are that recent (e.g. an
+    infrequent tournament like the Asian Cup), fall back to the single most
+    recently ended type so dates still show.
+
+    Returns empty list for simple league tables with no round types.
     """
     now = datetime.now(timezone.utc)
     one_year_ago = now - timedelta(days=365)
 
-    seasons = data.get("seasons", [])
-    if not seasons:
-        return []
+    for s in data.get("seasons", []):
+        started = []
+        for t in s.get("types", []):
+            if not t.get("hasStandings"):
+                continue
+            start = _parse_iso(t.get("startDate"))
+            end = _parse_iso(t.get("endDate"))
+            if start and start <= now:
+                started.append((int(t["id"]), t.get("name", f"Round {t['id']}"), t["startDate"], t["endDate"], end))
 
-    # ESPN lists seasons newest-first; find the first whose window overlaps the last year
-    best_season = None
-    for s in seasons:
-        end = _parse_iso(s.get("endDate"))
-        if end and end >= one_year_ago:
-            best_season = s
-            break
-
-    if not best_season:
-        return []
-
-    result = []
-    for t in best_season.get("types", []):
-        if not t.get("hasStandings"):
+        if not started:
             continue
-        start = _parse_iso(t.get("startDate"))
-        end = _parse_iso(t.get("endDate"))
-        if start and end and start <= now and end >= one_year_ago:
-            result.append((int(t["id"]), t.get("name", f"Round {t['id']}"), t["startDate"], t["endDate"]))
 
-    return result
+        recent = [(i, n, sd, ed) for (i, n, sd, ed, end) in started if end and end >= one_year_ago]
+        if recent:
+            return recent
+
+        # Nothing within the last year — return the single most recently ended type
+        # (handles infrequent tournaments like the Asian Cup)
+        latest = max(started, key=lambda x: x[4] or datetime.min.replace(tzinfo=timezone.utc))
+        return [(latest[0], latest[1], latest[2], latest[3])]
+
+    return []
 
 
 def _parse_standings(data: dict) -> dict:
