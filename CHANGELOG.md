@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.1] — 2026-05-31
+
+### Changed
+- Tables page: replaced tab layout with accordion; only one competition open at a time; first competition auto-expands on load; chevron rotates to indicate state
+
 ## [0.4.0] — 2026-05-31
 
 ### Changed
