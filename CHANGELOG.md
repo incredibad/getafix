@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0] — 2026-05-31
+
+### Added
+- ESPN unofficial API as a third fixture source for international teams
+- Covers AFC qualifiers, AFC Asian Cup, and international friendlies not available via football-data.org or API-Football free tier
+- ESPN team ID auto-resolved on follow for national teams (scans AFC/WC competition team lists)
+- Fixture merging: ESPN supplements primary sources without duplicating matches already covered by FD or APF
+- `espn_id` field stored on Team model; startup migration adds column to existing databases
+
 ## [0.1.1] — 2026-05-31
 
 ### Fixed
