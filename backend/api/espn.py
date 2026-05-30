@@ -205,20 +205,20 @@ def _parse_iso(s: str | None) -> datetime | None:
         return None
 
 
-def _find_best_seasontype(data: dict) -> int | None:
+def _find_recent_seasontypes(data: dict) -> list[tuple[int, str]]:
     """
-    Return the seasontype ID for the most recently active round that has
-    standings, limiting to seasons that ended within the last year.
-    Returns None when there are no round types (simple league table).
+    Return (seasontype_id, round_name) for every round in the most recent
+    season that has standings data and started within the last year.
+    Returns an empty list for simple league tables (no round types).
     """
     now = datetime.now(timezone.utc)
     one_year_ago = now - timedelta(days=365)
 
     seasons = data.get("seasons", [])
     if not seasons:
-        return None
+        return []
 
-    # ESPN lists seasons newest-first; pick the first whose window ends within the last year or later
+    # ESPN lists seasons newest-first; find the first whose window overlaps the last year
     best_season = None
     for s in seasons:
         end = _parse_iso(s.get("endDate"))
@@ -227,26 +227,18 @@ def _find_best_seasontype(data: dict) -> int | None:
             break
 
     if not best_season:
-        return None
+        return []
 
-    types = best_season.get("types", [])
-    if not types:
-        return None
-
-    # Among types with standings, pick the one with the most recent start date
-    # that has already started (start <= now).
-    best_id = None
-    best_start = None
-    for t in types:
+    result = []
+    for t in best_season.get("types", []):
         if not t.get("hasStandings"):
             continue
         start = _parse_iso(t.get("startDate"))
-        if start and start <= now:
-            if best_start is None or start > best_start:
-                best_id = int(t["id"])
-                best_start = start
+        end = _parse_iso(t.get("endDate"))
+        if start and end and start <= now and end >= one_year_ago:
+            result.append((int(t["id"]), t.get("name", f"Round {t['id']}")))
 
-    return best_id
+    return result
 
 
 def _parse_standings(data: dict) -> dict:
@@ -286,7 +278,10 @@ def _parse_standings(data: dict) -> dict:
         })
 
     season_data = data.get("season") or {}
-    season_year = season_data.get("year") if isinstance(season_data, dict) else None
+    # Use the end year of the season (e.g. 2026 for 2023-26 WC qualifying) since
+    # ESPN's "year" field reflects when the campaign started, not what it's called.
+    end_date = _parse_iso(season_data.get("endDate")) if isinstance(season_data, dict) else None
+    season_year = end_date.year if end_date else (season_data.get("year") if isinstance(season_data, dict) else None)
 
     return {
         "competition": {
@@ -310,12 +305,26 @@ async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 2
     try:
         data = await _get_v2(f"/{slug}/standings")
 
-        # Auto-select the most recently active round (seasontype) for multi-round competitions
-        seasontype = _find_best_seasontype(data)
-        if seasontype is not None:
-            typed = await _get_v2(f"/{slug}/standings", {"seasontype": seasontype})
-            if typed.get("children"):
-                data = typed
+        # For multi-round competitions, fetch every recent round and combine their groups.
+        seasontypes = _find_recent_seasontypes(data)
+        if seasontypes:
+            all_tables = []
+            multi = len(seasontypes) > 1
+            for st_id, st_name in seasontypes:
+                typed = await _get_v2(f"/{slug}/standings", {"seasontype": st_id})
+                if not typed.get("children"):
+                    continue
+                partial = _parse_standings(typed)
+                for table in partial["tables"]:
+                    if multi:
+                        group = table.get("group") or ""
+                        table["group"] = f"{st_name}: {group}" if group else st_name
+                    all_tables.append(table)
+            if all_tables:
+                result = _parse_standings(data)
+                result["tables"] = all_tables
+                _cache.set_cached(db, cache_key, result)
+                return result
 
         if not data.get("children"):
             _cache.set_cached(db, cache_key, {})

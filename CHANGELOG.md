@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.5] — 2026-05-31
+
+### Fixed
+- ESPN standings now show all recent rounds (e.g. Third Round + Fourth Round for AFC WC Qualifying) rather than a single round; groups are labelled with the round name when multiple rounds are shown
+- Season label now uses the competition's end year (e.g. 2026) rather than ESPN's internal start year (e.g. 2023)
+
 ## [0.4.4] — 2026-05-31
 
 ### Fixed
