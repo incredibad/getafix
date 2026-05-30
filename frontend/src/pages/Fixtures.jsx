@@ -123,7 +123,7 @@ export default function Fixtures() {
 
   const load = useCallback(async (showToast = false) => {
     try {
-      const { data } = await api.get('/fixtures', { params: { days_back: 7, days_ahead: 30 } })
+      const { data } = await api.get('/fixtures', { params: { days_back: 365, days_ahead: 90 } })
       setFixtures(data)
       if (showToast) toast.success('Fixtures refreshed.')
     } catch {

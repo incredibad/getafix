@@ -19,8 +19,8 @@ AEST = timezone(timedelta(hours=10))
 
 @router.get("", response_model=list[schemas.FixtureOut])
 async def get_fixtures(
-    days_back: int = Query(7, ge=0, le=90),
-    days_ahead: int = Query(30, ge=0, le=365),
+    days_back: int = Query(365, ge=0, le=730),
+    days_ahead: int = Query(90, ge=0, le=365),
     _: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

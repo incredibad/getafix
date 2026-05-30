@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] — 2026-05-31
+
+### Fixed
+- Fixture window expanded to 365 days back / 90 days ahead so AFC qualifiers and international friendlies from ESPN are visible (previously hidden by the 7-day lookback default)
+
 ## [0.2.0] — 2026-05-31
 
 ### Added
