@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.4] — 2026-05-31
+
+### Fixed
+- ESPN standings no longer show old historical rounds; the most recently active round with standings is auto-selected (e.g. Third Round for AFC WC Qualifying instead of the 2023 Second Round)
+
 ## [0.4.3] — 2026-05-31
 
 ### Changed
