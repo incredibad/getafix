@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.7] — 2026-05-31
+
+### Fixed
+- Standings status badge "Ended" text was using slate-600 (nearly invisible on dark theme); changed to slate-400
+
 ## [0.4.6] — 2026-05-31
 
 ### Added

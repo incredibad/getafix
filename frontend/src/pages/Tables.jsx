@@ -11,7 +11,7 @@ function RoundStatus({ startDate, endDate }) {
   const fmt = (d) => d.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })
 
   if (end && end < now) {
-    return <span className="text-xs text-slate-600 font-normal normal-case ml-2">Ended {fmt(end)}</span>
+    return <span className="text-xs text-slate-400 font-normal normal-case ml-2">Ended {fmt(end)}</span>
   }
   if (start && start > now) {
     return <span className="text-xs text-blue-500 font-normal normal-case ml-2">Starts {fmt(start)}</span>
