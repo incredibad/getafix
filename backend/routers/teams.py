@@ -40,7 +40,7 @@ def list_followed_teams(
 
 
 @router.post("/follow", response_model=schemas.TeamResponse)
-def follow_team(
+async def follow_team(
     data: schemas.FollowTeamRequest,
     _: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -72,6 +72,12 @@ def follow_team(
             team.api_football_id = data.api_football_id
         if data.crest_url and not team.crest_url:
             team.crest_url = data.crest_url
+
+    # Auto-resolve missing FD ID by scanning competition team lists
+    if not team.football_data_id:
+        fd_id = await fd.find_team_id_by_name(data.name, db, data.team_type)
+        if fd_id:
+            team.football_data_id = fd_id
 
     existing = db.query(models.FollowedTeam).filter(models.FollowedTeam.team_id == team.id).first()
     if not existing:
