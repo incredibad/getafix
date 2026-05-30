@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] — 2026-05-31
+
+### Added
+- ESPN standings support for international competitions: AFC Asian Cup and AFC World Cup Qualifying now show group tables sourced from ESPN (tried before APF since APF free tier is frozen at 2024)
+- `espn_slug` field on Competition model; seed data includes slugs for AFC Asian Cup and AFC WC Qualifying
+- ESPN fixtures auto-link to seeded competitions using keyword name mapping (handles ESPN naming differences like "FIFA World Cup Qualifying - AFC" → "AFC World Cup Qualifying")
+- Startup migration adds `espn_slug` column to existing competition tables
+
 ## [0.2.1] — 2026-05-31
 
 ### Fixed

@@ -13,6 +13,7 @@ import cache as _cache
 logger = logging.getLogger(__name__)
 
 BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
+BASE_V2 = "https://site.api.espn.com/apis/v2/sports/soccer"
 
 STATUS_MAP = {
     "STATUS_SCHEDULED": "SCHEDULED",
@@ -41,6 +42,13 @@ _INTL_SLUGS = [
 async def _get(path: str, params: dict | None = None) -> dict:
     async with httpx.AsyncClient(timeout=20) as client:
         r = await client.get(f"{BASE}{path}", params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+async def _get_v2(path: str, params: dict | None = None) -> dict:
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.get(f"{BASE_V2}{path}", params=params)
         r.raise_for_status()
         return r.json()
 
@@ -185,3 +193,76 @@ async def find_espn_id_by_name(name: str, db: Session) -> int | None:
             if name_lower in t_name or t_name in name_lower or (t_short and name_lower == t_short):
                 return team["espn_id"]
     return None
+
+
+def _parse_standings(data: dict) -> dict:
+    import datetime
+
+    def _int(v) -> int:
+        try:
+            return int(float(v)) if v is not None else 0
+        except (ValueError, TypeError):
+            return 0
+
+    tables = []
+    for group in data.get("children", []):
+        rows = []
+        entries = group.get("standings", {}).get("entries", [])
+        for i, entry in enumerate(entries):
+            team = entry.get("team", {})
+            logos = team.get("logos", [])
+            crest = logos[0].get("href") if logos else None
+            stats = {s["name"]: s.get("value") for s in entry.get("stats", [])}
+            rows.append({
+                "position": i + 1,
+                "team_name": team.get("displayName", ""),
+                "team_crest": crest,
+                "played": _int(stats.get("gamesPlayed")),
+                "won": _int(stats.get("wins")),
+                "draw": _int(stats.get("ties")),
+                "lost": _int(stats.get("losses")),
+                "goals_for": _int(stats.get("pointsFor") or stats.get("goalsFor")),
+                "goals_against": _int(stats.get("pointsAgainst") or stats.get("goalsAgainst")),
+                "goal_difference": _int(stats.get("pointDifferential") or stats.get("goalsDiff")),
+                "points": _int(stats.get("points")),
+                "form": None,
+            })
+        tables.append({
+            "stage": None,
+            "group": group.get("name"),
+            "table": rows,
+        })
+
+    season_data = data.get("season") or {}
+    season_year = season_data.get("year") if isinstance(season_data, dict) else None
+
+    return {
+        "competition": {
+            "id": None,
+            "name": data.get("name", ""),
+            "emblem_url": None,
+        },
+        "season": season_year,
+        "source": "espn",
+        "tables": tables,
+        "cached_at": datetime.datetime.utcnow().isoformat() + "Z",
+    }
+
+
+async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 24) -> dict | None:
+    cache_key = f"espn:standings:{slug}"
+    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    if cached is not None:
+        return cached if cached else None
+
+    try:
+        data = await _get_v2(f"/{slug}/standings")
+        if not data.get("children"):
+            _cache.set_cached(db, cache_key, {})
+            return None
+        result = _parse_standings(data)
+        _cache.set_cached(db, cache_key, result)
+        return result
+    except Exception as e:
+        logger.error(f"ESPN standings error ({slug}): {e}")
+        return None

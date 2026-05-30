@@ -9,6 +9,7 @@ import schemas
 from auth import get_current_user
 from api import football_data as fd
 from api import api_football as apf
+from api import espn
 import cache as _cache
 
 logger = logging.getLogger(__name__)
@@ -79,15 +80,45 @@ async def get_standings_for_followed_teams(
 
 async def _fetch_standings(comp: models.Competition, db: Session) -> list[dict]:
     ttl = _standings_ttl(db)
+
     if comp.preferred_source == "football_data" and comp.football_data_id:
         result = await fd.get_competition_standings(comp.football_data_id, db, ttl)
         if result:
             result["cached_at"] = _cache.cached_at_str(db, f"fd:standings:{comp.football_data_id}")
             return [result]
-    elif comp.api_football_id:
+
+    # ESPN standings: try before APF since APF free tier is frozen at 2024
+    espn_slug = getattr(comp, "espn_slug", None)
+    if espn_slug:
+        result = await espn.get_competition_standings(espn_slug, db, ttl)
+        if result:
+            result["cached_at"] = _cache.cached_at_str(db, f"espn:standings:{espn_slug}") or result.get("cached_at", "")
+            return _expand_groups(result)
+
+    if comp.api_football_id:
         season = comp.season or datetime.now(timezone.utc).year
         result = await apf.get_competition_standings(comp.api_football_id, db, season, ttl)
         if result:
             result["cached_at"] = _cache.cached_at_str(db, f"apf:standings:{comp.api_football_id}:{season}")
             return [result]
+
     return []
+
+
+def _expand_groups(standings: dict) -> list[dict]:
+    """Flatten multi-group ESPN standings into one dict per group (matching existing schema)."""
+    tables = standings.get("tables", [])
+    if not tables:
+        return []
+    results = []
+    for t in tables:
+        if not t.get("table"):
+            continue
+        results.append({
+            **standings,
+            "stage": t.get("stage"),
+            "group": t.get("group"),
+            "table": t["table"],
+            "tables": [],  # strip nested tables to match flat schema
+        })
+    return results if results else []
