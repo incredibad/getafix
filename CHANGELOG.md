@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.13] — 2026-05-31
+
+### Changed
+- Fixture card detail button now has a subtle background and left border to visually distinguish it from the card body; added a little more right padding on the card content area
+
 ## [0.4.12] — 2026-05-31
 
 ### Changed

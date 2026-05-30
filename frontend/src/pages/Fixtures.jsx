@@ -39,7 +39,7 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail }) {
       className="relative w-full p-3 sm:p-4 rounded-xl border"
       style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}
     >
-      <div className={hasDetail ? 'pr-4' : ''}>
+      <div className={hasDetail ? 'pr-6' : ''}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 min-w-0">
             {competition.emblem_url && (
@@ -96,7 +96,7 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail }) {
       {hasDetail && (
         <button
           onClick={onViewDetail}
-          className="absolute right-0 top-0 h-full w-[30px] flex items-center justify-center text-slate-600 hover:text-slate-400 hover:bg-white/5 transition-colors rounded-r-xl"
+          className="absolute right-0 top-0 h-full w-[30px] flex items-center justify-center text-slate-500 hover:text-slate-300 border-l border-white/[0.06] bg-white/[0.04] hover:bg-white/[0.08] transition-colors rounded-r-xl"
           title="View match details"
         >
           <ChevronRight size={13} />
