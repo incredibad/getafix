@@ -8,7 +8,6 @@ import models
 import schemas
 from auth import get_current_user
 from api import football_data as fd
-from api import api_football as apf
 from api import espn
 
 logger = logging.getLogger(__name__)
@@ -74,14 +73,7 @@ async def _fetch_team_fixtures(team: models.Team, db: Session) -> list[dict]:
             all_fixtures.extend(fd_fixtures)
             _auto_link_competitions(team, fd_fixtures, db)
 
-    if not all_fixtures and team.api_football_id:
-        apf_fixtures = await apf.get_team_fixtures(team.api_football_id, db)
-        if apf_fixtures:
-            all_fixtures.extend(apf_fixtures)
-            _auto_link_competitions(team, apf_fixtures, db)
-
-    # ESPN: supplement national teams (friendlies/qualifiers outside FD/APF scope)
-    # or serve as fallback for any team with no primary-source data
+    # ESPN: supplement national teams or serve as fallback when FD has no data
     espn_id = getattr(team, "espn_id", None)
     if espn_id and (is_national or not all_fixtures):
         espn_fixtures = await espn.get_team_schedule(espn_id, db)
@@ -153,10 +145,6 @@ def _auto_link_competitions(team: models.Team, fixtures: list[dict], db: Session
             comp = db.query(models.Competition).filter(
                 models.Competition.name == comp_name,
                 models.Competition.preferred_source == "football_data",
-            ).first()
-        elif source == "api_football":
-            comp = db.query(models.Competition).filter(
-                models.Competition.api_football_id == ext_id
             ).first()
         elif source == "espn":
             # ESPN names don't always match DB names exactly — use keyword matching

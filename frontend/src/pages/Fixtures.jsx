@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Users, Circle, Eye, EyeOff, Lock, ChevronRight } from 'lucide-react'
+import { RefreshCw, Users, Circle, Eye, EyeOff, Lock, ChevronRight, Trophy } from 'lucide-react'
 import api from '../api/client'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import toast from 'react-hot-toast'
@@ -42,9 +42,10 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail }) {
       <div className={hasDetail ? 'pr-6' : ''}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            {competition.emblem_url && (
-              <img src={competition.emblem_url} alt="" className="w-4 h-4 object-contain opacity-70 flex-shrink-0" />
-            )}
+            {competition.emblem_url
+              ? <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={competition.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" /></span>
+              : <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={11} className="text-slate-600" /></span>
+            }
             <span className="text-xs text-slate-500 truncate">{competition.name}</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -262,7 +263,7 @@ export default function Fixtures() {
                     <FilterPill
                       key={team.id}
                       label={team.short_name || team.name}
-                      icon={team.crest_url ? <img src={team.crest_url} alt="" className="w-3.5 h-3.5 object-contain" /> : null}
+                      icon={<span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={team.crest_url} alt="" className="w-3 h-3 object-contain" /></span>}
                       active={activeFilter?.type === 'team' && activeFilter.value === team.name}
                       onClick={() => setFilter('team', team.name)}
                     />
@@ -275,7 +276,10 @@ export default function Fixtures() {
                     <FilterPill
                       key={comp.name}
                       label={comp.name}
-                      icon={comp.emblem_url ? <img src={comp.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" /> : null}
+                      icon={comp.emblem_url
+                      ? <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={comp.emblem_url} alt="" className="w-3 h-3 object-contain" /></span>
+                      : <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={10} className="text-slate-600" /></span>
+                    }
                       active={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
                       onClick={() => setFilter('comp', comp.name)}
                     />
@@ -300,7 +304,7 @@ export default function Fixtures() {
                             fixture={f}
                             revealed={isRevealed(fid)}
                             onRevealScore={() => revealOne(fid)}
-                            onViewDetail={() => navigate(`/fixtures/${f.source}/${f.external_id}`)}
+                            onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug } })}
                           />
                         )
                       })}

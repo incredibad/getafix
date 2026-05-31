@@ -8,7 +8,6 @@ import schemas
 import cache as _cache
 from auth import get_current_user
 from api import football_data as fd
-from api import api_football as apf
 from api import espn
 
 SEARCH_CACHE_TTL_HOURS = 24 * 7  # 7 days
@@ -168,14 +167,9 @@ async def search_teams(
 
 
 async def _do_search(q: str, db: Session):
-    import asyncio
-    fd_task = fd.search_teams(q, db)
-    apf_task = apf.search_teams(q, db)
-    fd_results, apf_results = await asyncio.gather(fd_task, apf_task, return_exceptions=True)
-    if isinstance(fd_results, Exception):
-        logger.warning(f"FD search failed: {fd_results}")
+    try:
+        fd_results = await fd.search_teams(q, db)
+    except Exception as e:
+        logger.warning(f"FD search failed: {e}")
         fd_results = []
-    if isinstance(apf_results, Exception):
-        logger.warning(f"APF search failed: {apf_results}")
-        apf_results = []
-    return fd_results, apf_results
+    return fd_results, []
