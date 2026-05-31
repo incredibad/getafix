@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
-from auth import get_current_user
+from auth import get_optional_user
 from api import football_data as fd
 from api import espn
 import cache as _cache
@@ -42,7 +42,7 @@ def _standings_ttl(db: Session) -> float:
 @router.get("/competition/{competition_id}", response_model=list[dict])
 async def get_standings_by_competition(
     competition_id: int,
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     comp = db.query(models.Competition).filter(models.Competition.id == competition_id).first()
@@ -53,7 +53,7 @@ async def get_standings_by_competition(
 
 @router.get("/followed", response_model=list[dict])
 async def get_standings_for_followed_teams(
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """Return standings for all competitions that followed teams play in."""

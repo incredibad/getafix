@@ -12,6 +12,7 @@ import models
 from config import settings
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -54,3 +55,21 @@ def get_current_user(
     if user is None:
         raise exc
     return user
+
+
+def get_optional_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    db: Session = Depends(get_db),
+) -> Optional[models.User]:
+    if not credentials:
+        return None
+    try:
+        payload = jwt.decode(
+            credentials.credentials, settings.secret_key, algorithms=[settings.algorithm]
+        )
+        username: str = payload.get("sub")
+        if not username:
+            return None
+        return db.query(models.User).filter(models.User.username == username).first()
+    except JWTError:
+        return None

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
-from auth import get_current_user
+from auth import get_optional_user
 from api import football_data as fd
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[schemas.CompetitionResponse])
 def list_competitions(
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     return db.query(models.Competition).order_by(models.Competition.name).all()
@@ -23,7 +23,7 @@ def list_competitions(
 @router.get("/{competition_id}/teams", response_model=list[schemas.TeamSearchResult])
 async def list_competition_teams(
     competition_id: int,
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     comp = db.query(models.Competition).filter(models.Competition.id == competition_id).first()
@@ -49,7 +49,7 @@ async def list_competition_teams(
 
 @router.get("/followed", response_model=list[schemas.CompetitionResponse])
 def list_followed_competitions(
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """Competitions that have at least one followed team registered."""
@@ -67,7 +67,7 @@ def list_followed_competitions(
 def link_team_to_competition(
     competition_id: int,
     team_id: int,
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     """Manually link a team to a competition for standings tracking."""

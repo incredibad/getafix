@@ -41,27 +41,23 @@ function AppRoutes() {
     )
   }
 
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" state={{ from: location }} replace />} />
-      </Routes>
-    )
-  }
-
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/fixtures" replace />} />
-        <Route path="/fixtures" element={<Fixtures />} />
-        <Route path="/fixtures/:id" element={<MatchDetail />} />
-        <Route path="/tables" element={<Tables />} />
-        <Route path="/teams" element={<Teams />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/fixtures" replace />} />
-      </Routes>
-    </Layout>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="*" element={
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Navigate to="/fixtures" replace />} />
+            <Route path="/fixtures" element={<Fixtures />} />
+            <Route path="/fixtures/:id" element={<MatchDetail />} />
+            <Route path="/tables" element={<Tables />} />
+            <Route path="/teams" element={user ? <Teams /> : <Navigate to="/login" state={{ from: location }} replace />} />
+            <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" state={{ from: location }} replace />} />
+            <Route path="*" element={<Navigate to="/fixtures" replace />} />
+          </Routes>
+        </Layout>
+      } />
+    </Routes>
   )
 }
 

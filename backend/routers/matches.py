@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 import models
-from auth import get_current_user
+from auth import get_optional_user
 from api import football_data as fd
 from api import espn
 
@@ -17,7 +17,7 @@ async def get_match_detail(
     match_id: int,
     source: str = Query(..., pattern="^(football_data|espn)$"),
     league_slug: str | None = Query(None),
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     if source == "football_data":
