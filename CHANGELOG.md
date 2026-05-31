@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.13.3] — 2026-06-01
+
+### Fixed
+- Favicon: embedded PNG data inline so it renders in all browsers (external href reference was silently ignored in favicon context); logo now appears white via CSS brightness/invert filter on `#0d0d14` background.
+
 ## [0.13.2] — 2026-06-01
 
 ### Fixed
