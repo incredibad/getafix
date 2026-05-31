@@ -1,5 +1,281 @@
 # Changelog
 
+## [0.13.0] — 2026-06-01
+
+### Changed
+- App rebranded to **GetAFix**: logo added to nav sidebar (desktop + mobile drawer), login screen, and setup screen using new `AppLogo` component with Bebas Neue bold display font.
+- Favicon updated to GetAFix logo on dark square background.
+- App name updated throughout (page title, loading screen, API title, Docker service/container name).
+- `frontend/package.json` name updated to `getafix`.
+- Project folder renamed from `footrack` to `getafix`.
+
+## [0.12.4] — 2026-06-01
+
+### Added
+- Fixtures: active filter and Mine/All selection are now persisted to localStorage and restored on next visit. Navigation via `location.state` (e.g. clicking through from Tables) still overrides the stored filter.
+
+## [0.12.3] — 2026-06-01
+
+### Changed
+- Fixtures: when today has fixtures, the Today divider is hidden and today's date group header turns green with "Today" on the right — consistent visual language with the standalone divider. Scroll ref moves to this header so auto-scroll and the Today button target it correctly.
+- Fixtures: standalone Today divider (no fixtures today) now shows "Today" label on the right side instead of centred, matching the header style.
+- Fixtures: fixed today's header never turning green (was passing formatted label string to `isToday()` which expected a UTC date — now uses `category === 'today'` from `getDateCategory` instead).
+
+## [0.12.2] — 2026-06-01
+
+### Fixed
+- Fixtures mobile: Today divider no longer scrolls behind the fixed top bar and sticky filter bar; uses `scroll-margin-top: 116px` on mobile to clear both headers.
+
+## [0.12.1] — 2026-06-01
+
+### Fixed
+- Fixtures mobile: star icon now persists in the dropdown trigger when "All My Fixtures" is the active selection, not just when the sheet is open.
+
+## [0.12.0] — 2026-06-01
+
+### Added
+- Fixtures: permanent "Today" divider — a green centred horizontal rule with "TODAY" label — always present in the fixture list between past and future dates. Scroll on load always targets this divider.
+- Fixtures mobile sheet: star icon added to "All My Fixtures" option, matching the desktop sidebar.
+
+## [0.11.10] — 2026-06-01
+
+### Changed
+- Fixtures: "All My Fixtures" sidebar item now has a star icon, aligned with the crest icons below it.
+
+## [0.11.9] — 2026-06-01
+
+### Fixed
+- Fixtures: when all visible fixtures are in the past, the page now scrolls to the most recent past date (last in the list) instead of staying at the top.
+
+## [0.11.8] — 2026-06-01
+
+### Fixed
+- Fixtures: Today button centred correctly within the fixture cards column on desktop (accounts for both the nav sidebar 224px and filter panel 250px offsets).
+
+## [0.11.7] — 2026-06-01
+
+### Changed
+- Fixtures: Today button sits 10px from the bottom of the screen on desktop, and 10px above the mobile bottom nav bar on mobile.
+
+## [0.11.6] — 2026-06-01
+
+### Fixed
+- Fixtures: Today button now correctly centres within the content column on desktop (Tailwind calc arbitrary value syntax fix).
+
+## [0.11.5] — 2026-06-01
+
+### Changed
+- Fixtures: increased bottom padding so the last fixture cards sit clear of the Today button when scrolled to the bottom.
+
+## [0.11.4] — 2026-06-01
+
+### Fixed
+- Fixtures: Today button now centres correctly in the content area on desktop (accounts for the 14rem sidebar offset).
+
+## [0.11.3] — 2026-06-01
+
+### Changed
+- Fixtures: "All Fixtures" renamed to "All My Fixtures" everywhere (sidebar, mobile sheet, dropdown trigger).
+
+## [0.11.2] — 2026-06-01
+
+### Changed
+- Fixtures desktop: Mine/All toggle moved to the sidebar header (global, always visible). Hidden only when a team filter is active.
+- Fixtures desktop: removed refresh button.
+- Tables desktop: removed refresh button.
+- Fixtures desktop: removed Mine/All from the Leagues section header.
+
+## [0.11.1] — 2026-06-01
+
+### Changed
+- Tables desktop: calendar icon in the competition heading pushed to the right edge and increased to 20px.
+
+## [0.11.0] — 2026-06-01
+
+### Added
+- Fixtures desktop sidebar: "All Fixtures" item at the top of the filter list, in its own section above Teams. Highlighted green when no filter is active; clicking it clears any active filter.
+- Fixtures mobile: tapping X on the dropdown trigger returns it to "All fixtures" state (already the default label when no filter is active).
+
+## [0.10.9] — 2026-06-01
+
+### Changed
+- Tables desktop: removed group/stage label row above each table (still visible on mobile).
+- Tables desktop: fixtures link moved from each table's header row to the selected-competition heading, now rendered as a calendar icon button matching the mobile sticky bar.
+
+## [0.10.8] — 2026-06-01
+
+### Removed
+- FD/ESPN/APF provider badges from Teams page team cards.
+
+## [0.10.7] — 2026-06-01
+
+### Removed
+- Provider badge (FD/ESPN/SS/APF) removed everywhere — Tables desktop heading was the last remaining instance.
+
+## [0.10.6] — 2026-06-01
+
+### Changed
+- Tables: competition list sorted alphabetically on both desktop sidebar and mobile dropdown.
+
+## [0.10.5] — 2026-06-01
+
+### Changed
+- Fixtures: Today button sits ~5px above the mobile bottom nav bar (72px from bottom, down from 96px).
+
+## [0.10.4] — 2026-06-01
+
+### Changed
+- Fixtures: increased bottom padding so the Today button has more breathing room above the nav bar.
+- Fixtures: Today button is slightly smaller (xs text, tighter padding).
+- Fixtures: Today button now shows a chevron icon pointing in the scroll direction — up when today is above the viewport, down when below.
+
+## [0.10.3] — 2026-06-01
+
+### Changed
+- Fixtures mobile: removed header and refresh button; layout now mirrors Tables page.
+- Fixtures mobile: filter is a sticky bar below the top nav with the same dropdown style as Tables; Mine/All toggle and Show/Hide eye button sit to the right of the dropdown in the bar.
+- Fixtures: "Today" floating button is now horizontally centred on screen (both mobile and desktop).
+- Fixtures: fixture card background and border colours increased in opacity (~2×) for better visibility for colour-blind users (past red, today green, future blue).
+
+## [0.10.2] — 2026-06-01
+
+### Fixed
+- Standings table: followed team names now truncate correctly instead of overflowing their column. Added `max-w-0 overflow-hidden` to the team name cell so the CSS `truncate` on the inner span is honoured by the table layout engine.
+
+## [0.10.1] — 2026-06-01
+
+### Changed
+- Tables mobile: removed "Tables" header and refresh button; refresh remains on desktop sidebar only.
+- Tables mobile: competition dropdown is now a sticky bar below the top nav — content scrolls underneath it.
+- Tables mobile: season year shown next to competition name in the sticky bar trigger and in each dropdown item.
+- Tables mobile: removed the selected competition heading div (name + season + source); that info is now in the sticky bar.
+- Tables mobile: "Fixtures" link moved from each table header (desktop-only) to a calendar icon button in the sticky bar.
+
+## [0.10.0] — 2026-06-01
+
+### Added
+- Mobile bottom navigation bar (Fixtures + Tables) — always visible, replaces scrolling to find those routes in the hamburger menu.
+- Searchable full-screen filter sheet on mobile (replaces horizontal scroll pills): tap the filter bar, search teams or leagues by name, tap to apply. Mine/All toggle appears below when a competition is active.
+
+### Changed
+- Fixture cards: provider badge (SS/ESPN/FD) removed on both mobile and desktop.
+- Fixture cards: competition column shows logo only on mobile (no text), logo + name on desktop — reclaims horizontal space.
+- Mobile hamburger drawer now shows only Teams and Settings (auth items); Fixtures and Tables moved to bottom nav.
+- "Today" floating button clears the mobile bottom nav bar.
+- All pages have bottom padding on mobile to prevent content hiding behind the bottom nav.
+
+## [0.9.1] — 2026-05-31
+
+### Changed
+- Fixtures History "Season" option replaced with "Calendar Year" (Jan 1 of the current year) — more universal, works for World Cup cycles, qualifiers, and non-European leagues.
+
+## [0.9.0] — 2026-05-31
+
+### Added
+- Fixtures History setting in Settings page: choose how far back previous fixtures are shown (7d / 14d / 30d / 60d / 90d / 6 mo / 12 mo / Start of Season). Default is 30 days. "Season" dynamically computes from 1 Aug of the current or most recent season year. Stored in localStorage.
+
+### Removed
+- API Usage card from Settings (football-data.org and API-Football are no longer used).
+
+## [0.8.8] — 2026-05-31
+
+### Fixed
+- "All" view for competitions returning empty when Sofascore's competition name differs from the DB name (e.g. "International Friendly Games" vs "International Friendlies", "World Cup Qual. AFC" vs "AFC World Cup Qualifying", FA Cup with no DB entry). The frontend now passes the Sofascore tournament ID alongside the name; the backend uses the ID for the primary lookup and falls back to name matching, and will fetch from Sofascore directly even if the competition has no DB entry.
+
+## [0.8.7] — 2026-05-31
+
+### Changed
+- Slightly increased crest/emblem icon sizes in Fixtures and Tables filter sidebars and mobile pills without affecting row height.
+
+## [0.8.6] — 2026-05-31
+
+### Changed
+- Removed white background containers from competition emblems in the Tables sidebar, mobile dropdown, and selected competition header. Same treatment as Fixtures filters.
+
+## [0.8.5] — 2026-05-31
+
+### Changed
+- Removed white background containers from crests/emblems in the fixtures sidebar, mobile pills, and fixture card competition column. Images now render at full size directly on the dark background; fallback icons use a matching slate colour instead of a white box.
+
+## [0.8.4] — 2026-05-31
+
+### Added
+- Hovering a team crest on the fixtures page shows a styled tooltip with the full team name (and country if available).
+
+## [0.8.3] — 2026-05-31
+
+### Changed
+- Fixtures page now scrolls to the nearest future date group on load if no fixtures exist for today, rather than staying at the top.
+
+## [0.8.2] — 2026-05-31
+
+### Fixed
+- Team crests from Sofascore were not loading because the image proxy (`/api/img`) used `httpx` for all upstream requests, which gets 403'd by Sofascore's CDN. The proxy now uses `curl-cffi` (Chrome 120 impersonation) for `sofascore.com` URLs and retains `httpx` for all others (ESPN, etc.).
+
+## [0.8.1] — 2026-05-31
+
+### Fixed
+- Sofascore API returning 403 from within the Docker container due to Python 3.12 / OpenSSL 3.5 TLS fingerprint being blocked by Sofascore's CDN. Switched the Sofascore HTTP client from `httpx` to `curl-cffi` (Chrome 120 TLS impersonation) and pinned the Docker base image to `python:3.12-slim-bookworm` to ensure a compatible OpenSSL version.
+- Cleared 263 stale ESPN/Sofascore cache entries accumulated before the fix so fresh Sofascore data is fetched on next request.
+
+## [0.8.0] — 2026-05-31
+
+### Changed
+- **Sofascore replaces football-data.org as the primary data source** for all fixtures, standings, and match detail. ESPN is retained as a fallback when Sofascore returns nothing. FD is no longer called.
+- Team search now queries Sofascore first (rich coverage, no API key); ESPN fallback only if Sofascore returns nothing
+- All 50 seeded competitions now have `sofascore_tournament_id`; 47 also retain `espn_slug` as fallback
+- Dynamic `sofascore_id` resolution at follow time and at first fixture fetch (same lazy pattern as ESPN IDs)
+- `sofascore_id` stored on teams; `sofascore_tournament_id` on competitions (DB migrations added)
+- `league_slug` added to `FixtureOut` response — Sofascore fixtures carry the tournament ID so match detail navigates directly
+- Match detail (`source=sofascore`): incidents, stats, and lineups fetched from Sofascore
+- Fixtures page source badge: `sofascore` → **SS**
+
+## [0.7.1] — 2026-05-31
+
+### Fixed
+- Wrexham (and any Championship/ELC team) had no fixtures because football-data.org returns 403 on the team-level matches endpoint for ELC on the free tier; all 12 FD-covered competitions now have an ESPN slug so the dynamic fallback can find teams and serve their fixtures via ESPN
+- Added ESPN→DB name mappings for all FD competition aliases (e.g. "English Premier League"→"Premier League", "Spanish LALIGA"→"La Liga", "English League Championship"→"Championship", etc.)
+
+## [0.7.0] — 2026-05-31
+
+### Added
+- ESPN club team search: team search now queries all ESPN league team lists in parallel (cached for 7 days) so teams from MLS, Liga MX, J1 League, Scottish Premiership, etc. appear in results
+- Dynamic ESPN ID resolution: `resolve_espn_id` searches all cached competition team lists first, then fetches any uncached ones in parallel — called automatically at follow time and during fixture fetching if no ESPN ID is stored
+- ESPN fixtures now used for any team (not just nationals) when football-data.org has no coverage — removes the `is_national` gate
+- `espn_id` flows through the full follow pipeline: search result → follow request → team record
+
+## [0.6.5] — 2026-05-31
+
+### Added
+- FIFA Club World Cup competition (ESPN slug `fifa.cwc`)
+
+## [0.6.4] — 2026-05-31
+
+### Added
+- 22 new competitions seeded: MLS, Liga MX, Argentine Liga Profesional, Colombian Primera A, Chilean Primera División, J1 League, Chinese Super League, Indian Super League, A-League Women, Scottish Premiership, Belgian Pro League, Turkish Süper Lig, Danish Superliga, Norwegian Eliteserien, Swedish Allsvenskan, Austrian Bundesliga, Swiss Super League, Greek Super League, Russian Premier League, Copa América, Africa Cup of Nations, UEFA Nations League, plus World Cup qualifying series for CONMEBOL/UEFA/CONCACAF/CAF
+- ESPN name→DB name mappings for all new competitions
+- Seed upsert now falls back to name-based lookup, preventing duplicate rows on restart for competitions with no football-data or API-Football ID
+
+## [0.6.3] — 2026-05-31
+
+### Fixed
+- ESPN competition name map expanded to cover all mismatches found by auditing every ESPN-sourced slug: UEFA Europa League, UEFA Conference League, AFC Champions League Elite, CONMEBOL Libertadores, CONMEBOL Sudamericana, Concacaf Champions Cup, Concacaf League — all now resolve correctly to their DB entries for the "All" fixtures view and auto-linking
+
+## [0.6.2] — 2026-05-31
+
+### Fixed
+- A-League Men "All" view now loads fixtures; ESPN returns the competition name as "Australian A-League Men" which wasn't mapped to the DB entry "A-League Men"
+
+## [0.6.1] — 2026-05-31
+
+### Fixed
+- Fixtures: future (scheduled) fixtures were misaligned because the detail-chevron column was absent; a same-width placeholder is now always rendered so home and away teams stay in the same columns across all cards
+
+## [0.6.0] — 2026-05-31
+
+### Added
+- Image proxy at `/api/img`: club crests and competition emblems are fetched once through the backend, cached on disk at `/data/img_cache/`, and served with `Cache-Control: public, max-age=31536000, immutable` so browsers cache them indefinitely
+
 ## [0.5.32] — 2026-05-31
 
 ### Added

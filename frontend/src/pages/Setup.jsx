@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
+import AppLogo from '../components/AppLogo'
 
 export default function Setup({ onSetupComplete }) {
   const [username, setUsername] = useState('')
@@ -22,7 +23,7 @@ export default function Setup({ onSetupComplete }) {
       await register(username, password)
       onSetupComplete?.()
       navigate('/fixtures', { replace: true })
-      toast.success('Admin account created! Welcome to Footrack.')
+      toast.success('Admin account created! Welcome to GetAFix.')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Setup failed.')
     } finally {
@@ -37,8 +38,9 @@ export default function Setup({ onSetupComplete }) {
       </div>
       <div className="relative w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <span className="text-5xl mb-3">⚽</span>
-          <h1 className="text-2xl font-bold text-white">Welcome to Footrack</h1>
+          <div className="mb-4">
+            <AppLogo size="lg" />
+          </div>
           <p className="text-slate-400 text-sm mt-1 text-center">Create your admin account to get started</p>
         </div>
         <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>

@@ -1,8 +1,8 @@
 {
-  "name": "footrack",
+  "name": "getafix",
   "description": "Personal football fixture tracker",
   "private": true,
-  "version": "0.5.32",
+  "version": "0.13.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

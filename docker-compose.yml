@@ -1,7 +1,7 @@
 services:
-  footrack:
-    image: incredibad/footrack:latest
-    container_name: footrack
+  getafix:
+    image: incredibad/getafix:latest
+    container_name: getafix
     ports:
       - "4220:4220"
     volumes:

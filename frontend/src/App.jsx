@@ -26,7 +26,7 @@ function AppRoutes() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
-          <span className="text-slate-400 text-sm">Loading Footrack…</span>
+          <span className="text-slate-400 text-sm">Loading GetAFix…</span>
         </div>
       </div>
     )
