@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
+import AppLogo from '../components/AppLogo'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -35,8 +36,9 @@ export default function Login() {
 
       <div className="relative w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <span className="text-5xl mb-3">⚽</span>
-          <h1 className="text-2xl font-bold text-white">Footrack</h1>
+          <div className="mb-4">
+            <AppLogo size="lg" />
+          </div>
           <p className="text-slate-400 text-sm mt-1">Sign in to continue</p>
         </div>
 

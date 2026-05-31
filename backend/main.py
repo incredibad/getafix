@@ -1,12 +1,15 @@
 from contextlib import asynccontextmanager
+import hashlib
 import logging
 import logging.handlers
 from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI
+import httpx
+from curl_cffi.requests import AsyncSession as _CurlSession
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
 _LOG_FILE = Path("/data/app.log")
 _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -31,9 +34,15 @@ with engine.connect() as _conn:
     if "espn_id" not in _team_cols:
         _conn.execute(text("ALTER TABLE teams ADD COLUMN espn_id INTEGER"))
         _conn.commit()
+    if "sofascore_id" not in _team_cols:
+        _conn.execute(text("ALTER TABLE teams ADD COLUMN sofascore_id INTEGER"))
+        _conn.commit()
     _comp_cols = {row[1] for row in _conn.execute(text("PRAGMA table_info(competitions)"))}
     if "espn_slug" not in _comp_cols:
         _conn.execute(text("ALTER TABLE competitions ADD COLUMN espn_slug VARCHAR"))
+        _conn.commit()
+    if "sofascore_tournament_id" not in _comp_cols:
+        _conn.execute(text("ALTER TABLE competitions ADD COLUMN sofascore_tournament_id INTEGER"))
         _conn.commit()
 
 seed_competitions()
@@ -45,7 +54,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Footrack API",
+    title="GetAFix API",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
     lifespan=lifespan,
@@ -66,6 +75,57 @@ app.include_router(standings.router,    prefix="/api/standings",    tags=["stand
 app.include_router(matches.router,      prefix="/api/matches",      tags=["matches"])
 app.include_router(competitions.router, prefix="/api/competitions", tags=["competitions"])
 app.include_router(admin.router,        prefix="/api/admin",        tags=["admin"])
+
+
+_IMG_CACHE_DIR = Path("/data/img_cache")
+_IMG_EXT = {
+    "image/svg+xml": ".svg",
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/x-icon": ".ico",
+}
+_EXT_CT = {v.lstrip("."): k for k, v in _IMG_EXT.items()}
+
+
+@app.get("/api/img", include_in_schema=False)
+async def proxy_img(url: str = Query(...)):
+    _IMG_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha256(url.encode()).hexdigest()
+    for cached in _IMG_CACHE_DIR.glob(f"{key}.*"):
+        ct = _EXT_CT.get(cached.suffix.lstrip("."), "application/octet-stream")
+        return Response(
+            content=cached.read_bytes(),
+            media_type=ct,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+    try:
+        is_sofascore = "sofascore.com" in url
+        if is_sofascore:
+            async with _CurlSession(impersonate="chrome120", timeout=10) as session:
+                resp = await session.get(url, headers={"Referer": "https://www.sofascore.com/"})
+                status = resp.status_code
+                content = resp.content
+                ct_header = resp.headers.get("content-type", "image/png")
+        else:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                r = await client.get(url, headers={"User-Agent": "GetAFix/1.0"})
+                status = r.status_code
+                content = r.content
+                ct_header = r.headers.get("content-type", "image/png")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Failed to fetch image") from exc
+    if status != 200:
+        raise HTTPException(status_code=status, detail="Upstream error")
+    ct = ct_header.split(";")[0].strip()
+    ext = _IMG_EXT.get(ct, ".bin")
+    (_IMG_CACHE_DIR / f"{key}{ext}").write_bytes(content)
+    return Response(
+        content=content,
+        media_type=ct,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @app.get("/api/logs")
@@ -94,8 +154,8 @@ if serving_dir:
         index = serving_dir / "index.html"
         if index.exists():
             return FileResponse(str(index))
-        return HTMLResponse("<h1>Footrack frontend not built.</h1>", status_code=503)
+        return HTMLResponse("<h1>GetAFix frontend not built.</h1>", status_code=503)
 else:
     @app.get("/", include_in_schema=False)
     async def root():
-        return HTMLResponse("<h1>Footrack</h1><p>Frontend not built yet.</p>")
+        return HTMLResponse("<h1>GetAFix</h1><p>Frontend not built yet.</p>")
