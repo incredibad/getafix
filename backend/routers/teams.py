@@ -92,6 +92,9 @@ async def follow_team(
 
     db.commit()
     db.refresh(team)
+
+    linked = _link_competitions_from_cache(team, db)
+
     return schemas.TeamResponse(
         id=team.id,
         name=team.name,
@@ -103,6 +106,7 @@ async def follow_team(
         api_football_id=team.api_football_id,
         espn_id=team.espn_id,
         is_followed=True,
+        linked_competitions=linked,
     )
 
 
@@ -173,3 +177,54 @@ async def _do_search(q: str, db: Session):
         logger.warning(f"FD search failed: {e}")
         fd_results = []
     return fd_results, []
+
+
+_FD_COMP_CODES = ["PL", "PD", "BL1", "SA", "FL1", "CL", "DED", "PPL", "ELC", "BSA", "WC", "EC"]
+
+def _link_competitions_from_cache(team: models.Team, db: Session) -> list[str]:
+    """Create TeamCompetition rows using cached competition team lists — no live API calls.
+    Returns names of competitions newly linked."""
+    linked_names: list[str] = []
+
+    if team.football_data_id:
+        for code in _FD_COMP_CODES:
+            cached = _cache.get_cached(db, f"fd:comp_teams:{code}", 24 * 7)
+            if not cached:
+                continue
+            fd_ids = {t.get("football_data_id") for t in cached.get("teams", [])}
+            if team.football_data_id not in fd_ids:
+                continue
+            comp = db.query(models.Competition).filter(
+                models.Competition.football_data_id == code
+            ).first()
+            if comp and not db.query(models.TeamCompetition).filter_by(
+                team_id=team.id, competition_id=comp.id
+            ).first():
+                db.add(models.TeamCompetition(team_id=team.id, competition_id=comp.id))
+                linked_names.append(comp.name)
+
+    espn_id = getattr(team, "espn_id", None)
+    if espn_id:
+        for comp in db.query(models.Competition).filter(
+            models.Competition.espn_slug.isnot(None)
+        ).all():
+            cached = _cache.get_cached(db, f"espn:comp_teams:{comp.espn_slug}", 24 * 7)
+            if not cached:
+                continue
+            espn_ids = {t.get("espn_id") for t in cached.get("teams", [])}
+            if espn_id not in espn_ids:
+                continue
+            if not db.query(models.TeamCompetition).filter_by(
+                team_id=team.id, competition_id=comp.id
+            ).first():
+                db.add(models.TeamCompetition(team_id=team.id, competition_id=comp.id))
+                linked_names.append(comp.name)
+
+    if linked_names:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            linked_names = []
+
+    return linked_names

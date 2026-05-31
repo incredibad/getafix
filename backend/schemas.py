@@ -49,6 +49,7 @@ class TeamResponse(BaseModel):
     api_football_id: Optional[int]
     espn_id: Optional[int] = None
     is_followed: bool = False
+    linked_competitions: list[str] = []
     model_config = {"from_attributes": True}
 
 

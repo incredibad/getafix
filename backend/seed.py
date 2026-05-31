@@ -22,13 +22,19 @@ KNOWN_COMPETITIONS = [
     {"name": "Brazilian Série A",       "short_name": "BSA", "country": "Brazil",        "football_data_id": "BSA", "api_football_id": 71,  "preferred_source": "football_data", "competition_type": "league"},
     {"name": "FIFA World Cup",          "short_name": "WC",  "country": "World",         "football_data_id": "WC",  "api_football_id": 1,   "preferred_source": "football_data", "competition_type": "cup"},
     {"name": "European Championship",   "short_name": "EC",  "country": "Europe",        "football_data_id": "EC",  "api_football_id": 4,   "preferred_source": "football_data", "competition_type": "cup"},
-    # API-Football only competitions
-    {"name": "AFC Asian Cup",           "short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 7,   "preferred_source": "api_football",  "competition_type": "cup",    "espn_slug": "afc.asian.cup"},
-    {"name": "AFC World Cup Qualifying","short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 29,  "preferred_source": "api_football",  "competition_type": "cup",    "espn_slug": "fifa.worldq.afc"},
-    {"name": "A-League Men",            "short_name": None,  "country": "Australia",     "football_data_id": None,  "api_football_id": 188, "preferred_source": "api_football",  "competition_type": "league"},
-    {"name": "International Friendlies","short_name": None,  "country": "World",         "football_data_id": None,  "api_football_id": 10,  "preferred_source": "api_football",  "competition_type": "cup"},
-    {"name": "Europa League",           "short_name": "EL",  "country": "Europe",        "football_data_id": None,  "api_football_id": 3,   "preferred_source": "api_football",  "competition_type": "cup"},
-    {"name": "Conference League",       "short_name": "ECL", "country": "Europe",        "football_data_id": None,  "api_football_id": 848, "preferred_source": "api_football",  "competition_type": "cup"},
+    # ESPN-sourced competitions (no football-data.org coverage)
+    {"name": "AFC Asian Cup",           "short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 7,   "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "afc.asian.cup"},
+    {"name": "AFC World Cup Qualifying","short_name": None,  "country": "Asia",          "football_data_id": None,  "api_football_id": 29,  "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "fifa.worldq.afc"},
+    {"name": "A-League Men",            "short_name": None,  "country": "Australia",     "football_data_id": None,  "api_football_id": 188, "preferred_source": "espn",          "competition_type": "league", "espn_slug": "aus.1"},
+    {"name": "International Friendlies","short_name": None,  "country": "World",         "football_data_id": None,  "api_football_id": 10,  "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "fifa.friendly"},
+    {"name": "Europa League",           "short_name": "EL",  "country": "Europe",        "football_data_id": None,  "api_football_id": 3,   "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "uefa.europa"},
+    {"name": "Conference League",       "short_name": "ECL", "country": "Europe",        "football_data_id": None,  "api_football_id": 848, "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "uefa.europa.conf"},
+    {"name": "AFC Champions League",    "short_name": "ACL", "country": "Asia",          "football_data_id": None,  "api_football_id": 17,  "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "afc.champions"},
+    {"name": "CAF Champions League",    "short_name": None,  "country": "Africa",        "football_data_id": None,  "api_football_id": 12,  "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "caf.champions"},
+    {"name": "Copa Libertadores",       "short_name": None,  "country": "South America", "football_data_id": None,  "api_football_id": 13,  "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "conmebol.libertadores"},
+    {"name": "Copa Sudamericana",       "short_name": None,  "country": "South America", "football_data_id": None,  "api_football_id": 14,  "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "conmebol.sudamericana"},
+    {"name": "CONCACAF Champions Cup",  "short_name": None,  "country": "CONCACAF",      "football_data_id": None,  "api_football_id": 128, "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "concacaf.champions"},
+    {"name": "CONCACAF League",         "short_name": None,  "country": "CONCACAF",      "football_data_id": None,  "api_football_id": 129, "preferred_source": "espn",          "competition_type": "cup",    "espn_slug": "concacaf.league"},
 ]
 
 

@@ -16,6 +16,63 @@ router = APIRouter()
 AEST = timezone(timedelta(hours=10))
 
 
+@router.get("/by-competition", response_model=list[schemas.FixtureOut])
+async def get_fixtures_by_competition(
+    name: str = Query(...),
+    _: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comp = db.query(models.Competition).filter(models.Competition.name == name).first()
+    if not comp:
+        return []
+
+    raw: list[dict] = []
+
+    if comp.preferred_source == "football_data" and comp.football_data_id:
+        raw = await fd.get_competition_matches(comp.football_data_id, db)
+    elif comp.espn_slug:
+        # Iterate all teams in the competition and merge their schedules
+        teams = await espn._get_competition_teams(comp.espn_slug, db)
+        seen: set[str] = set()
+        for t in teams:
+            espn_id = t.get("espn_id")
+            if not espn_id:
+                continue
+            for f in await espn.get_team_schedule(espn_id, db):
+                key = _dedup_key(f)
+                if key and key not in seen:
+                    seen.add(key)
+                    raw.append(f)
+
+    # Fallback for competitions with no dedicated all-fixture source (e.g. International Friendlies):
+    # return followed-teams fixtures filtered to this competition
+    if not raw:
+        followed = db.query(models.FollowedTeam).all()
+        seen: set[str] = set()
+        for ft in followed:
+            for f in await _fetch_team_fixtures(ft.team, db):
+                raw_cname = f.get("competition", {}).get("name", "")
+                canon = _ESPN_COMP_KEYWORDS.get(raw_cname.lower(), raw_cname)
+                if canon == comp.name or raw_cname == comp.name:
+                    key = _dedup_key(f)
+                    if key and key not in seen:
+                        seen.add(key)
+                        raw.append(f)
+
+    now_utc = datetime.now(timezone.utc)
+    cutoff_past = now_utc - timedelta(days=60)
+    cutoff_future = now_utc + timedelta(days=120)
+    filtered = []
+    for f in raw:
+        try:
+            if cutoff_past <= _parse_date(f["utc_date"]) <= cutoff_future:
+                filtered.append(f)
+        except Exception:
+            pass
+    filtered.sort(key=lambda f: f["utc_date"])
+    return [_to_schema(f) for f in filtered]
+
+
 @router.get("", response_model=list[schemas.FixtureOut])
 async def get_fixtures(
     days_back: int = Query(365, ge=0, le=730),
