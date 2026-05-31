@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.31] — 2026-05-31
+
+### Fixed
+- `by-competition` endpoint now normalises incoming ESPN competition names (e.g. "International Friendly" → "International Friendlies") before the DB lookup, so the All view works when the frontend passes the raw ESPN name
+
 ## [0.5.30] — 2026-05-31
 
 ### Added
