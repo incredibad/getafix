@@ -22,7 +22,10 @@ async def get_fixtures_by_competition(
     _: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    comp = db.query(models.Competition).filter(models.Competition.name == name).first()
+    canonical = _ESPN_COMP_KEYWORDS.get(name.lower(), name)
+    comp = db.query(models.Competition).filter(models.Competition.name == canonical).first()
+    if not comp:
+        comp = db.query(models.Competition).filter(models.Competition.name == name).first()
     if not comp:
         return []
 
