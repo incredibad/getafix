@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.13.2] — 2026-06-01
+
+### Fixed
+- AppLogo: wordmark offset increased to 10px; letter-spacing increased to 0.12em.
+
 ## [0.13.1] — 2026-06-01
 
 ### Fixed

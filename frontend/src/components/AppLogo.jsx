@@ -8,7 +8,7 @@ export default function AppLogo({ size = 'md' }) {
   return (
     <div className="flex items-center gap-2.5">
       <img src="/logo.svg" className={`${h} w-auto object-contain`} alt="" />
-      <span className="text-white leading-none" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize, letterSpacing: '0.04em', marginTop: '5px' }}>
+      <span className="text-white leading-none" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize, letterSpacing: '0.12em', marginTop: '10px' }}>
         GETAFIX
       </span>
     </div>
