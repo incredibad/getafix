@@ -54,7 +54,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/fixtures" replace />} />
         <Route path="/fixtures" element={<Fixtures />} />
-        <Route path="/fixtures/:source/:id" element={<MatchDetail />} />
+        <Route path="/fixtures/:id" element={<MatchDetail />} />
         <Route path="/tables" element={<Tables />} />
         <Route path="/teams" element={<Teams />} />
         <Route path="/settings" element={<Settings />} />

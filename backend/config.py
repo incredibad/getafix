@@ -7,7 +7,6 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 10080  # 7 days
     database_url: str = "sqlite:////data/footrack.db"
     football_data_api_key: str = ""
-    api_football_key: str = "f04110601c013e3c5dbbeab524580786"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

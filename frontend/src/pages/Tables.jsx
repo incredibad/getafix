@@ -4,6 +4,25 @@ import api from '../api/client'
 import toast from 'react-hot-toast'
 
 const SOURCE_LABELS = { football_data: 'FD', api_football: 'APF', espn: 'ESPN', fd: 'FD', apf: 'APF' }
+const STORAGE_KEY = 'footrack:tables:competition'
+
+function CompLogo({ url, size = 'sm' }) {
+  const imgDim = size === 'lg' ? 'w-5 h-5' : size === 'md' ? 'w-4 h-4' : 'w-3.5 h-3.5'
+  const wrapDim = size === 'lg' ? 'w-7 h-7' : size === 'md' ? 'w-6 h-6' : 'w-5 h-5'
+  const iconSize = size === 'lg' ? 16 : size === 'md' ? 14 : 12
+  if (!url) {
+    return (
+      <div className={`${wrapDim} rounded flex items-center justify-center flex-shrink-0 bg-slate-200`}>
+        <Trophy size={iconSize} className="text-slate-600" />
+      </div>
+    )
+  }
+  return (
+    <div className={`${wrapDim} rounded flex items-center justify-center flex-shrink-0 bg-slate-200`}>
+      <img src={url} alt="" className={`${imgDim} object-contain`} />
+    </div>
+  )
+}
 
 function RoundStatus({ startDate, endDate }) {
   if (!startDate && !endDate) return null
@@ -83,36 +102,40 @@ function StandingsTable({ table, group, stage, startDate, endDate }) {
   )
 }
 
-function AccordionItem({ comp, open, onToggle }) {
+function MobileDropdown({ competitions, selectedName, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const selected = competitions.find(c => c.name === selectedName)
+
   return (
-    <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+    <div className="relative mb-4 lg:hidden">
+      {open && <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />}
       <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-white/5 transition-colors"
-        style={{ background: 'var(--surface)' }}
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          {comp.emblem_url && (
-            <img src={comp.emblem_url} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
-          )}
-          <div className="text-left min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{comp.name}</p>
-            <div className="flex items-center gap-2">
-              {comp.season && <p className="text-xs text-slate-500">Season {comp.season}</p>}
-              {comp.source && <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{SOURCE_LABELS[comp.source] ?? comp.source}</span>}
-            </div>
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <CompLogo url={selected?.emblem_url} size="md" />
+          <span className="text-sm font-medium text-white truncate">{selected?.name ?? 'Select competition'}</span>
         </div>
-        <ChevronDown
-          size={16}
-          className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-        />
+        <ChevronDown size={16} className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="px-4 pt-3 pb-4 border-t" style={{ borderColor: 'var(--border)' }}>
-          {comp.groups.map((g, i) => (
-            <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} />
+        <div
+          className="absolute z-20 top-full mt-1 left-0 right-0 rounded-xl border shadow-xl overflow-hidden max-h-72 overflow-y-auto"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          {competitions.map(comp => (
+            <button
+              key={comp.name}
+              onClick={() => { onSelect(comp.name); setOpen(false) }}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/5 transition-colors border-b last:border-0 ${comp.name === selectedName ? 'text-green-400' : 'text-slate-200'}`}
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <CompLogo url={comp.emblem_url} size="sm" />
+              <span className="text-sm truncate">{comp.name}</span>
+            </button>
           ))}
         </div>
       )}
@@ -124,7 +147,7 @@ export default function Tables() {
   const [standings, setStandings] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [openName, setOpenName] = useState(null)
+  const [selectedName, setSelectedName] = useState(() => localStorage.getItem(STORAGE_KEY))
 
   const load = async (showToast = false) => {
     try {
@@ -154,21 +177,28 @@ export default function Tables() {
     return Object.values(map)
   }, [standings])
 
-  // Auto-open the first competition once loaded
   useEffect(() => {
-    if (competitions.length > 0 && openName === null) {
-      setOpenName(competitions[0].name)
+    if (competitions.length === 0) return
+    const valid = competitions.find(c => c.name === selectedName)
+    if (!valid) {
+      setSelectedName(competitions[0].name)
+      localStorage.setItem(STORAGE_KEY, competitions[0].name)
     }
   }, [competitions])
 
+  const handleSelect = (name) => {
+    setSelectedName(name)
+    localStorage.setItem(STORAGE_KEY, name)
+  }
+
   const handleRefresh = () => { setRefreshing(true); load(true) }
 
-  const toggle = (name) => setOpenName(prev => prev === name ? null : name)
+  const selectedComp = competitions.find(c => c.name === selectedName)
 
   return (
     <div className="p-4 sm:p-6 pt-16 lg:pt-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-4 lg:mb-6">
           <h1 className="text-xl font-bold text-white">Tables</h1>
           <button
             onClick={handleRefresh}
@@ -191,15 +221,52 @@ export default function Tables() {
             <p className="text-slate-500 text-sm">Follow teams and load their fixtures to see tables.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {competitions.map(comp => (
-              <AccordionItem
-                key={comp.name}
-                comp={comp}
-                open={openName === comp.name}
-                onToggle={() => toggle(comp.name)}
-              />
-            ))}
+          <div className="lg:flex lg:gap-6">
+            {/* Mobile dropdown */}
+            <MobileDropdown competitions={competitions} selectedName={selectedName} onSelect={handleSelect} />
+
+            {/* Desktop vertical tab list */}
+            <div className="hidden lg:block w-44 flex-shrink-0">
+              <div className="sticky top-6 space-y-0.5">
+                {competitions.map(comp => (
+                  <button
+                    key={comp.name}
+                    onClick={() => handleSelect(comp.name)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                      comp.name === selectedName
+                        ? 'bg-white/10 text-white'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    }`}
+                  >
+                    <CompLogo url={comp.emblem_url} size="sm" />
+                    <span className="text-sm truncate">{comp.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Standings content */}
+            <div className="flex-1 min-w-0">
+              {selectedComp && (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <CompLogo url={selectedComp.emblem_url} size="lg" />
+                    <h2 className="text-base font-semibold text-white">{selectedComp.name}</h2>
+                    <div className="flex items-center gap-2 ml-1">
+                      {selectedComp.season && <span className="text-xs text-slate-500">Season {selectedComp.season}</span>}
+                      {selectedComp.source && (
+                        <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
+                          {SOURCE_LABELS[selectedComp.source] ?? selectedComp.source}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {selectedComp.groups.map((g, i) => (
+                    <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} />
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

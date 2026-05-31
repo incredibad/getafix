@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, Circle, Shirt, BarChart2, Zap, Eye, EyeOff, Lock } from 'lucide-react'
 import api from '../api/client'
 import { formatMatchDateTime } from '../utils/date'
@@ -37,7 +37,7 @@ function EventRow({ event }) {
   const detail = event.detail && event.detail !== event.type ? event.detail : null
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 text-sm ${isHome ? 'flex-row-reverse text-right' : ''}`}>
+    <div className={`flex items-start gap-2 py-1.5 text-sm ${!isHome ? 'flex-row-reverse text-right' : ''}`}>
       <span className="text-slate-500 tabular-nums text-xs w-8 flex-shrink-0 pt-0.5">
         {event.minute ? `${event.minute}'` : ''}
         {event.extra_time ? `+${event.extra_time}` : ''}
@@ -114,8 +114,9 @@ function LineupGrid({ lineup }) {
 }
 
 export default function MatchDetail() {
-  const { source, id } = useParams()
+  const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
   const [revealed, setRevealed] = useState(false)
@@ -123,7 +124,11 @@ export default function MatchDetail() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await api.get(`/matches/${id}`, { params: { source } })
+        const source = location.state?.source
+        const leagueSlug = location.state?.leagueSlug
+        if (!source) { navigate('/fixtures', { replace: true }); return }
+        const params = { source, ...(leagueSlug ? { league_slug: leagueSlug } : {}) }
+        const { data } = await api.get(`/matches/${id}`, { params })
         setDetail(data)
       } catch {
         toast.error('Failed to load match details.')
@@ -132,7 +137,7 @@ export default function MatchDetail() {
       }
     }
     load()
-  }, [id, source])
+  }, [id, location.state])
 
   if (loading) {
     return (
@@ -155,7 +160,8 @@ export default function MatchDetail() {
   const isLive = fixture.status === 'LIVE'
   const hasScore = fixture.status !== 'SCHEDULED'
 
-  const homeEvents = events.map(e => ({ ...e, _is_home: e.team === fixture.home_team.name }))
+  const eventsHomeName = detail.events_home_team ?? fixture.home_team.name
+  const homeEvents = events.map(e => ({ ...e, _is_home: e.team === eventsHomeName }))
 
   return (
     <div className="p-4 sm:p-6 pt-16 lg:pt-6 max-w-2xl mx-auto">

@@ -14,6 +14,24 @@ import cache as _cache
 logger = logging.getLogger(__name__)
 
 BASE = "https://api.football-data.org/v4"
+
+# FD numeric competition ID → ESPN slug (for event/lineup supplement)
+_FD_COMP_ESPN_SLUG = {
+    2021: "eng.1",          # Premier League
+    2001: "uefa.champions", # Champions League
+    2014: "esp.1",          # La Liga
+    2002: "ger.1",          # Bundesliga
+    2019: "ita.1",          # Serie A
+    2015: "fra.1",          # Ligue 1
+    2003: "ned.eredivisie", # Eredivisie
+    2017: "por.1",          # Primeira Liga
+    2016: "eng.2",          # Championship
+    2013: "bra.1",          # Brazilian Série A
+    2000: "fifa.world",     # World Cup
+    2018: "uefa.euro",      # Euros
+    2152: "uefa.europa",    # Europa League
+    2061: "uefa.conference",# Conference League
+}
 HEADERS = {"X-Auth-Token": settings.football_data_api_key}
 
 # Map fd status -> normalised status
@@ -184,21 +202,23 @@ def _parse_standings(data: dict, source: str) -> dict:
 
 
 async def get_match_detail(match_id: int, db: Session) -> dict | None:
+    import datetime as _dt
     cache_key = f"fd:match:{match_id}"
 
     cached = _cache.get_cached(db, cache_key, None)
     if cached:
         if cached.get("is_permanent"):
-            return cached
-        # Live: re-fetch after 60s
-        live_age = (
-            __import__("datetime").datetime.utcnow()
-            - __import__("datetime").datetime.fromisoformat(
-                cached.get("cached_at", "2000-01-01T00:00:00").rstrip("Z")
-            )
-        ).total_seconds()
-        if cached.get("status") not in ("LIVE",) or live_age < 60:
-            return cached
+            # Skip cache only if empty AND ESPN hasn't been tried yet
+            has_detail = cached.get("events") or cached.get("lineups") or cached.get("espn_attempted")
+            if has_detail:
+                return cached
+        else:
+            live_age = (
+                _dt.datetime.utcnow()
+                - _dt.datetime.fromisoformat(cached.get("cached_at", "2000-01-01T00:00:00").rstrip("Z"))
+            ).total_seconds()
+            if cached.get("status") not in ("LIVE",) or live_age < 60:
+                return cached
 
     try:
         data = await _get(f"/matches/{match_id}", db=db)
@@ -210,15 +230,37 @@ async def get_match_detail(match_id: int, db: Session) -> dict | None:
         stats = _parse_stats_fd(match)
         lineups = _parse_lineups_fd(match)
 
+        events_home_team = None
+        espn_attempted = False
+
+        # FD free tier has no events — supplement from ESPN for finished matches
+        if is_finished and not events and not lineups:
+            comp_id = fixture.get("competition", {}).get("id")
+            espn_slug = _FD_COMP_ESPN_SLUG.get(comp_id)
+            if espn_slug:
+                from api import espn as _espn
+                espn_detail = await _espn.get_match_events_by_teams(
+                    espn_slug, fixture["utc_date"],
+                    fixture["home_team"]["name"], fixture["away_team"]["name"], db
+                )
+                if espn_detail:
+                    events = espn_detail["events"]
+                    stats = espn_detail["stats"]
+                    lineups = espn_detail["lineups"]
+                    events_home_team = espn_detail["fixture"]["home_team"]["name"]
+            espn_attempted = True
+
         detail = {
             "fixture": fixture,
             "events": events,
             "stats": stats,
             "lineups": lineups,
             "source": "football_data",
-            "cached_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+            "cached_at": _dt.datetime.utcnow().isoformat() + "Z",
             "is_permanent": is_finished,
             "status": fixture["status"],
+            "espn_attempted": espn_attempted,
+            **({"events_home_team": events_home_team} if events_home_team else {}),
         }
         _cache.set_cached(db, cache_key, detail, is_permanent=is_finished)
         return detail

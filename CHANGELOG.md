@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.5.9] — 2026-05-31
+
+### Fixed
+- Removed stale `api_football` imports from `matches.py` and `teams.py` that would crash the backend at startup after `api_football.py` was deleted; team search now uses FD only
+
+## [0.5.8] — 2026-05-31
+
+### Fixed
+- APF fixture and standings lookups now try 3 seasons back instead of 2; fixes split-season leagues like A-League where the 2024-25 season is keyed as 2024 in API-Football, two years behind the current calendar year
+
+## [0.5.7] — 2026-05-31
+
+### Fixed
+- Logo wrappers changed from white to slate-200 (light grey) to reduce contrast; active tab highlight in Tables sidebar restored to bg-white/10; trophy fallback icon darkened to slate-600 for visibility on grey background; team crest pills in Fixtures also get the grey wrapper
+
+## [0.5.6] — 2026-05-31
+
+### Fixed
+- Competition logo wrappers now use a solid white background (was white/10 — insufficient for dark-on-transparent logos like the Premier League badge)
+
+## [0.5.5] — 2026-05-31
+
+### Changed
+- Fixtures page: competition logos in filter pills and on fixture cards now use the same light-tinted wrapper as the Tables page; competitions with no logo show a Trophy icon fallback; removed the opacity reduction on card emblems
+
+## [0.5.4] — 2026-05-31
+
+### Changed
+- Competition logos throughout the Tables page now render inside a subtle light-tinted wrapper so dark/transparent logos are visible on the dark theme; competitions with no logo show a Trophy icon fallback
+
+## [0.5.3] — 2026-05-31
+
+### Changed
+- Tables page: replaced accordion with a vertical tab list on desktop (competition list left, standings right) and a dropdown above the table on mobile; selection is persisted to localStorage
+
+## [0.5.2] — 2026-05-31
+
+### Added
+- FD matches now pull events, lineups, and stats from ESPN as a fallback when FD's free tier returns none; covers all major competitions (PL, CL, La Liga, Bundesliga, Serie A, Ligue 1, etc.)
+- ESPN scoreboard lookup matches by date and fuzzy team name; result is permanently cached so the supplement only runs once per match
+
+## [0.5.1] — 2026-05-31
+
+### Fixed
+- Match event rows now align to the correct side: home events on the left, away events on the right (consistent with the score header)
+- Match detail URL no longer includes the data source; source is passed via navigation state so the URL is a clean `/fixtures/:id`
+
+## [0.5.0] — 2026-05-31
+
+### Added
+- ESPN match detail: match events (goals, cards, substitutions), lineups, and statistics now load for ESPN-sourced fixtures (AFC WC qualifying, Asian Cup, international friendlies) via the ESPN summary endpoint
+- League slug stored per ESPN fixture and passed through navigation state so the correct slug is used when fetching match detail; falls back through known slugs if not available
+
 ## [0.4.13] — 2026-05-31
 
 ### Changed
