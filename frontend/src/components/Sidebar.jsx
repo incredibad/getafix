@@ -1,21 +1,25 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Calendar, Trophy, Users, Settings, LogOut, Menu, X } from 'lucide-react'
+import { Calendar, Trophy, Users, Settings, LogOut, LogIn, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
-const NAV = [
+const NAV_PUBLIC = [
   { to: '/fixtures', icon: Calendar, label: 'Fixtures' },
   { to: '/tables',   icon: Trophy,   label: 'Tables' },
+]
+const NAV_AUTH = [
   { to: '/teams',    icon: Users,    label: 'Teams' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 export default function Sidebar() {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
   const handleLogout = () => { logout(); navigate('/login') }
+
+  const nav = user ? [...NAV_PUBLIC, ...NAV_AUTH] : NAV_PUBLIC
 
   const navContent = (
     <>
@@ -25,7 +29,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-2 py-4 space-y-1">
-        {NAV.map(({ to, icon: Icon, label }) => (
+        {nav.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -45,13 +49,23 @@ export default function Sidebar() {
       </nav>
 
       <div className="px-2 pb-4 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-        >
-          <LogOut size={18} />
-          Sign out
-        </button>
+        {user ? (
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+          >
+            <LogOut size={18} />
+            Sign out
+          </button>
+        ) : (
+          <button
+            onClick={() => { setOpen(false); navigate('/login') }}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-green-400 hover:bg-green-400/10 transition-colors"
+          >
+            <LogIn size={18} />
+            Log in
+          </button>
+        )}
       </div>
     </>
   )

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.32] — 2026-05-31
+
+### Added
+- Permanent view-only mode: Fixtures, Tables, and Match Detail are now accessible without logging in
+- Login button in sidebar bottom-left when unauthenticated; Teams and Settings nav items hidden until logged in
+- Teams and Settings pages redirect to login if accessed without a session
+
+### Changed
+- Backend read endpoints (fixtures, competitions, standings, match detail, followed teams) now use optional auth — no token required
+- API client 401 handler only redirects to login if a token was present (session expiry), not for anonymous access
+
 ## [0.5.31] — 2026-05-31
 
 ### Fixed

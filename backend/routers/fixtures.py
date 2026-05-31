@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
-from auth import get_current_user
+from auth import get_optional_user
 from api import football_data as fd
 from api import espn
 
@@ -19,7 +19,7 @@ AEST = timezone(timedelta(hours=10))
 @router.get("/by-competition", response_model=list[schemas.FixtureOut])
 async def get_fixtures_by_competition(
     name: str = Query(...),
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     canonical = _ESPN_COMP_KEYWORDS.get(name.lower(), name)
@@ -80,7 +80,7 @@ async def get_fixtures_by_competition(
 async def get_fixtures(
     days_back: int = Query(365, ge=0, le=730),
     days_ahead: int = Query(90, ge=0, le=365),
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     followed = db.query(models.FollowedTeam).all()

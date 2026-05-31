@@ -6,7 +6,7 @@ from database import get_db
 import models
 import schemas
 import cache as _cache
-from auth import get_current_user
+from auth import get_current_user, get_optional_user
 from api import football_data as fd
 from api import espn
 
@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get("/followed", response_model=list[schemas.TeamResponse])
 def list_followed_teams(
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     followed = db.query(models.FollowedTeam).all()
