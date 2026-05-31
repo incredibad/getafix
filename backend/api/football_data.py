@@ -32,6 +32,24 @@ _FD_COMP_ESPN_SLUG = {
     2152: "uefa.europa",    # Europa League
     2061: "uefa.conference",# Conference League
 }
+
+# FD uses official/local names that differ from what we display (e.g. "Primera Division" → "La Liga")
+_FD_COMP_DISPLAY_NAMES = {
+    2021: "Premier League",
+    2001: "Champions League",
+    2014: "La Liga",
+    2002: "Bundesliga",
+    2019: "Serie A",
+    2015: "Ligue 1",
+    2003: "Eredivisie",
+    2017: "Primeira Liga",
+    2016: "Championship",
+    2013: "Brazilian Série A",
+    2000: "FIFA World Cup",
+    2018: "European Championship",
+    2152: "Europa League",
+    2061: "Conference League",
+}
 HEADERS = {"X-Auth-Token": settings.football_data_api_key}
 
 # Map fd status -> normalised status
@@ -80,19 +98,19 @@ def _parse_fixture(match: dict, comp_name: str = "", comp_emblem: str = "") -> d
         "minute": minute,
         "home_team": {
             "id": match.get("homeTeam", {}).get("id"),
-            "name": match.get("homeTeam", {}).get("name", ""),
+            "name": match.get("homeTeam", {}).get("name") or "TBD",
             "short_name": match.get("homeTeam", {}).get("shortName"),
             "crest_url": match.get("homeTeam", {}).get("crest"),
         },
         "away_team": {
             "id": match.get("awayTeam", {}).get("id"),
-            "name": match.get("awayTeam", {}).get("name", ""),
+            "name": match.get("awayTeam", {}).get("name") or "TBD",
             "short_name": match.get("awayTeam", {}).get("shortName"),
             "crest_url": match.get("awayTeam", {}).get("crest"),
         },
         "competition": {
-            "id": match.get("competition", {}).get("id"),
-            "name": match.get("competition", {}).get("name", comp_name),
+            "id": (comp_id := match.get("competition", {}).get("id")),
+            "name": _FD_COMP_DISPLAY_NAMES.get(comp_id, match.get("competition", {}).get("name", comp_name)),
             "emblem_url": match.get("competition", {}).get("emblem", comp_emblem),
         },
         "score_home": ft.get("home"),
@@ -139,6 +157,29 @@ async def get_team_matches(
         return []
 
 
+async def get_competition_matches(comp_code: str, db: Session, ttl_hours: float = 1.0) -> list[dict]:
+    from datetime import date, timedelta
+    cache_key = f"fd:comp_matches:{comp_code}"
+    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    if cached:
+        return cached.get("matches", [])
+    try:
+        date_from = (date.today() - timedelta(days=60)).isoformat()
+        date_to = (date.today() + timedelta(days=120)).isoformat()
+        data = await _get(f"/competitions/{comp_code}/matches",
+                          {"dateFrom": date_from, "dateTo": date_to}, db)
+        comp_data = data.get("competition", {})
+        comp_id = comp_data.get("id")
+        comp_name = _FD_COMP_DISPLAY_NAMES.get(comp_id, comp_data.get("name", ""))
+        comp_emblem = comp_data.get("emblem", "")
+        matches = [_parse_fixture(m, comp_name, comp_emblem) for m in data.get("matches", [])]
+        _cache.set_cached(db, cache_key, {"matches": matches})
+        return matches
+    except Exception as e:
+        logger.error(f"football-data.org competition matches error ({comp_code}): {e}")
+        return []
+
+
 async def get_competition_standings(
     comp_code: str,
     db: Session,
@@ -163,10 +204,11 @@ async def get_competition_standings(
 def _parse_standings(data: dict, source: str) -> dict:
     comp = data.get("competition", {})
     season = data.get("season", {})
+    comp_id = comp.get("id")
     result = {
         "competition": {
-            "id": comp.get("id"),
-            "name": comp.get("name", ""),
+            "id": comp_id,
+            "name": _FD_COMP_DISPLAY_NAMES.get(comp_id, comp.get("name", "")),
             "emblem_url": comp.get("emblem"),
         },
         "season": season.get("startDate", "")[:4] if season.get("startDate") else None,
@@ -354,30 +396,26 @@ async def find_team_id_by_name(name: str, db: Session, team_type: str | None = N
     return None
 
 
+_SEARCH_COMP_CODES = ["PL", "PD", "BL1", "SA", "FL1", "CL", "DED", "PPL", "ELC", "BSA", "WC", "EC"]
+
 async def search_teams(query: str, db: Session) -> list[dict]:
-    try:
-        data = await _get("/teams", {"name": query, "limit": 10}, db)
-        q = query.lower()
-        results = []
-        for team in data.get("teams", []):
-            name = team.get("name", "")
-            short = team.get("shortName") or ""
-            if q not in name.lower() and q not in short.lower():
-                continue
-            results.append({
-                "name": name,
-                "short_name": team.get("shortName"),
-                "country": team.get("area", {}).get("name"),
-                "crest_url": team.get("crest"),
-                "team_type": "national" if team.get("type") == "NATIONAL" else "club",
-                "football_data_id": team.get("id"),
-                "api_football_id": None,
-                "source": "football_data",
-            })
-        return results
-    except Exception as e:
-        logger.error(f"football-data.org team search error: {e}")
-        return []
+    q = query.lower().strip()
+    results: list[dict] = []
+    seen_ids: set[int] = set()
+    for code in _SEARCH_COMP_CODES:
+        try:
+            for team in await get_competition_teams(code, db):
+                fd_id = team.get("football_data_id")
+                if fd_id in seen_ids:
+                    continue
+                name = (team.get("name") or "").lower()
+                short = (team.get("short_name") or "").lower()
+                if q in name or q in short:
+                    seen_ids.add(fd_id)
+                    results.append(team)
+        except Exception as e:
+            logger.warning(f"search_teams: error scanning {code}: {e}")
+    return results
 
 
 async def get_competition_teams(comp_code: str, db: Session) -> list[dict]:

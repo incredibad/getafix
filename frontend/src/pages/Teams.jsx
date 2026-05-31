@@ -42,9 +42,9 @@ function TeamCard({ team, onFollow, onUnfollow, followed }) {
             <Building2 size={11} className="text-slate-500 flex-shrink-0" />
           )}
           <span className="text-xs text-slate-500 truncate">{team.country || (team.team_type === 'national' ? 'National' : 'Club')}</span>
-          {(team.source || team.football_data_id || team.api_football_id) && (
+          {(team.football_data_id || team.espn_id || team.api_football_id) && (
             <span className="text-xs text-slate-600 ml-1">
-              {team.football_data_id ? '· FD' : '· APF'}
+              {team.football_data_id ? '· FD' : team.espn_id ? '· ESPN' : '· APF'}
             </span>
           )}
         </div>
@@ -110,7 +110,7 @@ export default function Teams() {
 
   const followTeam = async (team) => {
     try {
-      await api.post('/teams/follow', {
+      const { data } = await api.post('/teams/follow', {
         name: team.name,
         short_name: team.short_name,
         country: team.country,
@@ -119,7 +119,14 @@ export default function Teams() {
         football_data_id: team.football_data_id,
         api_football_id: team.api_football_id,
       })
-      toast.success(`Following ${team.name}`)
+      const comps = data.linked_competitions ?? []
+      const msg = comps.length
+        ? `Following ${team.name} · added to ${comps.join(', ')}`
+        : `Following ${team.name}`
+      toast.success(msg, { duration: 6000 })
+      localStorage.setItem('footrack:pending_toast', JSON.stringify({
+        message: msg, type: 'success', expires: Date.now() + 5 * 60 * 1000,
+      }))
       await loadFollowed()
       setSearchResults(prev => prev.map(r =>
         r.name === team.name ? { ...r, already_followed: true } : r

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
@@ -64,9 +65,25 @@ function AppRoutes() {
   )
 }
 
+function PendingToastReplay() {
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('footrack:pending_toast')
+      if (!raw) return
+      localStorage.removeItem('footrack:pending_toast')
+      const { message, expires } = JSON.parse(raw)
+      if (message && Date.now() < expires) {
+        toast.success(message, { duration: 6000 })
+      }
+    } catch {}
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <AuthProvider>
+      <PendingToastReplay />
       <AppRoutes />
     </AuthProvider>
   )

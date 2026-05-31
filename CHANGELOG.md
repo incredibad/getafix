@@ -1,5 +1,121 @@
 # Changelog
 
+## [0.5.30] — 2026-05-31
+
+### Added
+- Six new competitions: AFC Champions League, CAF Champions League, Copa Libertadores, Copa Sudamericana, CONCACAF Champions Cup, CONCACAF League — all with ESPN slugs for full "All fixtures" support
+
+### Fixed
+- All non-football-data competitions corrected from `preferred_source: api_football` (removed) to `espn`
+
+## [0.5.29] — 2026-05-31
+
+### Fixed
+- `by-competition` "All" view now returns fixtures for Europa League (`uefa.europa`), Conference League (`uefa.europa.conf`), and International Friendlies (`fifa.friendly`); previously all three returned empty due to missing ESPN slugs and a competition-name mismatch in the followed-teams fallback
+
+## [0.5.28] — 2026-05-31
+
+### Fixed
+- Fixtures team filter now shows full team name instead of short_name (which for national teams is the 3-letter TLA); sort also uses full name
+
+## [0.5.27] — 2026-05-31
+
+### Fixed
+- Fixture cards with no crest URL now show a ⚽ emoji scaled to the crest size instead of the team's first letter
+
+## [0.5.26] — 2026-05-31
+
+### Added
+- Fixtures: Mine|All toggle in the Leagues section header; "All" fetches every fixture for the selected competition via a new `/fixtures/by-competition` endpoint (FD: single `/competitions/{code}/matches` call; ESPN: team-by-team with dedup); toggle persists across league switches, resets to Mine when no comp filter is active
+
+## [0.5.25] — 2026-05-31
+
+### Changed
+- Fixtures card: true 3-column layout — competition (144 px) | home–score–away (flex-1) | provider badge (56 px); score at 26 px, names at text-xl (20 px), crests at 28 px
+
+## [0.5.24] — 2026-05-31
+
+### Changed
+- Fixtures: card is now a true single row — home team | score/time | away team — competition and source rows removed entirely; status (LIVE, PST, CANC) shown inline below score in centre column
+
+## [0.5.23] — 2026-05-31
+
+### Changed
+- Fixtures: card redesign — team names at `text-2xl`, score at `text-4xl`, crests 36 px; all elements vertically centred in a single main row; kick-off time shown in the centre slot for unplayed fixtures instead of "vs"
+- Fixtures: removed FT status badge (LIVE, PST, CANC remain)
+
+## [0.5.22] — 2026-05-31
+
+### Added
+- Fixtures: team filters sorted alphabetically in both sidebar and mobile pills
+- Fixtures: floating "Today" button (bottom-right, fixed) appears whenever today's section is scrolled out of view; hidden when no today section exists
+- Fixtures: extra bottom padding so the floating button never overlaps the last fixture card
+
+## [0.5.21] — 2026-05-31
+
+### Added
+- Fixtures: past cards get a red tint, today gets green, future gets blue (subtle highlight, border matches)
+- Fixtures: view auto-scrolls to today's section on page load, refresh, and filter changes
+
+## [0.5.20] — 2026-05-31
+
+### Fixed
+- Layout changed from `min-h-screen` to `h-screen overflow-hidden` so the two-column pages (Fixtures, Tables) have a fixed viewport height to work within; the left filter/tab columns are now truly sticky while only the right content area scrolls
+
+## [0.5.19] — 2026-05-31
+
+### Changed
+- Fixtures desktop layout: filters moved to a full-height 250 px left column sectioned into Teams and Leagues; fixture list fills remaining screen width; reveal and refresh buttons are icon-only in the column header; mobile layout unchanged
+
+## [0.5.18] — 2026-05-31
+
+### Added
+- Tables: followed teams are highlighted in green and their row is clickable — navigates to Fixtures with that team pre-filtered
+- Tables: "Fixtures ↗" link button in the top-right of every table navigates to Fixtures with that competition pre-filtered
+- Fixtures: accepts an `initialFilter` from navigation state so deep-links from Tables land with the correct filter already applied
+
+## [0.5.17] — 2026-05-31
+
+### Changed
+- Tables desktop layout: competition tabs moved to a full-height 250 px column with its own title and refresh button; standings content takes the remaining screen width with no max-width cap
+
+## [0.5.16] — 2026-05-31
+
+### Fixed
+- La Liga (and all other FD-sourced competitions) now display their preferred names; football-data.org returns "Primera Division" for La Liga — added a canonical display-name map applied at parse time in both fixture and standings responses; stale caches cleared
+
+## [0.5.15] — 2026-05-31
+
+### Added
+- Following a team now shows a persistent toast naming the competitions linked (e.g. "Following SSC Napoli · added to Serie A"); toast survives client-side navigation (Toaster is at root) and page refresh (replayed from localStorage within a 5-minute window)
+
+## [0.5.14] — 2026-05-31
+
+### Fixed
+- Following a new team now immediately creates competition links from cached team lists, so the Tables screen picks up the new standings on first visit without needing to visit Fixtures first
+
+## [0.5.13] — 2026-05-31
+
+### Fixed
+- Team search now finds Italian, French, and all other FD-covered leagues; the previous `/teams?name=` FD endpoint silently ignored the name filter and returned unrelated teams, so local matches never hit. Search now scans per-competition team lists (all 12 FD-covered competitions, already cached) and filters locally.
+
+## [0.5.12] — 2026-05-31
+
+### Changed
+- Tables: alternating column backgrounds (even columns get a subtle tint) composing with existing row alternating and hover
+
+## [0.5.11] — 2026-05-31
+
+### Fixed
+- Scores re-hide when the filter is changed on the Fixtures screen (both reveal-all and individually revealed scores reset)
+
+## [0.5.10] — 2026-05-31
+
+### Fixed
+- A-League Men switched from API-Football to ESPN as the standings source (`aus.1` slug); no more APF badge on the Tables screen
+- Brisbane Roar ESPN ID (5326) populated so its team card shows `· ESPN` instead of `· APF`
+- Teams screen source badge now shows `· ESPN` when a team has an ESPN ID but no football-data ID
+
 ## [0.5.9] — 2026-05-31
 
 ### Fixed

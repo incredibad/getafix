@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { RefreshCw, Users, Circle, Eye, EyeOff, Lock, ChevronRight, Trophy } from 'lucide-react'
 import api from '../api/client'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
@@ -7,102 +7,120 @@ import toast from 'react-hot-toast'
 
 const SOURCE_LABELS = { fd: 'FD', apf: 'APF', espn: 'ESPN', football_data: 'FD', api_football: 'APF' }
 
-function StatusBadge({ fixture }) {
-  const { status, minute } = fixture
-  if (status === 'LIVE') {
-    return (
-      <span className="flex items-center gap-1 text-xs font-bold text-red-400">
-        <Circle size={7} fill="currentColor" className="animate-pulse" />
-        {minute ? `${minute}'` : 'LIVE'}
-      </span>
-    )
-  }
-  if (status === 'FINISHED') return <span className="text-xs text-slate-500 font-medium">FT</span>
-  if (status === 'POSTPONED') return <span className="text-xs text-yellow-500">PST</span>
-  if (status === 'CANCELLED') return <span className="text-xs text-red-600">CANC</span>
-  return null
+const BRISBANE_TZ = 'Australia/Brisbane'
+function getDateCategory(utcDate) {
+  const todayISO = new Date().toLocaleDateString('en-CA', { timeZone: BRISBANE_TZ })
+  const matchISO = new Date(utcDate).toLocaleDateString('en-CA', { timeZone: BRISBANE_TZ })
+  if (matchISO === todayISO) return 'today'
+  return matchISO < todayISO ? 'past' : 'future'
 }
 
-function TeamCrest({ url, name, size = 20 }) {
-  if (!url) return <span className="text-slate-600 text-xs">{name?.[0] ?? '?'}</span>
-  return <img src={url} alt={name} style={{ width: size, height: size }} className="object-contain" />
+const DATE_CAT_STYLE = {
+  past:   { background: 'rgba(239,68,68,0.07)',   borderColor: 'rgba(239,68,68,0.18)' },
+  today:  { background: 'rgba(34,197,94,0.07)',   borderColor: 'rgba(34,197,94,0.2)'  },
+  future: { background: 'rgba(59,130,246,0.07)',  borderColor: 'rgba(59,130,246,0.18)' },
 }
 
-function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail }) {
+function TeamCrest({ url, name, size = 28 }) {
+  if (!url) return <span className="flex-shrink-0" style={{ fontSize: size * 0.85, lineHeight: 1 }}>⚽</span>
+  return <img src={url} alt={name} style={{ width: size, height: size }} className="object-contain flex-shrink-0" />
+}
+
+function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory }) {
   const { home_team, away_team, competition, utc_date, status, score_home, score_away, source } = fixture
   const isLive = status === 'LIVE'
   const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
   const hasDetail = status === 'FINISHED' || status === 'LIVE'
+  const catStyle = DATE_CAT_STYLE[dateCategory] ?? DATE_CAT_STYLE.future
+  const cardStyle = isLive ? { ...catStyle, borderColor: 'rgba(248,113,113,0.35)' } : catStyle
+  const sep = { borderColor: 'rgba(255,255,255,0.06)' }
 
   return (
-    <div
-      className="relative w-full p-3 sm:p-4 rounded-xl border"
-      style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}
-    >
-      <div className={hasDetail ? 'pr-6' : ''}>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {competition.emblem_url
-              ? <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={competition.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" /></span>
-              : <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={11} className="text-slate-600" /></span>
-            }
-            <span className="text-xs text-slate-500 truncate">{competition.name}</span>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {source && <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">{SOURCE_LABELS[source] ?? source}</span>}
-            <StatusBadge fixture={fixture} />
-            {status === 'SCHEDULED' && (
-              <span className="text-xs text-slate-400">{formatMatchTime(utc_date)}</span>
-            )}
-          </div>
-        </div>
+    <div className="w-full rounded-xl border flex items-stretch overflow-hidden" style={cardStyle}>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-            <span className="text-sm font-medium text-slate-200 truncate text-right">
-              {home_team.short_name || home_team.name}
-            </span>
-            <TeamCrest url={home_team.crest_url} name={home_team.name} />
-          </div>
-
-          <div className="flex flex-col items-center gap-0.5 flex-shrink-0 w-16">
-            {hasScore ? (
-              !revealed ? (
-                <div
-                  className="h-7 flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
-                  onClick={e => { e.stopPropagation(); onRevealScore() }}
-                  title="Click to reveal score"
-                >
-                  <Lock size={16} />
-                </div>
-              ) : (
-                <div className="h-7 flex items-center justify-center text-lg font-bold text-white tabular-nums">
-                  {score_home ?? 0} – {score_away ?? 0}
-                </div>
-              )
-            ) : (
-              <span className="text-slate-500 text-sm font-medium">vs</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <TeamCrest url={away_team.crest_url} name={away_team.name} />
-            <span className="text-sm font-medium text-slate-200 truncate">
-              {away_team.short_name || away_team.name}
-            </span>
-          </div>
+      {/* Col 1 — competition */}
+      <div className="w-36 flex-shrink-0 flex flex-col items-start justify-center gap-1 px-3 py-3 border-r" style={sep}>
+        <div className="flex items-center gap-1.5 w-full min-w-0">
+          {competition.emblem_url
+            ? <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={competition.emblem_url} alt="" className="w-3 h-3 object-contain" /></span>
+            : <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={10} className="text-slate-600" /></span>
+          }
+          <span className="text-xs text-slate-400 truncate">{competition.name}</span>
         </div>
       </div>
 
+      {/* Col 2 — results: home · score/time · away */}
+      <div className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3">
+
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+          <span className="text-xl font-semibold text-slate-200 truncate text-right leading-tight">
+            {home_team.short_name || home_team.name}
+          </span>
+          <TeamCrest url={home_team.crest_url} name={home_team.name} />
+        </div>
+
+        <div className="flex-shrink-0 w-28 flex flex-col items-center justify-center gap-0.5">
+          {hasScore ? (
+            !revealed ? (
+              <div
+                className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
+                onClick={e => { e.stopPropagation(); onRevealScore() }}
+                title="Click to reveal score"
+              >
+                <Lock size={20} />
+              </div>
+            ) : (
+              <span className="text-[26px] font-bold text-white tabular-nums leading-none">
+                {score_home ?? 0} – {score_away ?? 0}
+              </span>
+            )
+          ) : status === 'POSTPONED' ? (
+            <span className="text-sm font-bold text-yellow-500">PST</span>
+          ) : status === 'CANCELLED' ? (
+            <span className="text-sm font-bold text-red-500">CANC</span>
+          ) : (
+            <span className="text-xl font-medium text-slate-400 tabular-nums">
+              {formatMatchTime(utc_date)}
+            </span>
+          )}
+          {isLive && (
+            <span className="flex items-center gap-1 text-xs font-bold text-red-400">
+              <Circle size={6} fill="currentColor" className="animate-pulse" />
+              {fixture.minute ? `${fixture.minute}'` : 'LIVE'}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <TeamCrest url={away_team.crest_url} name={away_team.name} />
+          <span className="text-xl font-semibold text-slate-200 truncate leading-tight">
+            {away_team.short_name || away_team.name}
+          </span>
+        </div>
+
+      </div>
+
+      {/* Col 3 — provider badge */}
+      <div className="w-14 flex-shrink-0 flex items-center justify-center border-l" style={sep}>
+        {source && (
+          <span className="text-xs font-mono px-1 py-0.5 rounded border border-slate-700 text-slate-400">
+            {SOURCE_LABELS[source] ?? source}
+          </span>
+        )}
+      </div>
+
+      {/* Detail chevron */}
       {hasDetail && (
         <button
           onClick={onViewDetail}
-          className="absolute right-0 top-0 h-full w-[30px] flex items-center justify-center text-slate-500 hover:text-slate-300 border-l border-white/[0.06] bg-white/[0.04] hover:bg-white/[0.08] transition-colors rounded-r-xl"
+          className="w-9 flex-shrink-0 flex items-center justify-center border-l text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] transition-colors rounded-r-xl"
+          style={sep}
           title="View match details"
         >
           <ChevronRight size={13} />
         </button>
       )}
+
     </div>
   )
 }
@@ -139,7 +157,8 @@ export default function Fixtures() {
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeFilter, setActiveFilter] = useState(null)
+  const location = useLocation()
+  const [activeFilter, setActiveFilter] = useState(() => location.state?.initialFilter ?? null)
   const [revealAll, setRevealAll] = useState(false)
   const [revealedIds, setRevealedIds] = useState(new Set())
   const navigate = useNavigate()
@@ -174,8 +193,56 @@ export default function Fixtures() {
     }
   }
 
+  const [showAllForComp, setShowAllForComp] = useState(false)
+  const [compAllFixtures, setCompAllFixtures] = useState([])
+  const [loadingCompAll, setLoadingCompAll] = useState(false)
+
+  const todayRef = useRef(null)
+  // null = no today section in view, true = visible, false = exists but scrolled away
+  const [todayVisible, setTodayVisible] = useState(null)
+
+  const updateTodayVisibility = useCallback(() => {
+    const el = todayRef.current
+    if (!el) { setTodayVisible(null); return }
+    const { top, bottom } = el.getBoundingClientRect()
+    setTodayVisible(top < window.innerHeight && bottom > 0)
+  }, [])
+
+  // Capture scroll from any container (right column on desktop, main on mobile)
+  useEffect(() => {
+    window.addEventListener('scroll', updateTodayVisibility, true)
+    return () => window.removeEventListener('scroll', updateTodayVisibility, true)
+  }, [updateTodayVisibility])
+
+  // Re-check after renders triggered by filter/load changes
+  useEffect(() => { updateTodayVisibility() }, [activeFilter, loading, loadingCompAll, showAllForComp, updateTodayVisibility])
+
+  useEffect(() => {
+    if (loading || loadingCompAll || !todayRef.current) return
+    todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [loading, loadingCompAll, activeFilter, showAllForComp])
+
   const revealOne = (id) => setRevealedIds(prev => new Set([...prev, id]))
   const isRevealed = (id) => revealAll || revealedIds.has(id)
+
+  useEffect(() => {
+    if (!showAllForComp || activeFilter?.type !== 'comp') {
+      setCompAllFixtures([])
+      return
+    }
+    let cancelled = false
+    setLoadingCompAll(true)
+    setCompAllFixtures([])
+    api.get('/fixtures/by-competition', { params: { name: activeFilter.value } })
+      .then(({ data }) => { if (!cancelled) setCompAllFixtures(data) })
+      .catch(() => { if (!cancelled) toast.error('Failed to load all competition fixtures.') })
+      .finally(() => { if (!cancelled) setLoadingCompAll(false) })
+    return () => { cancelled = true }
+  }, [showAllForComp, activeFilter])
+
+  const sortedTeams = useMemo(() =>
+    [...teams].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+  [teams])
 
   const competitions = useMemo(() => {
     const seen = new Set()
@@ -202,120 +269,228 @@ export default function Fixtures() {
     return fixtures
   }, [fixtures, activeFilter])
 
-  const grouped = groupByDate(visibleFixtures)
+  const displayFixtures = (showAllForComp && activeFilter?.type === 'comp')
+    ? compAllFixtures
+    : visibleFixtures
+
+  const grouped = groupByDate(displayFixtures)
   const dateKeys = Object.keys(grouped)
 
   const setFilter = (type, value) => {
     setActiveFilter(prev => prev?.type === type && prev?.value === value ? null : { type, value })
+    setRevealAll(false)
+    setRevealedIds(new Set())
   }
 
+  const hasScores = fixtures.some(f => f.status !== 'SCHEDULED')
+
   return (
-    <div className="p-4 sm:p-6 pt-16 lg:pt-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-white">Fixtures</h1>
-          <div className="flex items-center gap-2">
-            {fixtures.some(f => f.status !== 'SCHEDULED') && (
-              <button
-                onClick={toggleRevealAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                {revealAll ? <EyeOff size={15} /> : <Eye size={15} />}
-                {revealAll ? 'Hide' : 'Reveal'}
+    <>
+    <div className="lg:flex lg:h-full">
+
+      {/* ── Desktop left column: filters ── */}
+      <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <h1 className="text-sm font-semibold text-white">Fixtures</h1>
+          <div className="flex items-center gap-0.5">
+            {hasScores && (
+              <button onClick={toggleRevealAll} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" title={revealAll ? 'Hide scores' : 'Reveal scores'}>
+                {revealAll ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             )}
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-              Refresh
+            <button onClick={handleRefresh} disabled={refreshing} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50" title="Refresh">
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : fixtures.length === 0 ? (
-          <div className="flex flex-col items-center py-16 gap-4 text-center">
-            <Users size={40} className="text-slate-600" />
-            <div>
-              <p className="text-slate-300 font-medium">No fixtures yet</p>
-              <p className="text-slate-500 text-sm mt-1">Follow some teams to see their fixtures here.</p>
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
-            <button
-              onClick={() => navigate('/teams')}
-              className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
-            >
-              Browse Teams
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Filter pills */}
-            <div className="mb-4 space-y-2">
-              {teams.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
-                  {teams.map(team => (
-                    <FilterPill
+          ) : (
+            <>
+              {sortedTeams.length > 0 && (
+                <>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Teams</p>
+                  {sortedTeams.map(team => (
+                    <button
                       key={team.id}
-                      label={team.short_name || team.name}
-                      icon={<span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={team.crest_url} alt="" className="w-3 h-3 object-contain" /></span>}
-                      active={activeFilter?.type === 'team' && activeFilter.value === team.name}
                       onClick={() => setFilter('team', team.name)}
-                    />
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+                        activeFilter?.type === 'team' && activeFilter.value === team.name
+                          ? 'bg-white/10 text-white'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0">
+                        {team.crest_url && <img src={team.crest_url} alt="" className="w-3.5 h-3.5 object-contain" />}
+                      </span>
+                      <span className="text-sm truncate">{team.name}</span>
+                    </button>
                   ))}
-                </div>
+                </>
               )}
-              {competitions.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
-                  {competitions.map(comp => (
-                    <FilterPill
-                      key={comp.name}
-                      label={comp.name}
-                      icon={comp.emblem_url
-                      ? <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={comp.emblem_url} alt="" className="w-3 h-3 object-contain" /></span>
-                      : <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={10} className="text-slate-600" /></span>
-                    }
-                      active={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
-                      onClick={() => setFilter('comp', comp.name)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {dateKeys.length === 0 ? (
-              <div className="py-12 text-center text-slate-500 text-sm">No fixtures match this filter.</div>
-            ) : (
-              <div className="space-y-1">
-                {dateKeys.map(date => (
-                  <div key={date}>
-                    <DateGroupHeader label={date} />
-                    <div className="space-y-2">
-                      {grouped[date].map(f => {
-                        const fid = `${f.source}:${f.external_id}`
-                        return (
-                          <FixtureCard
-                            key={fid}
-                            fixture={f}
-                            revealed={isRevealed(fid)}
-                            onRevealScore={() => revealOne(fid)}
-                            onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug } })}
-                          />
-                        )
-                      })}
+              {competitions.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between px-4 pt-4 pb-1">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Leagues</p>
+                    <div className="flex text-[10px] rounded border border-slate-700 overflow-hidden">
+                      <button
+                        onClick={() => setShowAllForComp(false)}
+                        className={`px-2 py-0.5 transition-colors ${!showAllForComp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}
+                      >Mine</button>
+                      <button
+                        onClick={() => setShowAllForComp(true)}
+                        className={`px-2 py-0.5 border-l border-slate-700 transition-colors ${showAllForComp ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-400'}`}
+                      >All</button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+                  {competitions.map(comp => (
+                    <button
+                      key={comp.name}
+                      onClick={() => setFilter('comp', comp.name)}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+                        activeFilter?.type === 'comp' && activeFilter.value === comp.name
+                          ? 'bg-white/10 text-white'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0">
+                        {comp.emblem_url
+                          ? <img src={comp.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" />
+                          : <Trophy size={11} className="text-slate-600" />
+                        }
+                      </span>
+                      <span className="text-sm truncate">{comp.name}</span>
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* ── Content area ── */}
+      <div className="flex-1 min-w-0 lg:overflow-y-auto">
+        <div className="p-4 sm:p-6 pt-16 lg:p-6 pb-24">
+
+          {/* Mobile header */}
+          <div className="flex items-center justify-between mb-4 lg:hidden">
+            <h1 className="text-xl font-bold text-white">Fixtures</h1>
+            <div className="flex items-center gap-2">
+              {hasScores && (
+                <button onClick={toggleRevealAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                  {revealAll ? <EyeOff size={15} /> : <Eye size={15} />}
+                  {revealAll ? 'Hide' : 'Reveal'}
+                </button>
+              )}
+              <button onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50">
+                <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {loading || loadingCompAll ? (
+            <div className="flex justify-center py-16">
+              <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : fixtures.length === 0 ? (
+            <div className="flex flex-col items-center py-16 gap-4 text-center">
+              <Users size={40} className="text-slate-600" />
+              <div>
+                <p className="text-slate-300 font-medium">No fixtures yet</p>
+                <p className="text-slate-500 text-sm mt-1">Follow some teams to see their fixtures here.</p>
+              </div>
+              <button onClick={() => navigate('/teams')} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors">
+                Browse Teams
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Mobile filter pills */}
+              <div className="mb-4 space-y-2 lg:hidden">
+                {sortedTeams.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
+                    {sortedTeams.map(team => (
+                      <FilterPill
+                        key={team.id}
+                        label={team.name}
+                        icon={<span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={team.crest_url} alt="" className="w-3 h-3 object-contain" /></span>}
+                        active={activeFilter?.type === 'team' && activeFilter.value === team.name}
+                        onClick={() => setFilter('team', team.name)}
+                      />
+                    ))}
+                  </div>
+                )}
+                {competitions.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
+                    {competitions.map(comp => (
+                      <FilterPill
+                        key={comp.name}
+                        label={comp.name}
+                        icon={comp.emblem_url
+                          ? <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={comp.emblem_url} alt="" className="w-3 h-3 object-contain" /></span>
+                          : <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={10} className="text-slate-600" /></span>
+                        }
+                        active={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
+                        onClick={() => setFilter('comp', comp.name)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {dateKeys.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 text-sm">No fixtures match this filter.</div>
+              ) : (
+                <div className="space-y-1">
+                  {dateKeys.map(date => {
+                    const category = getDateCategory(grouped[date][0].utc_date)
+                    const isToday = category === 'today'
+                    return (
+                      <div key={date} ref={isToday ? todayRef : null}>
+                        <DateGroupHeader label={date} />
+                        <div className="space-y-2">
+                          {grouped[date].map(f => {
+                            const fid = `${f.source}:${f.external_id}`
+                            return (
+                              <FixtureCard
+                                key={fid}
+                                fixture={f}
+                                revealed={isRevealed(fid)}
+                                onRevealScore={() => revealOne(fid)}
+                                onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug } })}
+                                dateCategory={category}
+                              />
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+        </div>
+      </div>
+
     </div>
+
+    {todayVisible === false && (
+      <button
+        onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-600 hover:bg-green-500 text-white text-sm font-semibold shadow-lg transition-colors"
+      >
+        Today
+      </button>
+    )}
+    </>
   )
 }
