@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.13.1] — 2026-06-01
+
+### Fixed
+- AppLogo: "GETAFIX" wordmark shifted down 5px to visually centre against the flask shape.
+
 ## [0.13.0] — 2026-06-01
 
 ### Changed
