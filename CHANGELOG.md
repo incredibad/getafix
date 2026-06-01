@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0] — 2026-06-01
+
+### Changed
+- Sofascore is now the primary data source; ESPN is the fallback. football-data.org is fully retired.
+- `football_data_api_key` removed from config and `.env.example`; `FD_COMPETITIONS` dict removed from config.
+- `curl-cffi>=0.7.0` added to requirements for Sofascore Chrome-TLS impersonation.
+- All backend routers, models, schemas, and seed data updated for Sofascore/ESPN-only operation.
+
 ## [0.13.4] — 2026-06-01
 
 ### Fixed
