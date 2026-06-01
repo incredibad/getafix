@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.6] — 2026-06-01
+
+### Fixed
+- Fixtures: score now truly centred on the card — both outer grid columns (competition and chevron) made equal width (2.5rem mobile, 9rem desktop) so the home/score/away section is symmetric.
+
 ## [0.14.5] — 2026-06-01
 
 ### Changed

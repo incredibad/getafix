@@ -36,11 +36,11 @@ body {
 
 .fixture-card {
   display: grid;
-  grid-template-columns: 2.5rem 1fr auto 1fr 2.25rem;
+  grid-template-columns: 2.5rem 1fr auto 1fr 2.5rem;
   align-items: stretch;
 }
 @media (min-width: 1024px) {
   .fixture-card {
-    grid-template-columns: 9rem 1fr auto 1fr 2.25rem;
+    grid-template-columns: 9rem 1fr auto 1fr 9rem;
   }
 }
