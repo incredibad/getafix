@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.12] — 2026-06-01
+
+### Changed
+- Fixtures: Today divider line weight reduced from 4px back to 2px.
+
 ## [0.14.11] — 2026-06-01
 
 ### Changed

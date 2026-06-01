@@ -193,7 +193,7 @@ function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClea
       {open && (
         <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg)' }}>
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3 px-4 h-0.54 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
             <Search size={16} className="text-slate-500 flex-shrink-0" />
             <input
               ref={inputRef}
@@ -278,7 +278,7 @@ function DateGroupHeader({ label, isToday: isT = false }) {
   return (
     <div className="flex items-center gap-3 py-3">
       <span className={`text-sm font-semibold flex-shrink-0 ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
-      <div className={`flex-1 ${isT ? 'h-1' : 'h-px'}`} style={{ background: isT ? 'rgb(74,222,128)' : 'var(--border)' }} />
+      <div className={`flex-1 ${isT ? 'h-0.5' : 'h-px'}`} style={{ background: isT ? 'rgb(74,222,128)' : 'var(--border)' }} />
       {isT && <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
     </div>
   )
@@ -459,7 +459,7 @@ const toggleRevealAll = () => {
 
       {/* ── Desktop left column: filters ── */}
       <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-4 h-0.54 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
           <h1 className="text-sm font-semibold text-white">Fixtures</h1>
           <div className="flex items-center gap-1.5">
             {activeFilter?.type !== 'team' && (
@@ -550,7 +550,7 @@ const toggleRevealAll = () => {
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
 
         {/* Spacer for fixed mobile top bar */}
-        <div className="h-14 lg:hidden" />
+        <div className="h-0.54 lg:hidden" />
 
         {/* Mobile sticky filter bar */}
         {!loading && fixtures.length > 0 && (
@@ -607,7 +607,7 @@ const toggleRevealAll = () => {
                     if (item.type === 'divider') {
                       return (
                         <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-[116px] lg:scroll-mt-4">
-                          <div className="flex-1 h-1" style={{ background: 'rgb(74,222,128)' }} />
+                          <div className="flex-1 h-0.5" style={{ background: 'rgb(74,222,128)' }} />
                           <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
                         </div>
                       )
