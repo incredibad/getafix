@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.7] — 2026-06-01
+
+### Changed
+- Fixtures: Today divider lines (both standalone and date group header) thickened from 1px to 2px (`h-0.5`). Non-today date headers remain 1px.
+
 ## [0.14.6] — 2026-06-01
 
 ### Fixed
