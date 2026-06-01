@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.16] — 2026-06-01
+
+### Fixed
+- Fixtures: country now actually appears in crest tooltips — `country` was missing from `TeamRef` schema and from Sofascore fixture team dicts. Both fixed. ESPN fixtures will show no country (not available in ESPN event responses).
+
 ## [0.14.15] — 2026-06-01
 
 ### Added
