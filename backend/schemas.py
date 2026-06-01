@@ -104,6 +104,7 @@ class TeamRef(BaseModel):
     name: str
     short_name: Optional[str]
     crest_url: Optional[str]
+    country: Optional[str] = None
 
 
 class CompetitionRef(BaseModel):

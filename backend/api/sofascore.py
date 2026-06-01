@@ -110,12 +110,14 @@ def _parse_fixture(event: dict) -> dict | None:
             "name": home.get("name", ""),
             "short_name": home.get("nameCode"),
             "crest_url": _team_crest(home.get("id")),
+            "country": (home.get("country") or {}).get("name"),
         },
         "away_team": {
             "id": away.get("id"),
             "name": away.get("name", ""),
             "short_name": away.get("nameCode"),
             "crest_url": _team_crest(away.get("id")),
+            "country": (away.get("country") or {}).get("name"),
         },
         "competition": {
             "id": tournament_id,
