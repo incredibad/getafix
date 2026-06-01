@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.14] — 2026-06-01
+
+### Fixed
+- Fixtures: team crest tooltips no longer clipped — removed `overflow-hidden` from the card and moved border-radius to the first/last grid cells instead.
+
 ## [0.14.13] — 2026-06-01
 
 ### Changed
