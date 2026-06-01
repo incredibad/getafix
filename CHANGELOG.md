@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.8] — 2026-06-01
+
+### Changed
+- Fixtures: Today divider lines increased to 4px (`h-1`).
+
 ## [0.14.7] — 2026-06-01
 
 ### Changed
