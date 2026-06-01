@@ -50,10 +50,10 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
   const sep = { borderColor: 'rgba(255,255,255,0.06)' }
 
   return (
-    <div className="w-full rounded-xl border flex items-stretch relative" style={cardStyle}>
+    <div className="fixture-card w-full rounded-xl border overflow-hidden" style={cardStyle}>
 
-      {/* Col 1 — competition: logo only on mobile, logo+name on desktop */}
-      <div className="w-10 lg:w-36 flex-shrink-0 flex items-center justify-center lg:flex-col lg:items-start lg:justify-center gap-1 px-2 lg:px-3 py-3 border-r rounded-l-xl" style={sep}>
+      {/* Cell 1 — competition */}
+      <div className="flex items-center justify-center lg:flex-col lg:items-start lg:justify-center gap-1 px-2 lg:px-3 py-3 border-r" style={sep}>
         <div className="flex items-center gap-1.5 lg:w-full min-w-0">
           {competition.emblem_url
             ? <img src={imgUrl(competition.emblem_url)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
@@ -63,31 +63,20 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
         </div>
       </div>
 
-      {/* Col 2 — home · away; score/time sits absolutely centred on the card */}
-      <div className="flex-1 min-w-0 flex items-center py-3">
-
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 justify-end pl-3 lg:pl-4 pr-12 lg:pr-28">
-          <span className="text-base lg:text-xl font-semibold text-slate-200 truncate text-right leading-tight">
-            {home_team.short_name || home_team.name}
-          </span>
-          <TeamCrest url={home_team.crest_url} name={home_team.name} />
-        </div>
-
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 pr-3 lg:pr-4 pl-12 lg:pl-2.5">
-          <TeamCrest url={away_team.crest_url} name={away_team.name} />
-          <span className="text-base lg:text-xl font-semibold text-slate-200 truncate leading-tight">
-            {away_team.short_name || away_team.name}
-          </span>
-        </div>
-
+      {/* Cell 2 — home team */}
+      <div className="flex items-center gap-1.5 lg:gap-2 justify-end min-w-0 pl-3 lg:pl-4 pr-3 py-3">
+        <span className="text-base lg:text-xl font-semibold text-slate-200 truncate text-right leading-tight">
+          {home_team.short_name || home_team.name}
+        </span>
+        <TeamCrest url={home_team.crest_url} name={home_team.name} />
       </div>
 
-      {/* Score/time — absolutely centred on the full card width */}
-      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-20 lg:w-28 flex flex-col items-center justify-center gap-0.5 z-10 pointer-events-none">
+      {/* Cell 3 — score/time */}
+      <div className="flex flex-col items-center justify-center gap-0.5 px-3 lg:px-4 py-3">
         {hasScore ? (
           !revealed ? (
             <div
-              className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors pointer-events-auto"
+              className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
               onClick={e => { e.stopPropagation(); onRevealScore() }}
               title="Click to reveal score"
             >
@@ -115,18 +104,26 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
         )}
       </div>
 
-      {/* Detail chevron */}
+      {/* Cell 4 — away team */}
+      <div className="flex items-center gap-1.5 lg:gap-2 min-w-0 pr-3 lg:pr-4 pl-3 py-3">
+        <TeamCrest url={away_team.crest_url} name={away_team.name} />
+        <span className="text-base lg:text-xl font-semibold text-slate-200 truncate leading-tight">
+          {away_team.short_name || away_team.name}
+        </span>
+      </div>
+
+      {/* Cell 5 — chevron */}
       {hasDetail ? (
         <button
           onClick={onViewDetail}
-          className="w-9 flex-shrink-0 flex items-center justify-center border-l text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] transition-colors rounded-r-xl"
+          className="flex items-center justify-center border-l text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
           style={sep}
           title="View match details"
         >
           <ChevronRight size={13} />
         </button>
       ) : (
-        <div className="w-9 flex-shrink-0 border-l rounded-r-xl" style={sep} />
+        <div className="border-l" style={sep} />
       )}
 
     </div>
