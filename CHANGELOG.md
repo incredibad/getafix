@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.10] — 2026-06-01
+
+### Fixed
+- Fixtures: Today divider line now full opacity `rgb(74,222,128)` to exactly match the Today text colour.
+
 ## [0.14.9] — 2026-06-01
 
 ### Fixed
