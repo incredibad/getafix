@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.11] — 2026-06-01
+
+### Changed
+- Fixtures: "TODAY" label font size increased from 11px to `text-sm` (14px) to match the date text.
+
 ## [0.14.10] — 2026-06-01
 
 ### Fixed
