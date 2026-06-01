@@ -27,6 +27,7 @@ class Team(Base):
     football_data_id = Column(Integer, nullable=True, index=True)
     api_football_id = Column(Integer, nullable=True, index=True)
     espn_id = Column(Integer, nullable=True, index=True)
+    sofascore_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     followed = relationship("FollowedTeam", back_populates="team", uselist=False)
@@ -44,8 +45,9 @@ class Competition(Base):
     competition_type = Column(String, nullable=True)  # 'league' | 'cup'
     football_data_id = Column(String, nullable=True, index=True)  # e.g. "PL"
     api_football_id = Column(Integer, nullable=True, index=True)
-    espn_slug = Column(String, nullable=True)  # e.g. "afc.asian.cup"
-    preferred_source = Column(String, nullable=False, default="football_data")
+    espn_slug = Column(String, nullable=True)
+    sofascore_tournament_id = Column(Integer, nullable=True, index=True)
+    preferred_source = Column(String, nullable=False, default="sofascore")
     season = Column(Integer, nullable=True)
 
     teams = relationship("TeamCompetition", back_populates="competition")

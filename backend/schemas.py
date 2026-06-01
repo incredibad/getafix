@@ -48,6 +48,7 @@ class TeamResponse(BaseModel):
     football_data_id: Optional[int]
     api_football_id: Optional[int]
     espn_id: Optional[int] = None
+    sofascore_id: Optional[int] = None
     is_followed: bool = False
     linked_competitions: list[str] = []
     model_config = {"from_attributes": True}
@@ -61,7 +62,9 @@ class TeamSearchResult(BaseModel):
     team_type: Optional[str]
     football_data_id: Optional[int]
     api_football_id: Optional[int]
-    source: str  # 'football_data' | 'api_football'
+    espn_id: Optional[int] = None
+    sofascore_id: Optional[int] = None
+    source: str  # 'sofascore' | 'espn' | 'football_data'
     already_followed: bool = False
     internal_id: Optional[int] = None
 
@@ -74,6 +77,8 @@ class FollowTeamRequest(BaseModel):
     team_type: Optional[str] = None
     football_data_id: Optional[int] = None
     api_football_id: Optional[int] = None
+    espn_id: Optional[int] = None
+    sofascore_id: Optional[int] = None
 
 
 # ── Competitions ──────────────────────────────────────────────────────────────
@@ -123,6 +128,7 @@ class FixtureOut(BaseModel):
     score_ht_away: Optional[int]
     matchday: Optional[int]
     venue: Optional[str]
+    league_slug: Optional[str] = None
 
 
 # ── Standings ─────────────────────────────────────────────────────────────────

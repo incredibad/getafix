@@ -4,12 +4,14 @@ No auth or API key required. Used as fallback for international fixtures
 (AFC qualifiers, friendlies, Asian Cup) not covered by football-data.org
 or API-Football on the free tier.
 """
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 import httpx
 from sqlalchemy.orm import Session
 
 import cache as _cache
+import models as _models
 
 logger = logging.getLogger(__name__)
 
@@ -173,10 +175,12 @@ async def _get_competition_teams(slug: str, db: Session) -> list[dict]:
                     team = item.get("team", {})
                     espn_id = team.get("id")
                     if espn_id:
+                        logos = team.get("logos", [])
                         teams.append({
                             "espn_id": int(espn_id),
                             "name": team.get("displayName", ""),
                             "short_name": team.get("abbreviation"),
+                            "crest_url": logos[0].get("href") if logos else None,
                         })
         _cache.set_cached(db, cache_key, {"teams": teams})
         return teams
@@ -195,6 +199,89 @@ async def find_espn_id_by_name(name: str, db: Session) -> int | None:
             if name_lower in t_name or t_name in name_lower or (t_short and name_lower == t_short):
                 return team["espn_id"]
     return None
+
+
+async def resolve_espn_id(name: str, db: Session) -> int | None:
+    """Find ESPN team ID by searching all competition team lists.
+
+    Checks cached lists first (fast), then fetches any uncached ones in parallel.
+    Works for both club and national teams.
+    """
+    name_lower = name.lower()
+    comps = db.query(_models.Competition).filter(
+        _models.Competition.espn_slug.isnot(None)
+    ).all()
+
+    # Pass 1: cached lists only — no network calls
+    for comp in comps:
+        cached = _cache.get_cached(db, f"espn:comp_teams:{comp.espn_slug}", 24 * 7)
+        if cached:
+            for team in cached.get("teams", []):
+                if _names_match(name_lower, team.get("name", "").lower()):
+                    return team["espn_id"]
+
+    # Pass 2: fetch any still-uncached competition team lists in parallel
+    uncached = [
+        c for c in comps
+        if _cache.get_cached(db, f"espn:comp_teams:{c.espn_slug}", 24 * 7) is None
+    ]
+    if uncached:
+        all_teams = await asyncio.gather(
+            *[_get_competition_teams(c.espn_slug, db) for c in uncached],
+            return_exceptions=True,
+        )
+        for teams in all_teams:
+            if isinstance(teams, Exception):
+                continue
+            for team in teams:
+                if _names_match(name_lower, team.get("name", "").lower()):
+                    return team["espn_id"]
+
+    return None
+
+
+async def search_teams(q: str, db: Session) -> list[dict]:
+    """Search all ESPN league team lists for teams matching q.
+
+    Returns results suitable for TeamSearchResult. Cached lists are checked
+    instantly; uncached ones are fetched in parallel and cached for 7 days.
+    """
+    q_lower = q.lower().strip()
+    comps = db.query(_models.Competition).filter(
+        _models.Competition.espn_slug.isnot(None),
+        _models.Competition.competition_type == "league",
+    ).all()
+
+    # Fetch all team lists in parallel (cached ones return immediately)
+    all_teams_lists = await asyncio.gather(
+        *[_get_competition_teams(c.espn_slug, db) for c in comps],
+        return_exceptions=True,
+    )
+
+    results: list[dict] = []
+    seen_ids: set[int] = set()
+    for comp, teams in zip(comps, all_teams_lists):
+        if isinstance(teams, Exception):
+            continue
+        for team in teams:
+            espn_id = team.get("espn_id")
+            if not espn_id or espn_id in seen_ids:
+                continue
+            if _names_match(q_lower, team.get("name", "").lower()):
+                seen_ids.add(espn_id)
+                results.append({
+                    "name": team["name"],
+                    "short_name": team.get("short_name"),
+                    "country": comp.country,
+                    "crest_url": team.get("crest_url"),
+                    "team_type": "club",
+                    "football_data_id": None,
+                    "api_football_id": None,
+                    "espn_id": espn_id,
+                    "source": "espn",
+                })
+
+    return results
 
 
 def _parse_iso(s: str | None) -> datetime | None:
