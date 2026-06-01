@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Trophy, ChevronDown, ExternalLink } from 'lucide-react'
+import { Trophy, ChevronDown, Calendar } from 'lucide-react'
 import api from '../api/client'
+import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 
-const SOURCE_LABELS = { football_data: 'FD', api_football: 'APF', espn: 'ESPN', fd: 'FD', apf: 'APF' }
 const STORAGE_KEY = 'footrack:tables:competition'
 
 function CompLogo({ url, size = 'sm' }) {
@@ -20,7 +20,7 @@ function CompLogo({ url, size = 'sm' }) {
   }
   return (
     <div className={`${wrapDim} rounded flex items-center justify-center flex-shrink-0 bg-slate-200`}>
-      <img src={url} alt="" className={`${imgDim} object-contain`} />
+      <img src={imgUrl(url)} alt="" className={`${imgDim} object-contain`} />
     </div>
   )
 }
@@ -46,7 +46,7 @@ function RoundStatus({ startDate, endDate }) {
   )
 }
 
-function StandingsTable({ table, group, stage, startDate, endDate, followed = [], competitionName = '' }) {
+function StandingsTable({ table, group, stage, startDate, endDate, followed = [] }) {
   const [hoveredRow, setHoveredRow] = useState(null)
   const navigate = useNavigate()
   const label = group || stage || null
@@ -63,9 +63,6 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
   const goToFixturesTeam = (teamName) =>
     navigate('/fixtures', { state: { initialFilter: { type: 'team', value: teamName } } })
 
-  const goToFixturesComp = () =>
-    navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: competitionName } } })
-
   const cellBg = (rowIdx, colIdx, isFollowedRow = false) => {
     if (hoveredRow === rowIdx) return isFollowedRow ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)'
     if (isFollowedRow) return `rgba(34,197,94,${0.06 + (colIdx % 2 === 0 ? 0.02 : 0)})`
@@ -79,22 +76,15 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
 
   return (
     <div className="mb-4">
-      <div className="flex items-center justify-between mb-2 px-1">
-        {label ? (
+      {/* Group/stage label — mobile only */}
+      {label && (
+        <div className="flex items-center mb-2 px-1 lg:hidden">
           <p className="text-xs text-slate-500 uppercase tracking-wide flex items-center">
             {label.replace(/_/g, ' ')}
             <RoundStatus startDate={startDate} endDate={endDate} />
           </p>
-        ) : <span />}
-        {competitionName && (
-          <button
-            onClick={goToFixturesComp}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            Fixtures <ExternalLink size={11} />
-          </button>
-        )}
-      </div>
+        </div>
+      )}
       <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
           <thead>
@@ -126,9 +116,9 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
                   <td className="px-2 py-2.5" style={{ background: cellBg(i, 1, isFollowed) }}>
                     <div className="flex items-center gap-2 min-w-0">
                       {row.team_crest && (
-                        <img src={row.team_crest} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+                        <img src={imgUrl(row.team_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
                       )}
-                      <span className={`truncate ${isFollowed ? 'text-green-300 font-medium' : 'text-slate-200'}`}>{row.team_name}</span>
+                      <span className={`truncate ${isFollowed ? 'text-green-300 font-medium' : 'text-slate-200'}`} style={{ maxWidth: 0, overflow: 'hidden', flex: 1 }}>{row.team_name}</span>
                     </div>
                   </td>
                   <td className="text-center px-2 py-2.5 text-slate-400 tabular-nums" style={{ background: cellBg(i, 2, isFollowed) }}>{row.played}</td>
@@ -149,28 +139,40 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
   )
 }
 
-function MobileDropdown({ competitions, selectedName, onSelect }) {
+function MobileSticky({ competitions, selectedName, onSelect, onFixtures }) {
   const [open, setOpen] = useState(false)
   const selected = competitions.find(c => c.name === selectedName)
 
   return (
-    <div className="relative mb-4 lg:hidden">
+    <div className="lg:hidden sticky top-14 z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
       {open && <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <CompLogo url={selected?.emblem_url} size="md" />
-          <span className="text-sm font-medium text-white truncate">{selected?.name ?? 'Select competition'}</span>
-        </div>
-        <ChevronDown size={16} className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-      </button>
+      <div className="flex items-center gap-2 px-4 py-2">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex-1 flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-left z-20 relative"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CompLogo url={selected?.emblem_url} size="md" />
+            <span className="text-sm font-medium text-white truncate">{selected?.name ?? 'Select competition'}</span>
+            {selected?.season && <span className="text-xs text-slate-500 flex-shrink-0">{selected.season}</span>}
+          </div>
+          <ChevronDown size={16} className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {selected && (
+          <button
+            onClick={onFixtures}
+            className="flex-shrink-0 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+            title="View fixtures"
+          >
+            <Calendar size={20} />
+          </button>
+        )}
+      </div>
 
       {open && (
         <div
-          className="absolute z-20 top-full mt-1 left-0 right-0 rounded-xl border shadow-xl overflow-hidden max-h-72 overflow-y-auto"
+          className="absolute z-20 top-full left-4 right-4 rounded-xl border shadow-xl overflow-hidden max-h-72 overflow-y-auto"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           {competitions.map(comp => (
@@ -182,6 +184,7 @@ function MobileDropdown({ competitions, selectedName, onSelect }) {
             >
               <CompLogo url={comp.emblem_url} size="sm" />
               <span className="text-sm truncate">{comp.name}</span>
+              {comp.season && <span className="text-xs text-slate-500 ml-auto flex-shrink-0">{comp.season}</span>}
             </button>
           ))}
         </div>
@@ -191,13 +194,13 @@ function MobileDropdown({ competitions, selectedName, onSelect }) {
 }
 
 export default function Tables() {
+  const navigate = useNavigate()
   const [standings, setStandings] = useState([])
   const [followed, setFollowed] = useState([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const [selectedName, setSelectedName] = useState(() => localStorage.getItem(STORAGE_KEY))
 
-  const load = async (showToast = false) => {
+  const load = async () => {
     try {
       const [standingsRes, followedRes] = await Promise.all([
         api.get('/standings/followed'),
@@ -205,12 +208,10 @@ export default function Tables() {
       ])
       setStandings(standingsRes.data)
       setFollowed(followedRes.data)
-      if (showToast) toast.success('Tables refreshed.')
     } catch {
       toast.error('Failed to load standings.')
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }
 
@@ -220,7 +221,7 @@ export default function Tables() {
     const map = {}
     for (const s of standings) {
       const key = s.competition.name
-      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, source: s.source, groups: [] }
+      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, groups: [] }
       const groups = s.tables?.length > 0
         ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
         : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
@@ -243,25 +244,20 @@ export default function Tables() {
     localStorage.setItem(STORAGE_KEY, name)
   }
 
-  const handleRefresh = () => { setRefreshing(true); load(true) }
-
   const selectedComp = competitions.find(c => c.name === selectedName)
+
+  const goToFixtures = () => {
+    if (!selectedComp) return
+    navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: selectedComp.name } } })
+  }
 
   return (
     <div className="lg:flex lg:h-full">
 
       {/* ── Desktop left column: competition tabs ── */}
       <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
           <h1 className="text-sm font-semibold text-white">Tables</h1>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
-            title="Refresh"
-          >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          </button>
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           {loading ? (
@@ -285,25 +281,26 @@ export default function Tables() {
         </div>
       </div>
 
-      {/* ── Content area (mobile: full page, desktop: flex-1) ── */}
+      {/* ── Content area ── */}
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
-        <div className="p-4 sm:p-6 pt-16 lg:p-6">
 
-          {/* Mobile header */}
-          <div className="flex items-center justify-between mb-4 lg:hidden">
-            <h1 className="text-xl font-bold text-white">Tables</h1>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-              Refresh
-            </button>
-          </div>
+        {/* Spacer for fixed mobile top bar */}
+        <div className="h-14 lg:hidden" />
+
+        {/* Mobile sticky competition bar */}
+        {!loading && competitions.length > 0 && (
+          <MobileSticky
+            competitions={competitions}
+            selectedName={selectedName}
+            onSelect={handleSelect}
+            onFixtures={goToFixtures}
+          />
+        )}
+
+        <div className="p-4 sm:p-6 lg:p-6">
 
           {loading ? (
-            <div className="flex justify-center py-16 lg:hidden">
+            <div className="flex justify-center py-16">
               <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : competitions.length === 0 ? (
@@ -312,33 +309,35 @@ export default function Tables() {
               <p className="text-slate-300 font-medium">No standings available</p>
               <p className="text-slate-500 text-sm">Follow teams and load their fixtures to see tables.</p>
             </div>
-          ) : (
+          ) : selectedComp ? (
             <>
-              {/* Mobile dropdown (has lg:hidden built in) */}
-              <MobileDropdown competitions={competitions} selectedName={selectedName} onSelect={handleSelect} />
+              {/* Competition heading — desktop only */}
+              <div className="hidden lg:flex items-center gap-2 mb-4">
+                <CompLogo url={selectedComp.emblem_url} size="lg" />
+                <h2 className="text-base font-semibold text-white">{selectedComp.name}</h2>
+                {selectedComp.season && <span className="text-xs text-slate-500 ml-1">Season {selectedComp.season}</span>}
+                <button
+                  onClick={goToFixtures}
+                  className="ml-auto p-1 text-slate-500 hover:text-slate-300 transition-colors"
+                  title="View fixtures"
+                >
+                  <Calendar size={20} />
+                </button>
+              </div>
 
-              {/* Standings */}
-              {selectedComp && (
-                <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <CompLogo url={selectedComp.emblem_url} size="lg" />
-                    <h2 className="text-base font-semibold text-white">{selectedComp.name}</h2>
-                    <div className="flex items-center gap-2 ml-1">
-                      {selectedComp.season && <span className="text-xs text-slate-500">Season {selectedComp.season}</span>}
-                      {selectedComp.source && (
-                        <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
-                          {SOURCE_LABELS[selectedComp.source] ?? selectedComp.source}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {selectedComp.groups.map((g, i) => (
-                    <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} competitionName={selectedComp.name} />
-                  ))}
-                </>
-              )}
+              {selectedComp.groups.map((g, i) => (
+                <StandingsTable
+                  key={i}
+                  table={g.table}
+                  group={g.group}
+                  stage={g.stage}
+                  startDate={g.start_date}
+                  endDate={g.end_date}
+                  followed={followed}
+                />
+              ))}
             </>
-          )}
+          ) : null}
 
         </div>
       </div>

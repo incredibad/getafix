@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, Circle, Shirt, BarChart2, Zap, Eye, EyeOff, Lock } from 'lucide-react'
 import api from '../api/client'
+import { imgUrl } from '../utils/img'
 import { formatMatchDateTime } from '../utils/date'
 import toast from 'react-hot-toast'
 
@@ -191,7 +192,7 @@ export default function MatchDetail() {
       >
         <div className="flex items-center justify-center gap-1.5 mb-3">
           {fixture.competition.emblem_url && (
-            <img src={fixture.competition.emblem_url} alt="" className="w-4 h-4 object-contain opacity-70" />
+            <img src={imgUrl(fixture.competition.emblem_url)} alt="" className="w-4 h-4 object-contain opacity-70" />
           )}
           <span className="text-xs text-slate-500">{fixture.competition.name}</span>
           {fixture.matchday && <span className="text-xs text-slate-600"> · {fixture.matchday}</span>}
@@ -201,7 +202,7 @@ export default function MatchDetail() {
           {/* Home */}
           <div className="flex-1 flex flex-col items-center gap-2">
             {fixture.home_team.crest_url && (
-              <img src={fixture.home_team.crest_url} alt="" className="w-12 h-12 object-contain" />
+              <img src={imgUrl(fixture.home_team.crest_url)} alt="" className="w-12 h-12 object-contain" />
             )}
             <span className="text-sm font-semibold text-white text-center leading-tight">
               {fixture.home_team.name}
@@ -238,7 +239,7 @@ export default function MatchDetail() {
           {/* Away */}
           <div className="flex-1 flex flex-col items-center gap-2">
             {fixture.away_team.crest_url && (
-              <img src={fixture.away_team.crest_url} alt="" className="w-12 h-12 object-contain" />
+              <img src={imgUrl(fixture.away_team.crest_url)} alt="" className="w-12 h-12 object-contain" />
             )}
             <span className="text-sm font-semibold text-white text-center leading-tight">
               {fixture.away_team.name}

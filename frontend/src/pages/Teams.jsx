@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, UserMinus, UserPlus, Loader2, Globe, Building2 } from 'lucide-react'
 import api from '../api/client'
+import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 
 function TeamCard({ team, onFollow, onUnfollow, followed }) {
@@ -26,7 +27,7 @@ function TeamCard({ team, onFollow, onUnfollow, followed }) {
     >
       <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
         {team.crest_url ? (
-          <img src={team.crest_url} alt={team.name} className="w-8 h-8 object-contain" />
+          <img src={imgUrl(team.crest_url)} alt={team.name} className="w-8 h-8 object-contain" />
         ) : (
           <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-400 text-sm font-bold">
             {team.name?.[0]}
@@ -42,11 +43,6 @@ function TeamCard({ team, onFollow, onUnfollow, followed }) {
             <Building2 size={11} className="text-slate-500 flex-shrink-0" />
           )}
           <span className="text-xs text-slate-500 truncate">{team.country || (team.team_type === 'national' ? 'National' : 'Club')}</span>
-          {(team.football_data_id || team.espn_id || team.api_football_id) && (
-            <span className="text-xs text-slate-600 ml-1">
-              {team.football_data_id ? '· FD' : team.espn_id ? '· ESPN' : '· APF'}
-            </span>
-          )}
         </div>
       </div>
       <button
@@ -118,6 +114,8 @@ export default function Teams() {
         team_type: team.team_type,
         football_data_id: team.football_data_id,
         api_football_id: team.api_football_id,
+        espn_id: team.espn_id,
+        sofascore_id: team.sofascore_id,
       })
       const comps = data.linked_competitions ?? []
       const msg = comps.length
@@ -154,8 +152,9 @@ export default function Teams() {
   const isFollowed = (team) =>
     team.already_followed ||
     followed.some(f =>
+      (team.sofascore_id && f.sofascore_id === team.sofascore_id) ||
+      (team.espn_id && f.espn_id === team.espn_id) ||
       (team.football_data_id && f.football_data_id === team.football_data_id) ||
-      (team.api_football_id && f.api_football_id === team.api_football_id) ||
       f.name === team.name
     )
 
