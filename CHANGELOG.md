@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.4] — 2026-06-01
+
+### Fixed
+- Fixtures: score/time is now truly horizontally centred on the card. Previously centred within the asymmetric `flex-1` middle column; now positioned absolutely at `left: 50%` of the full card width.
+
+### Added
+- `docker-compose.yml`: uses `incredibad/getafix:latest`, mounts existing `footrack_data` volume, loads secrets via `env_file`.
+- `.github/workflows/docker-publish.yml`: auto-builds and pushes to Docker Hub on push to `dev` (tagged `dev`) or `main` (tagged `latest`).
+- `.gitignore`: excludes `.env`, `frontend/node_modules/`, `frontend/dist/`, `__pycache__/`, `.claude/settings.local.json`, `HANDOVER.md`.
+- `.env.example`: documents all required environment variables.
+
 ## [0.13.3] — 2026-06-01
 
 ### Fixed
