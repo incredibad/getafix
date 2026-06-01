@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.2] — 2026-06-01
+
+### Fixed
+- Tables: team names were invisible due to accidental `maxWidth: 0` inline style on the name span.
+- competitions router: removed dead `football_data` import that crashed startup after API key removal.
+
 ## [0.14.1] — 2026-06-01
 
 ### Fixed
