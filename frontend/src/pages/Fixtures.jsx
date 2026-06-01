@@ -21,7 +21,7 @@ const DATE_CAT_STYLE = {
   future: { background: 'rgba(59,130,246,0.13)',  borderColor: 'rgba(59,130,246,0.32)' },
 }
 
-function TeamCrest({ url, name, country, size = 28 }) {
+function TeamCrest({ url, name, country, league, size = 28 }) {
   const inner = url
     ? <img src={imgUrl(url)} alt={name} style={{ width: size, height: size }} className="object-contain" />
     : <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>⚽</span>
@@ -33,6 +33,7 @@ function TeamCrest({ url, name, country, size = 28 }) {
         <div className="px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap text-xs" style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)' }}>
           <p className="font-semibold text-white leading-tight">{name}</p>
           {country && <p className="text-slate-400 leading-tight mt-0.5">{country}</p>}
+          {league && <p className="text-slate-500 leading-tight mt-0.5">{league}</p>}
         </div>
         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0" style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #1e293b' }} />
       </div>
@@ -40,7 +41,7 @@ function TeamCrest({ url, name, country, size = 28 }) {
   )
 }
 
-function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory }) {
+function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory, showLeague }) {
   const { home_team, away_team, competition, utc_date, status, score_home, score_away } = fixture
   const isLive = status === 'LIVE'
   const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
@@ -68,7 +69,7 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
         <span className="text-base lg:text-xl font-semibold text-slate-200 truncate text-right leading-tight">
           {home_team.short_name || home_team.name}
         </span>
-        <TeamCrest url={home_team.crest_url} name={home_team.name} />
+        <TeamCrest url={home_team.crest_url} name={home_team.name} country={home_team.country} league={showLeague ? competition.name : undefined} />
       </div>
 
       {/* Cell 3 — score/time */}
@@ -106,7 +107,7 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
 
       {/* Cell 4 — away team */}
       <div className="flex items-center gap-1.5 lg:gap-2 min-w-0 pr-3 lg:pr-4 pl-3 py-3">
-        <TeamCrest url={away_team.crest_url} name={away_team.name} />
+        <TeamCrest url={away_team.crest_url} name={away_team.name} country={away_team.country} league={showLeague ? competition.name : undefined} />
         <span className="text-base lg:text-xl font-semibold text-slate-200 truncate leading-tight">
           {away_team.short_name || away_team.name}
         </span>
@@ -628,6 +629,7 @@ const toggleRevealAll = () => {
                                 onRevealScore={() => revealOne(fid)}
                                 onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug } })}
                                 dateCategory={category}
+                                showLeague={activeFilter?.type !== 'comp'}
                               />
                             )
                           })}

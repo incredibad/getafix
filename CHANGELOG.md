@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.15] — 2026-06-01
+
+### Added
+- Fixtures: team crest tooltips now show country. League/competition is also shown unless the active filter is already a comp filter (where it would be redundant).
+
 ## [0.14.14] — 2026-06-01
 
 ### Fixed
