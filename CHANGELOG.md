@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.5] — 2026-06-01
+
+### Changed
+- Fixtures: replaced absolute-positioned score with CSS Grid layout. Score is its own grid cell between home and away — no overlap, no float, score centred between the two teams. Grid defined in index.css to avoid Tailwind arbitrary-value compilation issues.
+
 ## [0.14.4] — 2026-06-01
 
 ### Fixed
