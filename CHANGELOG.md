@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.4] — 2026-06-01
+
+### Fixed
+- Fixtures: use standard Tailwind scale values for home/away padding (pr-28/pl-2.5) — arbitrary px values were silently dropped by Tailwind's JIT scanner even with safelist.
+
 ## [0.14.3] — 2026-06-01
 
 ### Fixed

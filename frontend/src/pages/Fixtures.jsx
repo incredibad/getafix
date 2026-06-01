@@ -66,14 +66,14 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
       {/* Col 2 — home · away; score/time sits absolutely centred on the card */}
       <div className="flex-1 min-w-0 flex items-center py-3">
 
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 justify-end pl-3 lg:pl-4 pr-[50px] lg:pr-[118px]">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 justify-end pl-3 lg:pl-4 pr-12 lg:pr-28">
           <span className="text-base lg:text-xl font-semibold text-slate-200 truncate text-right leading-tight">
             {home_team.short_name || home_team.name}
           </span>
           <TeamCrest url={home_team.crest_url} name={home_team.name} />
         </div>
 
-        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 pr-3 lg:pr-4 pl-[46px] lg:pl-[10px]">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 pr-3 lg:pr-4 pl-12 lg:pl-2.5">
           <TeamCrest url={away_team.crest_url} name={away_team.name} />
           <span className="text-base lg:text-xl font-semibold text-slate-200 truncate leading-tight">
             {away_team.short_name || away_team.name}
