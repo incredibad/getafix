@@ -17,7 +17,7 @@ function getDateCategory(utcDate) {
 
 const DATE_CAT_STYLE = {
   past:   { background: 'rgba(239,68,68,0.13)',   borderColor: 'rgba(239,68,68,0.32)' },
-  today:  { background: 'rgba(34,197,94,0.13)',   borderColor: 'rgba(34,197,94,0.35)'  },
+  today:  { background: 'rgba(34,197,94,0.13)',   borderColor: 'rgba(74,222,128,0.5)'  },
   future: { background: 'rgba(59,130,246,0.13)',  borderColor: 'rgba(59,130,246,0.32)' },
 }
 
@@ -278,7 +278,7 @@ function DateGroupHeader({ label, isToday: isT = false }) {
   return (
     <div className="flex items-center gap-3 py-3">
       <span className={`text-sm font-semibold flex-shrink-0 ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
-      <div className={`flex-1 ${isT ? 'h-1' : 'h-px'}`} style={{ background: isT ? 'rgba(34,197,94,0.35)' : 'var(--border)' }} />
+      <div className={`flex-1 ${isT ? 'h-1' : 'h-px'}`} style={{ background: isT ? 'rgba(74,222,128,0.5)' : 'var(--border)' }} />
       {isT && <span className="text-[11px] font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
     </div>
   )
@@ -607,7 +607,7 @@ const toggleRevealAll = () => {
                     if (item.type === 'divider') {
                       return (
                         <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-[116px] lg:scroll-mt-4">
-                          <div className="flex-1 h-1" style={{ background: 'rgba(34,197,94,0.35)' }} />
+                          <div className="flex-1 h-1" style={{ background: 'rgba(74,222,128,0.5)' }} />
                           <span className="text-[11px] font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
                         </div>
                       )
