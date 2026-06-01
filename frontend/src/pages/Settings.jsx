@@ -6,10 +6,23 @@ import api from '../api/client'
 import toast from 'react-hot-toast'
 
 const DAYS_BACK_KEY = 'footrack:settings:days_back'
-const DAYS_BACK_OPTIONS = [30, 60, 90, 180]
+const DAYS_BACK_OPTIONS = [
+  { label: '3 months', value: '90' },
+  { label: '6 months', value: '180' },
+  { label: '1 year',   value: '365' },
+  { label: 'Cal. year', value: 'calendar' },
+]
+
+function daysFromJanFirst() {
+  const now = new Date()
+  const jan1 = new Date(now.getFullYear(), 0, 1)
+  return Math.ceil((now - jan1) / 86400000)
+}
 
 export function getDaysBack() {
-  return parseInt(localStorage.getItem(DAYS_BACK_KEY) ?? '90', 10)
+  const stored = localStorage.getItem(DAYS_BACK_KEY) ?? '90'
+  if (stored === 'calendar') return daysFromJanFirst()
+  return parseInt(stored, 10)
 }
 
 function Card({ title, children }) {
@@ -31,7 +44,7 @@ export default function Settings() {
   const [pwLoading, setPwLoading] = useState(false)
   const [usage, setUsage] = useState(null)
   const [clearingCache, setClearingCache] = useState(false)
-  const [daysBack, setDaysBackState] = useState(getDaysBack)
+  const [daysBack, setDaysBackState] = useState(() => localStorage.getItem(DAYS_BACK_KEY) ?? '90')
 
   useEffect(() => {
     api.get('/admin/usage').then(({ data }) => setUsage(data)).catch(() => {})
@@ -69,7 +82,7 @@ export default function Settings() {
   const handleLogout = () => { logout(); navigate('/login') }
 
   const handleDaysBack = (val) => {
-    localStorage.setItem(DAYS_BACK_KEY, String(val))
+    localStorage.setItem(DAYS_BACK_KEY, val)
     setDaysBackState(val)
   }
 
@@ -132,17 +145,17 @@ export default function Settings() {
         <Card title="Fixture History">
           <p className="text-xs text-slate-500 mb-3">How far back to load past fixtures.</p>
           <div className="flex gap-2 flex-wrap">
-            {DAYS_BACK_OPTIONS.map(d => (
+            {DAYS_BACK_OPTIONS.map(({ label, value }) => (
               <button
-                key={d}
-                onClick={() => handleDaysBack(d)}
+                key={value}
+                onClick={() => handleDaysBack(value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                  daysBack === d
+                  daysBack === value
                     ? 'bg-green-600/20 border-green-500/40 text-green-400'
                     : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-white/5'
                 }`}
               >
-                {d} days
+                {label}
               </button>
             ))}
           </div>

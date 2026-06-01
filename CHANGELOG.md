@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.13] — 2026-06-01
+
+### Changed
+- Settings: fixture history options are now 3 months, 6 months, 1 year, and Calendar year. Calendar year dynamically calculates days since Jan 1 of the current year.
+
 ## [0.14.12] — 2026-06-01
 
 ### Changed
