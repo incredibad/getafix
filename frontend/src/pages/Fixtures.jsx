@@ -279,7 +279,7 @@ function DateGroupHeader({ label, isToday: isT = false }) {
     <div className="flex items-center gap-3 py-3">
       <span className={`text-sm font-semibold flex-shrink-0 ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
       <div className={`flex-1 ${isT ? 'h-1' : 'h-px'}`} style={{ background: isT ? 'rgb(74,222,128)' : 'var(--border)' }} />
-      {isT && <span className="text-[11px] font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
+      {isT && <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
     </div>
   )
 }
@@ -608,7 +608,7 @@ const toggleRevealAll = () => {
                       return (
                         <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-[116px] lg:scroll-mt-4">
                           <div className="flex-1 h-1" style={{ background: 'rgb(74,222,128)' }} />
-                          <span className="text-[11px] font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
+                          <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
                         </div>
                       )
                     }
