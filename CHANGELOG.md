@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.9] — 2026-06-01
+
+### Fixed
+- Fixtures: Today divider line colour changed from green-500 (dimmed) to green-400 at 50% opacity, matching the Today text colour.
+
 ## [0.14.8] — 2026-06-01
 
 ### Changed
