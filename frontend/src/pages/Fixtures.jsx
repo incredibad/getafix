@@ -50,10 +50,10 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
   const sep = { borderColor: 'rgba(255,255,255,0.06)' }
 
   return (
-    <div className="fixture-card w-full rounded-xl border overflow-hidden" style={cardStyle}>
+    <div className="fixture-card w-full rounded-xl border" style={cardStyle}>
 
       {/* Cell 1 — competition */}
-      <div className="flex items-center justify-center lg:flex-col lg:items-start lg:justify-center gap-1 px-2 lg:px-3 py-3 border-r" style={sep}>
+      <div className="flex items-center justify-center lg:flex-col lg:items-start lg:justify-center gap-1 px-2 lg:px-3 py-3 border-r rounded-l-xl" style={sep}>
         <div className="flex items-center gap-1.5 lg:w-full min-w-0">
           {competition.emblem_url
             ? <img src={imgUrl(competition.emblem_url)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
@@ -116,14 +116,14 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
       {hasDetail ? (
         <button
           onClick={onViewDetail}
-          className="flex items-center justify-center border-l text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+          className="flex items-center justify-center border-l rounded-r-xl text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
           style={sep}
           title="View match details"
         >
           <ChevronRight size={13} />
         </button>
       ) : (
-        <div className="border-l" style={sep} />
+        <div className="border-l rounded-r-xl" style={sep} />
       )}
 
     </div>
