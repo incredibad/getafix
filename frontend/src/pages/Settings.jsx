@@ -5,6 +5,13 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 
+const DAYS_BACK_KEY = 'footrack:settings:days_back'
+const DAYS_BACK_OPTIONS = [30, 60, 90, 180]
+
+export function getDaysBack() {
+  return parseInt(localStorage.getItem(DAYS_BACK_KEY) ?? '90', 10)
+}
+
 function Card({ title, children }) {
   return (
     <div className="rounded-xl border p-5 mb-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -24,6 +31,7 @@ export default function Settings() {
   const [pwLoading, setPwLoading] = useState(false)
   const [usage, setUsage] = useState(null)
   const [clearingCache, setClearingCache] = useState(false)
+  const [daysBack, setDaysBackState] = useState(getDaysBack)
 
   useEffect(() => {
     api.get('/admin/usage').then(({ data }) => setUsage(data)).catch(() => {})
@@ -60,8 +68,13 @@ export default function Settings() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
-  const apiFootballToday = usage?.today?.find(u => u.source === 'api_football')?.request_count ?? 0
-  const fdToday = usage?.today?.find(u => u.source === 'football_data')?.request_count ?? 0
+  const handleDaysBack = (val) => {
+    localStorage.setItem(DAYS_BACK_KEY, String(val))
+    setDaysBackState(val)
+  }
+
+  const sofascoreToday = usage?.today?.find(u => u.source === 'sofascore')?.request_count ?? 0
+  const espnToday = usage?.today?.find(u => u.source === 'espn')?.request_count ?? 0
 
   return (
     <div className="p-4 sm:p-6 pt-16 lg:pt-6">
@@ -115,28 +128,41 @@ export default function Settings() {
           </form>
         </Card>
 
+        {/* History */}
+        <Card title="Fixture History">
+          <p className="text-xs text-slate-500 mb-3">How far back to load past fixtures.</p>
+          <div className="flex gap-2 flex-wrap">
+            {DAYS_BACK_OPTIONS.map(d => (
+              <button
+                key={d}
+                onClick={() => handleDaysBack(d)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                  daysBack === d
+                    ? 'bg-green-600/20 border-green-500/40 text-green-400'
+                    : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                }`}
+              >
+                {d} days
+              </button>
+            ))}
+          </div>
+        </Card>
+
         {/* API Usage */}
         <Card title="API Usage">
           <div className="flex items-center gap-2 mb-3">
             <Activity size={14} className="text-slate-500" />
-            <span className="text-xs text-slate-500">Today's usage</span>
+            <span className="text-xs text-slate-500">Today's requests</span>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">football-data.org</span>
-              <span className="text-slate-200 tabular-nums">{fdToday} reqs</span>
+              <span className="text-slate-400">Sofascore</span>
+              <span className="text-slate-200 tabular-nums">{sofascoreToday}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-slate-400">API-Football</span>
-              <div className="flex items-center gap-2">
-                <span className={`tabular-nums font-medium ${apiFootballToday >= 90 ? 'text-red-400' : apiFootballToday >= 70 ? 'text-yellow-400' : 'text-slate-200'}`}>
-                  {apiFootballToday} / 100
-                </span>
-              </div>
+              <span className="text-slate-400">ESPN</span>
+              <span className="text-slate-200 tabular-nums">{espnToday}</span>
             </div>
-            {apiFootballToday >= 90 && (
-              <p className="text-xs text-red-400 mt-1">Warning: approaching daily API-Football limit.</p>
-            )}
           </div>
           {usage?.recent && usage.recent.length > 0 && (
             <details className="mt-4">
@@ -144,7 +170,7 @@ export default function Settings() {
               <div className="mt-2 space-y-1">
                 {usage.recent.map((u, i) => (
                   <div key={i} className="flex justify-between text-xs text-slate-500">
-                    <span>{u.date} · {u.source === 'api_football' ? 'APF' : 'FD'}</span>
+                    <span>{u.date} · {u.source}</span>
                     <span>{u.request_count}</span>
                   </div>
                 ))}

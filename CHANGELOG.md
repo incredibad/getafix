@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.1] — 2026-06-01
+
+### Fixed
+- Settings: added missing `getDaysBack` export (Fixtures crashed on import); replaced football-data/API-Football usage stats with Sofascore/ESPN; added "Fixture History" card to configure days-back (30/60/90/180).
+- Tables: use `imgUrl()` for all images; remove refresh button and source badge; mobile competition selector is now a sticky bar below the top nav with season year and calendar icon; group/stage label hidden on desktop; calendar icon added to desktop competition heading.
+- Teams: use `imgUrl()` for crests; include `sofascore_id` and `espn_id` in follow payload; match on those IDs in `isFollowed`; remove provider badge from team cards.
+- MatchDetail: use `imgUrl()` for competition emblem and team crests.
+
 ## [0.14.0] — 2026-06-01
 
 ### Changed
