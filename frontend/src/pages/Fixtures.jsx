@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { RefreshCw, Users, Circle, Eye, EyeOff, Lock, ChevronRight, Trophy } from 'lucide-react'
+import { Users, Circle, Eye, EyeOff, Lock, ChevronRight, ChevronUp, ChevronDown, Trophy, Star, Search, X } from 'lucide-react'
 import api from '../api/client'
+import { getDaysBack } from './Settings'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
+import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
-
-const SOURCE_LABELS = { fd: 'FD', apf: 'APF', espn: 'ESPN', football_data: 'FD', api_football: 'APF' }
 
 const BRISBANE_TZ = 'Australia/Brisbane'
 function getDateCategory(utcDate) {
@@ -16,18 +16,32 @@ function getDateCategory(utcDate) {
 }
 
 const DATE_CAT_STYLE = {
-  past:   { background: 'rgba(239,68,68,0.07)',   borderColor: 'rgba(239,68,68,0.18)' },
-  today:  { background: 'rgba(34,197,94,0.07)',   borderColor: 'rgba(34,197,94,0.2)'  },
-  future: { background: 'rgba(59,130,246,0.07)',  borderColor: 'rgba(59,130,246,0.18)' },
+  past:   { background: 'rgba(239,68,68,0.13)',   borderColor: 'rgba(239,68,68,0.32)' },
+  today:  { background: 'rgba(34,197,94,0.13)',   borderColor: 'rgba(34,197,94,0.35)'  },
+  future: { background: 'rgba(59,130,246,0.13)',  borderColor: 'rgba(59,130,246,0.32)' },
 }
 
-function TeamCrest({ url, name, size = 28 }) {
-  if (!url) return <span className="flex-shrink-0" style={{ fontSize: size * 0.85, lineHeight: 1 }}>⚽</span>
-  return <img src={url} alt={name} style={{ width: size, height: size }} className="object-contain flex-shrink-0" />
+function TeamCrest({ url, name, country, size = 28 }) {
+  const inner = url
+    ? <img src={imgUrl(url)} alt={name} style={{ width: size, height: size }} className="object-contain" />
+    : <span style={{ fontSize: size * 0.85, lineHeight: 1 }}>⚽</span>
+
+  return (
+    <div className="relative group flex-shrink-0 flex items-center justify-center" style={{ width: size, height: size }}>
+      {inner}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+        <div className="px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap text-xs" style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)' }}>
+          <p className="font-semibold text-white leading-tight">{name}</p>
+          {country && <p className="text-slate-400 leading-tight mt-0.5">{country}</p>}
+        </div>
+        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0" style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #1e293b' }} />
+      </div>
+    </div>
+  )
 }
 
 function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory }) {
-  const { home_team, away_team, competition, utc_date, status, score_home, score_away, source } = fixture
+  const { home_team, away_team, competition, utc_date, status, score_home, score_away } = fixture
   const isLive = status === 'LIVE'
   const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
   const hasDetail = status === 'FINISHED' || status === 'LIVE'
@@ -36,81 +50,73 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
   const sep = { borderColor: 'rgba(255,255,255,0.06)' }
 
   return (
-    <div className="w-full rounded-xl border flex items-stretch overflow-hidden" style={cardStyle}>
+    <div className="w-full rounded-xl border flex items-stretch relative" style={cardStyle}>
 
-      {/* Col 1 — competition */}
-      <div className="w-36 flex-shrink-0 flex flex-col items-start justify-center gap-1 px-3 py-3 border-r" style={sep}>
-        <div className="flex items-center gap-1.5 w-full min-w-0">
+      {/* Col 1 — competition: logo only on mobile, logo+name on desktop */}
+      <div className="w-10 lg:w-36 flex-shrink-0 flex items-center justify-center lg:flex-col lg:items-start lg:justify-center gap-1 px-2 lg:px-3 py-3 border-r rounded-l-xl" style={sep}>
+        <div className="flex items-center gap-1.5 lg:w-full min-w-0">
           {competition.emblem_url
-            ? <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={competition.emblem_url} alt="" className="w-3 h-3 object-contain" /></span>
-            : <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={10} className="text-slate-600" /></span>
+            ? <img src={imgUrl(competition.emblem_url)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+            : <Trophy size={14} className="text-slate-500 flex-shrink-0" />
           }
-          <span className="text-xs text-slate-400 truncate">{competition.name}</span>
+          <span className="hidden lg:inline text-xs text-slate-400 truncate">{competition.name}</span>
         </div>
       </div>
 
-      {/* Col 2 — results: home · score/time · away */}
-      <div className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3">
+      {/* Col 2 — home · away; score/time sits absolutely centred on the card */}
+      <div className="flex-1 min-w-0 flex items-center py-3">
 
-        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-          <span className="text-xl font-semibold text-slate-200 truncate text-right leading-tight">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 justify-end pl-3 lg:pl-4 pr-12 lg:pr-16">
+          <span className="text-base lg:text-xl font-semibold text-slate-200 truncate text-right leading-tight">
             {home_team.short_name || home_team.name}
           </span>
           <TeamCrest url={home_team.crest_url} name={home_team.name} />
         </div>
 
-        <div className="flex-shrink-0 w-28 flex flex-col items-center justify-center gap-0.5">
-          {hasScore ? (
-            !revealed ? (
-              <div
-                className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
-                onClick={e => { e.stopPropagation(); onRevealScore() }}
-                title="Click to reveal score"
-              >
-                <Lock size={20} />
-              </div>
-            ) : (
-              <span className="text-[26px] font-bold text-white tabular-nums leading-none">
-                {score_home ?? 0} – {score_away ?? 0}
-              </span>
-            )
-          ) : status === 'POSTPONED' ? (
-            <span className="text-sm font-bold text-yellow-500">PST</span>
-          ) : status === 'CANCELLED' ? (
-            <span className="text-sm font-bold text-red-500">CANC</span>
-          ) : (
-            <span className="text-xl font-medium text-slate-400 tabular-nums">
-              {formatMatchTime(utc_date)}
-            </span>
-          )}
-          {isLive && (
-            <span className="flex items-center gap-1 text-xs font-bold text-red-400">
-              <Circle size={6} fill="currentColor" className="animate-pulse" />
-              {fixture.minute ? `${fixture.minute}'` : 'LIVE'}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-1 min-w-0 pr-3 lg:pr-4 pl-12 lg:pl-16">
           <TeamCrest url={away_team.crest_url} name={away_team.name} />
-          <span className="text-xl font-semibold text-slate-200 truncate leading-tight">
+          <span className="text-base lg:text-xl font-semibold text-slate-200 truncate leading-tight">
             {away_team.short_name || away_team.name}
           </span>
         </div>
 
       </div>
 
-      {/* Col 3 — provider badge */}
-      <div className="w-14 flex-shrink-0 flex items-center justify-center border-l" style={sep}>
-        {source && (
-          <span className="text-xs font-mono px-1 py-0.5 rounded border border-slate-700 text-slate-400">
-            {SOURCE_LABELS[source] ?? source}
+      {/* Score/time — absolutely centred on the full card width */}
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-20 lg:w-28 flex flex-col items-center justify-center gap-0.5 z-10 pointer-events-none">
+        {hasScore ? (
+          !revealed ? (
+            <div
+              className="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors pointer-events-auto"
+              onClick={e => { e.stopPropagation(); onRevealScore() }}
+              title="Click to reveal score"
+            >
+              <Lock size={18} />
+            </div>
+          ) : (
+            <span className="text-xl lg:text-[26px] font-bold text-white tabular-nums leading-none">
+              {score_home ?? 0} – {score_away ?? 0}
+            </span>
+          )
+        ) : status === 'POSTPONED' ? (
+          <span className="text-xs lg:text-sm font-bold text-yellow-500">PST</span>
+        ) : status === 'CANCELLED' ? (
+          <span className="text-xs lg:text-sm font-bold text-red-500">CANC</span>
+        ) : (
+          <span className="text-base lg:text-xl font-medium text-slate-400 tabular-nums">
+            {formatMatchTime(utc_date)}
+          </span>
+        )}
+        {isLive && (
+          <span className="flex items-center gap-1 text-xs font-bold text-red-400">
+            <Circle size={6} fill="currentColor" className="animate-pulse" />
+            {fixture.minute ? `${fixture.minute}'` : 'LIVE'}
           </span>
         )}
       </div>
 
       {/* Detail chevron */}
-      {hasDetail && (
+      {hasDetail ? (
         <button
           onClick={onViewDetail}
           className="w-9 flex-shrink-0 flex items-center justify-center border-l text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] transition-colors rounded-r-xl"
@@ -119,46 +125,181 @@ function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCateg
         >
           <ChevronRight size={13} />
         </button>
+      ) : (
+        <div className="w-9 flex-shrink-0 border-l rounded-r-xl" style={sep} />
       )}
 
     </div>
   )
 }
 
-function DateGroupHeader({ label }) {
-  const isT = isToday(label) || label.toLowerCase().startsWith('today')
+function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClear }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef(null)
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    return {
+      teams: teams.filter(t => !q || t.name.toLowerCase().includes(q)),
+      comps: competitions.filter(c => !q || c.name.toLowerCase().includes(q)),
+    }
+  }, [teams, competitions, query])
+
+  const close = () => { setOpen(false); setQuery('') }
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [open])
+
+  const activeLabel = activeFilter
+    ? activeFilter.value
+    : 'All My Fixtures'
+
+  const activeCrest = useMemo(() => {
+    if (!activeFilter) return <Star size={14} className="text-green-400 flex-shrink-0" />
+    if (activeFilter.type === 'team') {
+      const t = teams.find(t => t.name === activeFilter.value)
+      return t?.crest_url ? <img src={imgUrl(t.crest_url)} alt="" className="w-4 h-4 object-contain flex-shrink-0" /> : null
+    }
+    const c = competitions.find(c => c.name === activeFilter.value)
+    return c?.emblem_url ? <img src={imgUrl(c.emblem_url)} alt="" className="w-4 h-4 object-contain flex-shrink-0" /> : null
+  }, [activeFilter, teams, competitions])
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left"
+        style={{ background: 'var(--surface)', borderColor: activeFilter ? 'rgba(34,197,94,0.4)' : 'var(--border)' }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          {activeCrest}
+          <span className={`text-sm font-medium truncate ${activeFilter ? 'text-white' : 'text-slate-400'}`}>
+            {activeLabel}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {activeFilter && (
+            <span
+              role="button"
+              onClick={e => { e.stopPropagation(); onClear() }}
+              className="text-slate-500 hover:text-slate-300 transition-colors p-0.5"
+            >
+              <X size={13} />
+            </span>
+          )}
+          <ChevronDown size={14} className="text-slate-500" />
+        </div>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg)' }}>
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+            <Search size={16} className="text-slate-500 flex-shrink-0" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search teams or leagues…"
+              className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
+            />
+            <button onClick={close} className="text-slate-400 hover:text-white p-1">
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* List */}
+          <div className="flex-1 overflow-y-auto pb-24">
+            {/* All My Fixtures */}
+            <button
+              onClick={() => { onClear(); close() }}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b transition-colors ${
+                !activeFilter ? 'text-green-400 bg-green-600/10' : 'text-slate-300 hover:bg-white/5'
+              }`}
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <Star size={16} className="flex-shrink-0" />
+              <span className="text-sm font-medium">All My Fixtures</span>
+            </button>
+
+            {filtered.teams.length > 0 && (
+              <>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Teams</p>
+                {filtered.teams.map(team => (
+                  <button
+                    key={team.id}
+                    onClick={() => { onSelect('team', team.name); close() }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      activeFilter?.type === 'team' && activeFilter.value === team.name
+                        ? 'text-green-400 bg-green-600/10'
+                        : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    {team.crest_url
+                      ? <img src={imgUrl(team.crest_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                      : <span className="w-5 h-5 flex-shrink-0" />
+                    }
+                    <span className="text-sm">{team.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {filtered.comps.length > 0 && (
+              <>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Leagues</p>
+                {filtered.comps.map(comp => (
+                  <button
+                    key={comp.name}
+                    onClick={() => { onSelect('comp', comp.name, comp.sofascore_id); close() }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      activeFilter?.type === 'comp' && activeFilter.value === comp.name
+                        ? 'text-green-400 bg-green-600/10'
+                        : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    {comp.emblem_url
+                      ? <img src={imgUrl(comp.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                      : <Trophy size={16} className="text-slate-500 flex-shrink-0" />
+                    }
+                    <span className="text-sm">{comp.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function DateGroupHeader({ label, isToday: isT = false }) {
   return (
     <div className="flex items-center gap-3 py-3">
-      <span className={`text-sm font-semibold ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
-      <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+      <span className={`text-sm font-semibold flex-shrink-0 ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
+      <div className="flex-1 h-px" style={{ background: isT ? 'rgba(34,197,94,0.35)' : 'var(--border)' }} />
+      {isT && <span className="text-[11px] font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
     </div>
   )
 }
 
-function FilterPill({ label, icon, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 border ${
-        active
-          ? 'bg-green-600 border-green-500 text-white'
-          : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/5'
-      }`}
-      style={active ? {} : { background: 'var(--surface)' }}
-    >
-      {icon && <span className="flex-shrink-0">{icon}</span>}
-      {label}
-    </button>
-  )
-}
+
+const FILTER_KEY   = 'footrack:fixtures:filter'
+const SHOW_ALL_KEY = 'footrack:fixtures:show_all'
 
 export default function Fixtures() {
   const [fixtures, setFixtures] = useState([])
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const location = useLocation()
-  const [activeFilter, setActiveFilter] = useState(() => location.state?.initialFilter ?? null)
+  const [activeFilter, setActiveFilter] = useState(() => {
+    if (location.state?.initialFilter) return location.state.initialFilter
+    try { return JSON.parse(localStorage.getItem(FILTER_KEY)) ?? null } catch { return null }
+  })
   const [revealAll, setRevealAll] = useState(false)
   const [revealedIds, setRevealedIds] = useState(new Set())
   const navigate = useNavigate()
@@ -166,7 +307,7 @@ export default function Fixtures() {
   const load = useCallback(async (showToast = false) => {
     try {
       const [fixturesRes, teamsRes] = await Promise.all([
-        api.get('/fixtures', { params: { days_back: 365, days_ahead: 90 } }),
+        api.get('/fixtures', { params: { days_back: getDaysBack(), days_ahead: 90 } }),
         api.get('/teams/followed'),
       ])
       setFixtures(fixturesRes.data)
@@ -176,15 +317,12 @@ export default function Fixtures() {
       toast.error('Failed to load fixtures.')
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  const handleRefresh = async () => { setRefreshing(true); await load(true) }
-
-  const toggleRevealAll = () => {
+const toggleRevealAll = () => {
     if (revealAll) {
       setRevealAll(false)
       setRevealedIds(new Set())
@@ -193,19 +331,21 @@ export default function Fixtures() {
     }
   }
 
-  const [showAllForComp, setShowAllForComp] = useState(false)
+  const [showAllForComp, setShowAllForComp] = useState(() => localStorage.getItem(SHOW_ALL_KEY) === 'true')
   const [compAllFixtures, setCompAllFixtures] = useState([])
   const [loadingCompAll, setLoadingCompAll] = useState(false)
 
   const todayRef = useRef(null)
-  // null = no today section in view, true = visible, false = exists but scrolled away
   const [todayVisible, setTodayVisible] = useState(null)
+  const [todayDirection, setTodayDirection] = useState('down')
 
   const updateTodayVisibility = useCallback(() => {
     const el = todayRef.current
     if (!el) { setTodayVisible(null); return }
     const { top, bottom } = el.getBoundingClientRect()
-    setTodayVisible(top < window.innerHeight && bottom > 0)
+    const visible = top < window.innerHeight && bottom > 0
+    setTodayVisible(visible)
+    if (!visible) setTodayDirection(top < 0 ? 'up' : 'down')
   }, [])
 
   // Capture scroll from any container (right column on desktop, main on mobile)
@@ -233,7 +373,7 @@ export default function Fixtures() {
     let cancelled = false
     setLoadingCompAll(true)
     setCompAllFixtures([])
-    api.get('/fixtures/by-competition', { params: { name: activeFilter.value } })
+    api.get('/fixtures/by-competition', { params: { name: activeFilter.value, ...(activeFilter.sofascore_id ? { sofascore_id: activeFilter.sofascore_id } : {}) } })
       .then(({ data }) => { if (!cancelled) setCompAllFixtures(data) })
       .catch(() => { if (!cancelled) toast.error('Failed to load all competition fixtures.') })
       .finally(() => { if (!cancelled) setLoadingCompAll(false) })
@@ -247,7 +387,7 @@ export default function Fixtures() {
   const competitions = useMemo(() => {
     const seen = new Set()
     return fixtures
-      .map(f => ({ name: f.competition.name, emblem_url: f.competition.emblem_url }))
+      .map(f => ({ name: f.competition.name, emblem_url: f.competition.emblem_url, sofascore_id: f.competition.id }))
       .filter(c => { if (!c.name || seen.has(c.name)) return false; seen.add(c.name); return true })
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [fixtures])
@@ -276,10 +416,42 @@ export default function Fixtures() {
   const grouped = groupByDate(displayFixtures)
   const dateKeys = Object.keys(grouped)
 
-  const setFilter = (type, value) => {
-    setActiveFilter(prev => prev?.type === type && prev?.value === value ? null : { type, value })
+  const renderItems = useMemo(() => {
+    const hasTodayFixtures = dateKeys.some(d => getDateCategory(grouped[d][0].utc_date) === 'today')
+    const items = []
+    let dividerInserted = false
+    for (const date of dateKeys) {
+      const cat = getDateCategory(grouped[date][0].utc_date)
+      if (!hasTodayFixtures && !dividerInserted && cat !== 'past') {
+        items.push({ type: 'divider' })
+        dividerInserted = true
+      }
+      items.push({ type: 'date', date, isToday: cat === 'today' })
+    }
+    if (!hasTodayFixtures && !dividerInserted) items.push({ type: 'divider' })
+    return items
+  }, [dateKeys, grouped])
+
+  const setFilter = (type, value, sofascore_id = null) => {
+    setActiveFilter(prev => {
+      const next = prev?.type === type && prev?.value === value ? null : { type, value, sofascore_id }
+      localStorage.setItem(FILTER_KEY, JSON.stringify(next))
+      return next
+    })
     setRevealAll(false)
     setRevealedIds(new Set())
+  }
+
+  const clearFilter = () => {
+    setActiveFilter(null)
+    localStorage.removeItem(FILTER_KEY)
+    setRevealAll(false)
+    setRevealedIds(new Set())
+  }
+
+  const setShowAll = (val) => {
+    setShowAllForComp(val)
+    localStorage.setItem(SHOW_ALL_KEY, String(val))
   }
 
   const hasScores = fixtures.some(f => f.status !== 'SCHEDULED')
@@ -292,15 +464,18 @@ export default function Fixtures() {
       <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
           <h1 className="text-sm font-semibold text-white">Fixtures</h1>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1.5">
+            {activeFilter?.type !== 'team' && (
+              <div className="flex text-[10px] rounded border border-slate-700 overflow-hidden">
+                <button onClick={() => setShowAll(false)} className={`px-2 py-0.5 transition-colors ${!showAllForComp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}>Mine</button>
+                <button onClick={() => setShowAll(true)} className={`px-2 py-0.5 border-l border-slate-700 transition-colors ${showAllForComp ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-400'}`}>All</button>
+              </div>
+            )}
             {hasScores && (
               <button onClick={toggleRevealAll} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" title={revealAll ? 'Hide scores' : 'Reveal scores'}>
                 {revealAll ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             )}
-            <button onClick={handleRefresh} disabled={refreshing} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50" title="Refresh">
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            </button>
           </div>
         </div>
 
@@ -311,6 +486,19 @@ export default function Fixtures() {
             </div>
           ) : (
             <>
+              {/* All My Fixtures */}
+              <div className="px-2 pt-3 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                <button
+                  onClick={clearFilter}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    !activeFilter ? 'bg-green-600/20 text-green-400' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  <Star size={18} className="flex-shrink-0" />
+                  All My Fixtures
+                </button>
+              </div>
+
               {sortedTeams.length > 0 && (
                 <>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Teams</p>
@@ -324,9 +512,10 @@ export default function Fixtures() {
                           : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                       }`}
                     >
-                      <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0">
-                        {team.crest_url && <img src={team.crest_url} alt="" className="w-3.5 h-3.5 object-contain" />}
-                      </span>
+                      {team.crest_url
+                        ? <img src={imgUrl(team.crest_url)} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
+                        : <span className="w-6 h-6 flex-shrink-0" />
+                      }
                       <span className="text-sm truncate">{team.name}</span>
                     </button>
                   ))}
@@ -335,35 +524,21 @@ export default function Fixtures() {
 
               {competitions.length > 0 && (
                 <>
-                  <div className="flex items-center justify-between px-4 pt-4 pb-1">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Leagues</p>
-                    <div className="flex text-[10px] rounded border border-slate-700 overflow-hidden">
-                      <button
-                        onClick={() => setShowAllForComp(false)}
-                        className={`px-2 py-0.5 transition-colors ${!showAllForComp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}
-                      >Mine</button>
-                      <button
-                        onClick={() => setShowAllForComp(true)}
-                        className={`px-2 py-0.5 border-l border-slate-700 transition-colors ${showAllForComp ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-400'}`}
-                      >All</button>
-                    </div>
-                  </div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Leagues</p>
                   {competitions.map(comp => (
                     <button
                       key={comp.name}
-                      onClick={() => setFilter('comp', comp.name)}
+                      onClick={() => setFilter('comp', comp.name, comp.sofascore_id)}
                       className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
                         activeFilter?.type === 'comp' && activeFilter.value === comp.name
                           ? 'bg-white/10 text-white'
                           : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                       }`}
                     >
-                      <span className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center flex-shrink-0">
-                        {comp.emblem_url
-                          ? <img src={comp.emblem_url} alt="" className="w-3.5 h-3.5 object-contain" />
-                          : <Trophy size={11} className="text-slate-600" />
-                        }
-                      </span>
+                      {comp.emblem_url
+                        ? <img src={imgUrl(comp.emblem_url)} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
+                        : <Trophy size={18} className="text-slate-500 flex-shrink-0" />
+                      }
                       <span className="text-sm truncate">{comp.name}</span>
                     </button>
                   ))}
@@ -376,24 +551,39 @@ export default function Fixtures() {
 
       {/* ── Content area ── */}
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
-        <div className="p-4 sm:p-6 pt-16 lg:p-6 pb-24">
 
-          {/* Mobile header */}
-          <div className="flex items-center justify-between mb-4 lg:hidden">
-            <h1 className="text-xl font-bold text-white">Fixtures</h1>
-            <div className="flex items-center gap-2">
+        {/* Spacer for fixed mobile top bar */}
+        <div className="h-14 lg:hidden" />
+
+        {/* Mobile sticky filter bar */}
+        {!loading && fixtures.length > 0 && (
+          <div className="lg:hidden sticky top-14 z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-2 px-4 py-2">
+              <div className="flex-1 min-w-0">
+                <MobileFilterSheet
+                  teams={sortedTeams}
+                  competitions={competitions}
+                  activeFilter={activeFilter}
+                  onSelect={(type, value, sofascore_id) => setFilter(type, value, sofascore_id)}
+                  onClear={clearFilter}
+                />
+              </div>
+              {activeFilter?.type === 'comp' && (
+                <div className="flex text-[10px] rounded border border-slate-700 overflow-hidden flex-shrink-0">
+                  <button onClick={() => setShowAll(false)} className={`px-2.5 py-1 transition-colors ${!showAllForComp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}>Mine</button>
+                  <button onClick={() => setShowAll(true)} className={`px-2.5 py-1 border-l border-slate-700 transition-colors ${showAllForComp ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-400'}`}>All</button>
+                </div>
+              )}
               {hasScores && (
-                <button onClick={toggleRevealAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                  {revealAll ? <EyeOff size={15} /> : <Eye size={15} />}
-                  {revealAll ? 'Hide' : 'Reveal'}
+                <button onClick={toggleRevealAll} className="flex-shrink-0 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                  {revealAll ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               )}
-              <button onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50">
-                <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-                Refresh
-              </button>
             </div>
           </div>
+        )}
+
+        <div className="p-4 sm:p-6 lg:p-6 pb-48 lg:pb-16">
 
           {loading || loadingCompAll ? (
             <div className="flex justify-center py-16">
@@ -412,49 +602,24 @@ export default function Fixtures() {
             </div>
           ) : (
             <>
-              {/* Mobile filter pills */}
-              <div className="mb-4 space-y-2 lg:hidden">
-                {sortedTeams.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
-                    {sortedTeams.map(team => (
-                      <FilterPill
-                        key={team.id}
-                        label={team.name}
-                        icon={<span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={team.crest_url} alt="" className="w-3 h-3 object-contain" /></span>}
-                        active={activeFilter?.type === 'team' && activeFilter.value === team.name}
-                        onClick={() => setFilter('team', team.name)}
-                      />
-                    ))}
-                  </div>
-                )}
-                {competitions.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ scrollbarWidth: 'none' }}>
-                    {competitions.map(comp => (
-                      <FilterPill
-                        key={comp.name}
-                        label={comp.name}
-                        icon={comp.emblem_url
-                          ? <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><img src={comp.emblem_url} alt="" className="w-3 h-3 object-contain" /></span>
-                          : <span className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center flex-shrink-0"><Trophy size={10} className="text-slate-600" /></span>
-                        }
-                        active={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
-                        onClick={() => setFilter('comp', comp.name)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
               {dateKeys.length === 0 ? (
                 <div className="py-12 text-center text-slate-500 text-sm">No fixtures match this filter.</div>
               ) : (
                 <div className="space-y-1">
-                  {dateKeys.map(date => {
+                  {renderItems.map((item, i) => {
+                    if (item.type === 'divider') {
+                      return (
+                        <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-[116px] lg:scroll-mt-4">
+                          <div className="flex-1 h-px" style={{ background: 'rgba(34,197,94,0.35)' }} />
+                          <span className="text-[11px] font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
+                        </div>
+                      )
+                    }
+                    const { date, isToday: isTodayDate } = item
                     const category = getDateCategory(grouped[date][0].utc_date)
-                    const isToday = category === 'today'
                     return (
-                      <div key={date} ref={isToday ? todayRef : null}>
-                        <DateGroupHeader label={date} />
+                      <div key={date} ref={isTodayDate ? todayRef : null} className={isTodayDate ? 'scroll-mt-[116px] lg:scroll-mt-4' : ''}>
+                        <DateGroupHeader label={date} isToday={isTodayDate} />
                         <div className="space-y-2">
                           {grouped[date].map(f => {
                             const fid = `${f.source}:${f.external_id}`
@@ -486,8 +651,9 @@ export default function Fixtures() {
     {todayVisible === false && (
       <button
         onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-600 hover:bg-green-500 text-white text-sm font-semibold shadow-lg transition-colors"
+        className="fixed bottom-[72px] lg:bottom-[10px] left-1/2 lg:left-[calc(50%_+_237px)] -translate-x-1/2 z-40 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-green-600 hover:bg-green-500 text-white text-xs font-semibold shadow-lg transition-colors"
       >
+        {todayDirection === 'up' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         Today
       </button>
     )}
