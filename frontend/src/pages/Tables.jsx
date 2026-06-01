@@ -118,7 +118,7 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
                       {row.team_crest && (
                         <img src={imgUrl(row.team_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
                       )}
-                      <span className={`truncate ${isFollowed ? 'text-green-300 font-medium' : 'text-slate-200'}`} style={{ maxWidth: 0, overflow: 'hidden', flex: 1 }}>{row.team_name}</span>
+                      <span className={`truncate ${isFollowed ? 'text-green-300 font-medium' : 'text-slate-200'}`}>{row.team_name}</span>
                     </div>
                   </td>
                   <td className="text-center px-2 py-2.5 text-slate-400 tabular-nums" style={{ background: cellBg(i, 2, isFollowed) }}>{row.played}</td>

@@ -6,8 +6,6 @@ from database import get_db
 import models
 import schemas
 from auth import get_optional_user
-from api import football_data as fd
-
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -34,8 +32,6 @@ async def list_competition_teams(
     followed_apf_ids = {t.team.api_football_id for t in db.query(models.FollowedTeam).all() if t.team.api_football_id}
 
     teams_raw = []
-    if comp.preferred_source == "football_data" and comp.football_data_id:
-        teams_raw = await fd.get_competition_teams(comp.football_data_id, db)
 
     results = []
     for t in teams_raw:
