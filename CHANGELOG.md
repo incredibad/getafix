@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.3] — 2026-06-01
+
+### Fixed
+- Fixtures: correct asymmetric padding for home/away sections around the absolutely-centred score. The col2 midpoint sits 54px right of card centre on desktop (col1=144px vs chevron=36px), so home needs pr-[118px] and away only pl-[10px] to keep both teams the same visual distance from the score.
+
 ## [0.14.2] — 2026-06-01
 
 ### Fixed
