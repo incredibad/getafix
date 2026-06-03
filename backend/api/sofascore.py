@@ -111,6 +111,7 @@ def _parse_fixture(event: dict) -> dict | None:
             "short_name": home.get("nameCode"),
             "crest_url": _team_crest(home.get("id")),
             "country": (home.get("country") or {}).get("name"),
+            "national": bool(home.get("national", False)),
         },
         "away_team": {
             "id": away.get("id"),
@@ -118,6 +119,7 @@ def _parse_fixture(event: dict) -> dict | None:
             "short_name": away.get("nameCode"),
             "crest_url": _team_crest(away.get("id")),
             "country": (away.get("country") or {}).get("name"),
+            "national": bool(away.get("national", False)),
         },
         "competition": {
             "id": tournament_id,
@@ -132,6 +134,73 @@ def _parse_fixture(event: dict) -> dict | None:
         "venue": None,
         "league_slug": str(tournament_id) if tournament_id else None,
     }
+
+
+# ── Team primary league ───────────────────────────────────────────────────────
+
+async def get_team_primary_league(team_id: int, db: Session) -> str | None:
+    cache_key = f"sofascore:team_primary_league:{team_id}"
+    cached = _cache.get_cached(db, cache_key, 24 * 30)
+    if cached is not None:
+        return cached.get("league_name")
+    try:
+        data = await _get(f"/team/{team_id}")
+        team = data.get("team") or {}
+        primary = team.get("primaryUniqueTournament") or {}
+        league_name = primary.get("name") or None
+        _cache.set_cached(db, cache_key, {"league_name": league_name})
+        return league_name
+    except Exception:
+        return None
+
+
+# ── All competitions index ────────────────────────────────────────────────────
+
+async def get_all_competitions(db: Session) -> list[dict]:
+    """Return a flat list of all Sofascore football competitions, cached for 30 days."""
+    cache_key = "sofascore:all_competitions"
+    cached = _cache.get_cached(db, cache_key, 24 * 30)
+    if cached is not None:
+        return cached.get("competitions", [])
+
+    # Fetch all categories (countries/regions)
+    try:
+        data = await _get("/sport/football/categories")
+    except Exception as e:
+        logger.error(f"Sofascore categories error: {e}")
+        return []
+
+    categories = data.get("categories", [])
+    cat_ids = [c["id"] for c in categories]
+    cat_names = {c["id"]: c["name"] for c in categories}
+
+    # Fetch tournaments per category in batches of 25
+    BATCH = 25
+    competitions: list[dict] = []
+    for i in range(0, len(cat_ids), BATCH):
+        batch = cat_ids[i:i + BATCH]
+        results = await asyncio.gather(
+            *[_get(f"/category/{cid}/unique-tournaments") for cid in batch],
+            return_exceptions=True,
+        )
+        for cid, result in zip(batch, results):
+            if isinstance(result, Exception):
+                continue
+            for group in result.get("groups", []):
+                for t in group.get("uniqueTournaments", []):
+                    tid = t.get("id")
+                    if not tid:
+                        continue
+                    competitions.append({
+                        "id": tid,
+                        "name": t.get("name", ""),
+                        "slug": t.get("slug", ""),
+                        "country": cat_names.get(cid, ""),
+                        "emblem_url": _tournament_emblem(tid),
+                    })
+
+    _cache.set_cached(db, cache_key, {"competitions": competitions})
+    return competitions
 
 
 # ── Season ID ─────────────────────────────────────────────────────────────────
@@ -208,24 +277,34 @@ async def get_team_schedule(sofascore_id: int, db: Session, ttl_hours: float = 6
         return fixtures
 
     fixtures: list[dict] = []
+    seen_ids: set = set()
 
-    # Past results
-    try:
-        data = await _get(f"/team/{sofascore_id}/events/last/0")
-        for event in data.get("events", []):
-            f = _parse_fixture(event)
-            if f:
-                fixtures.append(f)
-    except Exception as e:
-        logger.error(f"Sofascore team last events error (id={sofascore_id}): {e}")
+    # Fetch 3 pages of past results in parallel (~90 events, covers ~18 months for active teams)
+    past_pages = await asyncio.gather(
+        *[_get(f"/team/{sofascore_id}/events/last/{p}") for p in range(3)],
+        return_exceptions=True,
+    )
+    for result in past_pages:
+        if isinstance(result, Exception):
+            continue
+        for event in result.get("events", []):
+            eid = event.get("id")
+            if eid and eid not in seen_ids:
+                seen_ids.add(eid)
+                f = _parse_fixture(event)
+                if f:
+                    fixtures.append(f)
 
     # Upcoming (404 when between seasons — handled gracefully)
     try:
         data = await _get(f"/team/{sofascore_id}/events/next/0")
         for event in data.get("events", []):
-            f = _parse_fixture(event)
-            if f:
-                fixtures.append(f)
+            eid = event.get("id")
+            if eid and eid not in seen_ids:
+                seen_ids.add(eid)
+                f = _parse_fixture(event)
+                if f:
+                    fixtures.append(f)
     except _HTTPError as e:
         if e.status_code != 404:
             logger.error(f"Sofascore team next events error (id={sofascore_id}): {e}")
