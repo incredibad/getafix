@@ -105,6 +105,8 @@ class TeamRef(BaseModel):
     short_name: Optional[str]
     crest_url: Optional[str]
     country: Optional[str] = None
+    home_league: Optional[str] = None
+    national: Optional[bool] = None
 
 
 class CompetitionRef(BaseModel):

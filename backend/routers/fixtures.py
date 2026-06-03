@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Query
@@ -79,6 +80,7 @@ async def get_fixtures_by_competition(
     cutoff_future = now_utc + timedelta(days=120)
     filtered = [f for f in raw if _in_window(f, cutoff_past, cutoff_future)]
     filtered.sort(key=lambda f: f["utc_date"])
+    await _enrich_home_leagues(filtered, db)
     return [_to_schema(f) for f in filtered]
 
 
@@ -111,6 +113,7 @@ async def get_fixtures(
 
     filtered = [f for f in deduped if _in_window(f, cutoff_past, cutoff_future)]
     filtered.sort(key=lambda f: f["utc_date"])
+    await _enrich_home_leagues(filtered, db)
     return [_to_schema(f) for f in filtered]
 
 
@@ -283,6 +286,74 @@ def _parse_date(date_str: str) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def _home_league_from_db(team_id, team_name: str, source: str, db: Session) -> str | None:
+    team = None
+    if team_id is not None:
+        try:
+            tid = int(team_id)
+            if source == "sofascore":
+                team = db.query(models.Team).filter(models.Team.sofascore_id == tid).first()
+            elif source == "espn":
+                team = db.query(models.Team).filter(models.Team.espn_id == tid).first()
+        except (ValueError, TypeError):
+            pass
+    if not team and team_name:
+        team = db.query(models.Team).filter(models.Team.name == team_name).first()
+    if not team or team.team_type == "national":
+        return None
+    league_comps = [tc.competition for tc in team.competitions if tc.competition.competition_type == "league"]
+    if not league_comps:
+        return None
+    if team.country:
+        country_match = [c for c in league_comps if c.country == team.country]
+        if country_match:
+            return country_match[0].name
+    return league_comps[0].name
+
+
+async def _home_league_for_team(source: str, team_id, team_name: str, is_national: bool, db: Session) -> str | None:
+    if is_national:
+        return None
+    league = _home_league_from_db(team_id, team_name, source, db)
+    if league:
+        return league
+    if source == "sofascore" and team_id is not None:
+        try:
+            return await sofascore.get_team_primary_league(int(team_id), db)
+        except (ValueError, TypeError):
+            pass
+    return None
+
+
+async def _enrich_home_leagues(fixtures: list[dict], db: Session) -> None:
+    unique_teams: list[tuple] = []
+    seen: set[tuple] = set()
+    for f in fixtures:
+        source = f.get("source", "")
+        for team_key in ("home_team", "away_team"):
+            td = f.get(team_key)
+            if not td:
+                continue
+            k = (source, td.get("id"), td.get("name", ""), bool(td.get("national")))
+            if k not in seen:
+                seen.add(k)
+                unique_teams.append(k)
+
+    results = await asyncio.gather(*[
+        _home_league_for_team(s, tid, name, nat, db)
+        for s, tid, name, nat in unique_teams
+    ])
+    lookup = dict(zip(unique_teams, results))
+
+    for f in fixtures:
+        source = f.get("source", "")
+        for team_key in ("home_team", "away_team"):
+            td = f.get(team_key)
+            if td:
+                k = (source, td.get("id"), td.get("name", ""), bool(td.get("national")))
+                td["home_league"] = lookup.get(k)
 
 
 def _to_schema(f: dict) -> schemas.FixtureOut:
