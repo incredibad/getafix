@@ -59,6 +59,16 @@ def list_followed_competitions(
     return db.query(models.Competition).filter(models.Competition.id.in_(comp_ids)).all()
 
 
+@router.get("/sofascore/all", response_model=list[dict])
+async def list_all_sofascore_competitions(
+    _: models.User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """Return all Sofascore football competitions (cached 30 days)."""
+    from api import sofascore
+    return await sofascore.get_all_competitions(db)
+
+
 @router.post("/{competition_id}/link-team/{team_id}")
 def link_team_to_competition(
     competition_id: int,

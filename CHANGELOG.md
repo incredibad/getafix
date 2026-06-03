@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.15.0] — 2026-06-04
+
+### Added
+- Tables: "All Tables" tab lets you browse standings for any Sofascore competition worldwide, not just leagues your followed teams are in. The full competition index (~271 countries/regions) is fetched lazily on first visit and cached for 30 days. Search by league name or country name. Selecting a competition with no standings shows a fallback button to view its fixtures instead. Both desktop (sidebar) and mobile (full-screen picker overlay) are supported.
+
+## [0.14.24] — 2026-06-04
+
+### Fixed
+- Tables: competition logo icons in the left-column filter sidebar are now the same size as the Fixtures filter sidebar icons (24×24px, Trophy size 18).
+
+## [0.14.23] — 2026-06-03
+
+### Fixed
+- Tables: competition logo icons in the left-column filter sidebar no longer have a white/light background. Now styled consistently with the Fixtures filter sidebar.
+
+## [0.14.22] — 2026-06-03
+
+### Fixed
+- Fixtures: history filters longer than ~6 months (1 year, Cal. year) now actually fetch enough data. Sofascore returns 30 events per page; previously only page 0 was fetched (~Nov 2025 to present). Now pages 0, 1, and 2 are fetched in parallel on cache miss, covering ~18 months of history. Existing team schedule caches (page 0 only) are automatically cleared on deploy.
+
+## [0.14.21] — 2026-06-02
+
+### Fixed
+- Fixtures: national team (country) crest tooltips no longer show a redundant country line beneath the team name.
+
+### Changed
+- Settings: removed API Usage card.
+- Settings: fixture history options now include 7 days, 14 days, 30 days, and 60 days ahead of the existing month/year options.
+
+## [0.14.20] — 2026-06-02
+
+### Fixed
+- Fixtures: national teams (countries) no longer show a domestic league in the crest tooltip. The `national` flag from Sofascore's event data is now passed through the enrichment pipeline and used to skip the league lookup entirely.
+
+## [0.14.19] — 2026-06-02
+
+### Changed
+- Fixtures: `primaryUniqueTournament` cache TTL changed from 7 days to 30 days. This covers the ~2-month off-season window (where promotion/relegation takes effect) with 2 refreshes rather than 8. Failed lookups are no longer cached so transient errors self-heal on the next request.
+
+## [0.14.18] — 2026-06-02
+
+### Changed
+- Fixtures: crest tooltips now show each team's domestic league for all teams (not just followed ones). For teams in the DB, their linked `competition_type=league` entry is used (country-matched). For Sofascore teams not in the DB, the `primaryUniqueTournament` is fetched from the Sofascore team API and cached for 7 days. The league is shown only when it differs from the current fixture's competition — e.g. PSG in a CL game shows "Ligue 1", but in a Ligue 1 game it's hidden.
+
+## [0.14.17] — 2026-06-02
+
+### Changed
+- Fixtures: crest tooltips now show each team's domestic league instead of the fixture's competition. The league is looked up from the team's linked competitions in the DB (country-matched where possible) and shown only when it differs from the current fixture's competition — so a PSG tooltip in a CL game shows "Ligue 1", but in a Ligue 1 game it's hidden as redundant. National teams show no league.
+
 ## [0.14.16] — 2026-06-01
 
 ### Fixed

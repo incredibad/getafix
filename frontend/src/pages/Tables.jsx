@@ -1,25 +1,27 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trophy, ChevronDown, Calendar } from 'lucide-react'
+import { Trophy, ChevronDown, Calendar, Search, X } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 
-const STORAGE_KEY = 'footrack:tables:competition'
+const STORAGE_KEY    = 'footrack:tables:competition'
+const ALL_TAB_KEY    = 'footrack:tables:tab'
+const ALL_SEL_KEY    = 'footrack:tables:all_selected'
 
 function CompLogo({ url, size = 'sm' }) {
-  const imgDim = size === 'lg' ? 'w-5 h-5' : size === 'md' ? 'w-4 h-4' : 'w-3.5 h-3.5'
-  const wrapDim = size === 'lg' ? 'w-7 h-7' : size === 'md' ? 'w-6 h-6' : 'w-5 h-5'
-  const iconSize = size === 'lg' ? 16 : size === 'md' ? 14 : 12
+  const imgDim  = size === 'lg' ? 'w-5 h-5' : size === 'md' ? 'w-4 h-4' : 'w-6 h-6'
+  const wrapDim = size === 'lg' ? 'w-7 h-7' : size === 'md' ? 'w-6 h-6' : 'w-6 h-6'
+  const iconSize = size === 'lg' ? 16 : size === 'md' ? 14 : 18
   if (!url) {
     return (
-      <div className={`${wrapDim} rounded flex items-center justify-center flex-shrink-0 bg-slate-200`}>
-        <Trophy size={iconSize} className="text-slate-600" />
+      <div className={`${wrapDim} flex items-center justify-center flex-shrink-0`}>
+        <Trophy size={iconSize} className="text-slate-500" />
       </div>
     )
   }
   return (
-    <div className={`${wrapDim} rounded flex items-center justify-center flex-shrink-0 bg-slate-200`}>
+    <div className={`${wrapDim} flex items-center justify-center flex-shrink-0`}>
       <img src={imgUrl(url)} alt="" className={`${imgDim} object-contain`} />
     </div>
   )
@@ -31,13 +33,8 @@ function RoundStatus({ startDate, endDate }) {
   const start = startDate ? new Date(startDate) : null
   const end = endDate ? new Date(endDate) : null
   const fmt = (d) => d.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })
-
-  if (end && end < now) {
-    return <span className="text-xs text-slate-400 font-normal normal-case ml-2">Ended {fmt(end)}</span>
-  }
-  if (start && start > now) {
-    return <span className="text-xs text-blue-500 font-normal normal-case ml-2">Starts {fmt(start)}</span>
-  }
+  if (end && end < now) return <span className="text-xs text-slate-400 font-normal normal-case ml-2">Ended {fmt(end)}</span>
+  if (start && start > now) return <span className="text-xs text-blue-500 font-normal normal-case ml-2">Starts {fmt(start)}</span>
   return (
     <span className="inline-flex items-center gap-1 text-xs text-green-500 font-normal normal-case ml-2">
       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
@@ -71,12 +68,10 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
     const v = row + col
     return v > 0 ? `rgba(255,255,255,${v})` : 'transparent'
   }
-  const headColBg = (colIdx) =>
-    colIdx % 2 === 0 ? { background: 'rgba(255,255,255,0.03)' } : {}
+  const headColBg = (colIdx) => colIdx % 2 === 0 ? { background: 'rgba(255,255,255,0.03)' } : {}
 
   return (
     <div className="mb-4">
-      {/* Group/stage label — mobile only */}
       {label && (
         <div className="flex items-center mb-2 px-1 lg:hidden">
           <p className="text-xs text-slate-500 uppercase tracking-wide flex items-center">
@@ -115,9 +110,7 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
                   <td className="px-3 py-2.5 text-xs tabular-nums" style={{ background: cellBg(i, 0, isFollowed), color: isFollowed ? 'rgba(134,239,172,0.8)' : 'rgb(100,116,139)' }}>{row.position}</td>
                   <td className="px-2 py-2.5" style={{ background: cellBg(i, 1, isFollowed) }}>
                     <div className="flex items-center gap-2 min-w-0">
-                      {row.team_crest && (
-                        <img src={imgUrl(row.team_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
-                      )}
+                      {row.team_crest && <img src={imgUrl(row.team_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />}
                       <span className={`truncate ${isFollowed ? 'text-green-300 font-medium' : 'text-slate-200'}`}>{row.team_name}</span>
                     </div>
                   </td>
@@ -139,7 +132,142 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
   )
 }
 
-function MobileSticky({ competitions, selectedName, onSelect, onFixtures }) {
+// ── Tab bar ───────────────────────────────────────────────────────────────────
+
+function TabBar({ active, onChange }) {
+  return (
+    <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+      {['my', 'all'].map(tab => (
+        <button
+          key={tab}
+          onClick={() => onChange(tab)}
+          className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+            active === tab
+              ? 'text-white border-b-2 border-green-500 -mb-px'
+              : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          {tab === 'my' ? 'My Tables' : 'All Tables'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── My Tables sidebar ─────────────────────────────────────────────────────────
+
+function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
+  return (
+    <div className="flex-1 overflow-y-auto py-2">
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : competitions.map(comp => (
+        <button
+          key={comp.name}
+          onClick={() => onSelect(comp.name)}
+          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+            comp.name === selectedName ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+          }`}
+        >
+          <CompLogo url={comp.emblem_url} size="sm" />
+          <span className="text-sm truncate">{comp.name}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── All Tables sidebar ────────────────────────────────────────────────────────
+
+function AllTablesSidebar({ selectedId, onSelect }) {
+  const [allComps, setAllComps] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    api.get('/competitions/sofascore/all')
+      .then(({ data }) => setAllComps(data))
+      .catch(() => toast.error('Failed to load competitions.'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    if (!q) return allComps
+    return allComps.filter(c =>
+      c.name.toLowerCase().includes(q) || c.country.toLowerCase().includes(q)
+    )
+  }, [allComps, query])
+
+  // Group by country, sorted alphabetically
+  const grouped = useMemo(() => {
+    const map = {}
+    for (const c of filtered) {
+      if (!map[c.country]) map[c.country] = []
+      map[c.country].push(c)
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered])
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Search box */}
+      <div className="px-3 py-2 flex-shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: '#0d0d14', border: '1px solid var(--border)' }}>
+          <Search size={13} className="text-slate-500 flex-shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="League or country…"
+            className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-500 outline-none"
+          />
+          {query && (
+            <button onClick={() => setQuery('')} className="text-slate-500 hover:text-slate-300">
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex flex-col items-center gap-2 py-8 text-slate-500">
+            <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs">Loading all competitions…</span>
+          </div>
+        ) : grouped.length === 0 ? (
+          <p className="text-xs text-slate-500 text-center py-8">No competitions found.</p>
+        ) : grouped.map(([country, comps]) => (
+          <div key={country}>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-4 pt-3 pb-1">{country}</p>
+            {comps.map(comp => (
+              <button
+                key={comp.id}
+                onClick={() => onSelect(comp)}
+                className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors ${
+                  selectedId === comp.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                }`}
+              >
+                <CompLogo url={comp.emblem_url} size="sm" />
+                <span className="text-sm truncate">{comp.name}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Mobile: My Tables picker ──────────────────────────────────────────────────
+
+function MobileMyPicker({ competitions, selectedName, onSelect, onFixtures }) {
   const [open, setOpen] = useState(false)
   const selected = competitions.find(c => c.name === selectedName)
 
@@ -160,21 +288,13 @@ function MobileSticky({ competitions, selectedName, onSelect, onFixtures }) {
           <ChevronDown size={16} className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>
         {selected && (
-          <button
-            onClick={onFixtures}
-            className="flex-shrink-0 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
-            title="View fixtures"
-          >
+          <button onClick={onFixtures} className="flex-shrink-0 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" title="View fixtures">
             <Calendar size={20} />
           </button>
         )}
       </div>
-
       {open && (
-        <div
-          className="absolute z-20 top-full left-4 right-4 rounded-xl border shadow-xl overflow-hidden max-h-72 overflow-y-auto"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
+        <div className="absolute z-20 top-full left-4 right-4 rounded-xl border shadow-xl overflow-hidden max-h-72 overflow-y-auto" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           {competitions.map(comp => (
             <button
               key={comp.name}
@@ -193,13 +313,128 @@ function MobileSticky({ competitions, selectedName, onSelect, onFixtures }) {
   )
 }
 
+// ── Mobile: All Tables picker ─────────────────────────────────────────────────
+
+function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [open])
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    if (!q) return allComps
+    return allComps.filter(c =>
+      c.name.toLowerCase().includes(q) || c.country.toLowerCase().includes(q)
+    )
+  }, [allComps, query])
+
+  const grouped = useMemo(() => {
+    const map = {}
+    for (const c of filtered) {
+      if (!map[c.country]) map[c.country] = []
+      map[c.country].push(c)
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
+  }, [filtered])
+
+  const close = () => { setOpen(false); setQuery('') }
+
+  return (
+    <div className="lg:hidden sticky top-14 z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+      <div className="px-4 py-2">
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-left"
+          style={{ background: 'var(--surface)', borderColor: selectedComp ? 'rgba(34,197,94,0.4)' : 'var(--border)' }}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CompLogo url={selectedComp?.emblem_url} size="md" />
+            <span className={`text-sm font-medium truncate ${selectedComp ? 'text-white' : 'text-slate-400'}`}>
+              {selectedComp?.name ?? 'Select competition'}
+            </span>
+            {selectedComp && <span className="text-xs text-slate-500 flex-shrink-0">{selectedComp.country}</span>}
+          </div>
+          <ChevronDown size={16} className="text-slate-400 flex-shrink-0" />
+        </button>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg)' }}>
+          <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+            <Search size={16} className="text-slate-500 flex-shrink-0" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="League or country…"
+              className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
+            />
+            <button onClick={close} className="text-slate-400 hover:text-white p-1"><X size={20} /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto pb-24">
+            {loadingAll ? (
+              <div className="flex flex-col items-center gap-2 py-12 text-slate-500">
+                <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Loading all competitions…</span>
+              </div>
+            ) : grouped.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-12">No competitions found.</p>
+            ) : grouped.map(([country, comps]) => (
+              <div key={country}>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">{country}</p>
+                {comps.map(comp => (
+                  <button
+                    key={comp.id}
+                    onClick={() => { onSelect(comp); close() }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      selectedComp?.id === comp.id ? 'text-green-400 bg-green-600/10' : 'text-slate-300 hover:bg-white/5'
+                    }`}
+                  >
+                    <CompLogo url={comp.emblem_url} size="sm" />
+                    <span className="text-sm truncate">{comp.name}</span>
+                    <span className="text-xs text-slate-500 ml-auto flex-shrink-0">{comp.country}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function Tables() {
   const navigate = useNavigate()
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem(ALL_TAB_KEY) ?? 'my')
+
+  // My Tables state
   const [standings, setStandings] = useState([])
   const [followed, setFollowed] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedName, setSelectedName] = useState(() => localStorage.getItem(STORAGE_KEY))
 
+  // All Tables state
+  const [allComps, setAllComps] = useState([])
+  const [loadingAll, setLoadingAll] = useState(false)
+  const [allFetched, setAllFetched] = useState(false)
+  const [allSelected, setAllSelected] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(ALL_SEL_KEY)) ?? null } catch { return null }
+  })
+  const [allStandings, setAllStandings] = useState([])
+  const [loadingAllStandings, setLoadingAllStandings] = useState(false)
+  const [allStandingsError, setAllStandingsError] = useState(false)
+
+  // Load My Tables data
   const load = async () => {
     try {
       const [standingsRes, followedRes] = await Promise.all([
@@ -217,7 +452,35 @@ export default function Tables() {
 
   useEffect(() => { load() }, [])
 
-  const competitions = useMemo(() => {
+  // Fetch all competitions when All Tables tab is first opened
+  useEffect(() => {
+    if (activeTab !== 'all' || allFetched) return
+    setLoadingAll(true)
+    api.get('/competitions/sofascore/all')
+      .then(({ data }) => { setAllComps(data); setAllFetched(true) })
+      .catch(() => toast.error('Failed to load competitions.'))
+      .finally(() => setLoadingAll(false))
+  }, [activeTab, allFetched])
+
+  // Fetch standings when All Tables selection changes
+  useEffect(() => {
+    if (!allSelected) { setAllStandings([]); return }
+    setLoadingAllStandings(true)
+    setAllStandingsError(false)
+    setAllStandings([])
+    api.get(`/standings/sofascore/${allSelected.id}`)
+      .then(({ data }) => setAllStandings(data))
+      .catch(() => setAllStandingsError(true))
+      .finally(() => setLoadingAllStandings(false))
+  }, [allSelected])
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    localStorage.setItem(ALL_TAB_KEY, tab)
+  }
+
+  // My Tables helpers
+  const myCompetitions = useMemo(() => {
     const map = {}
     for (const s of standings) {
       const key = s.competition.name
@@ -231,54 +494,71 @@ export default function Tables() {
   }, [standings])
 
   useEffect(() => {
-    if (competitions.length === 0) return
-    const valid = competitions.find(c => c.name === selectedName)
+    if (myCompetitions.length === 0) return
+    const valid = myCompetitions.find(c => c.name === selectedName)
     if (!valid) {
-      setSelectedName(competitions[0].name)
-      localStorage.setItem(STORAGE_KEY, competitions[0].name)
+      setSelectedName(myCompetitions[0].name)
+      localStorage.setItem(STORAGE_KEY, myCompetitions[0].name)
     }
-  }, [competitions])
+  }, [myCompetitions])
 
-  const handleSelect = (name) => {
+  const handleMySelect = (name) => {
     setSelectedName(name)
     localStorage.setItem(STORAGE_KEY, name)
   }
 
-  const selectedComp = competitions.find(c => c.name === selectedName)
+  const handleAllSelect = (comp) => {
+    setAllSelected(comp)
+    localStorage.setItem(ALL_SEL_KEY, JSON.stringify(comp))
+  }
+
+  const selectedMyComp = myCompetitions.find(c => c.name === selectedName)
 
   const goToFixtures = () => {
-    if (!selectedComp) return
-    navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: selectedComp.name } } })
+    if (!selectedMyComp) return
+    navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: selectedMyComp.name } } })
   }
+
+  const goToFixturesAll = () => {
+    if (!allSelected) return
+    navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: allSelected.name, sofascore_id: allSelected.id } } })
+  }
+
+  // All Tables standings grouped
+  const allStandingsGroups = useMemo(() => {
+    if (!allStandings.length) return []
+    const map = {}
+    for (const s of allStandings) {
+      const key = s.competition?.name ?? allSelected?.name ?? ''
+      if (!map[key]) map[key] = { name: key, emblem_url: s.competition?.emblem_url ?? allSelected?.emblem_url, season: s.season, groups: [] }
+      const groups = s.tables?.length > 0
+        ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
+        : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
+      map[key].groups.push(...groups.filter(g => g.table?.length > 0))
+    }
+    return Object.values(map)
+  }, [allStandings, allSelected])
 
   return (
     <div className="lg:flex lg:h-full">
 
-      {/* ── Desktop left column: competition tabs ── */}
+      {/* ── Desktop left column ── */}
       <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-          <h1 className="text-sm font-semibold text-white">Tables</h1>
-        </div>
-        <div className="flex-1 overflow-y-auto py-2">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : competitions.map(comp => (
-            <button
-              key={comp.name}
-              onClick={() => handleSelect(comp.name)}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
-                comp.name === selectedName
-                  ? 'bg-white/10 text-white'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}
-            >
-              <CompLogo url={comp.emblem_url} size="sm" />
-              <span className="text-sm truncate">{comp.name}</span>
-            </button>
-          ))}
-        </div>
+        <TabBar active={activeTab} onChange={handleTabChange} />
+
+        {activeTab === 'my' ? (
+          <MyTablesSidebar
+            competitions={myCompetitions}
+            selectedName={selectedName}
+            onSelect={handleMySelect}
+            loading={loading}
+          />
+        ) : (
+          <AllTablesSidebar
+            selectedId={allSelected?.id}
+            onSelect={handleAllSelect}
+          />
+        )}
       </div>
 
       {/* ── Content area ── */}
@@ -287,57 +567,103 @@ export default function Tables() {
         {/* Spacer for fixed mobile top bar */}
         <div className="h-14 lg:hidden" />
 
-        {/* Mobile sticky competition bar */}
-        {!loading && competitions.length > 0 && (
-          <MobileSticky
-            competitions={competitions}
+        {/* Mobile tab bar */}
+        <div className="lg:hidden sticky top-14 z-30 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+          <TabBar active={activeTab} onChange={handleTabChange} />
+        </div>
+
+        {/* Mobile competition pickers */}
+        {activeTab === 'my' && !loading && myCompetitions.length > 0 && (
+          <MobileMyPicker
+            competitions={myCompetitions}
             selectedName={selectedName}
-            onSelect={handleSelect}
+            onSelect={handleMySelect}
             onFixtures={goToFixtures}
+          />
+        )}
+        {activeTab === 'all' && (
+          <MobileAllPicker
+            allComps={allComps}
+            loadingAll={loadingAll}
+            selectedComp={allSelected}
+            onSelect={handleAllSelect}
           />
         )}
 
         <div className="p-4 sm:p-6 lg:p-6">
 
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : competitions.length === 0 ? (
-            <div className="flex flex-col items-center py-16 gap-3 text-center">
-              <Trophy size={40} className="text-slate-600" />
-              <p className="text-slate-300 font-medium">No standings available</p>
-              <p className="text-slate-500 text-sm">Follow teams and load their fixtures to see tables.</p>
-            </div>
-          ) : selectedComp ? (
-            <>
-              {/* Competition heading — desktop only */}
-              <div className="hidden lg:flex items-center gap-2 mb-4">
-                <CompLogo url={selectedComp.emblem_url} size="lg" />
-                <h2 className="text-base font-semibold text-white">{selectedComp.name}</h2>
-                {selectedComp.season && <span className="text-xs text-slate-500 ml-1">Season {selectedComp.season}</span>}
+          {/* ── My Tables content ── */}
+          {activeTab === 'my' && (
+            loading ? (
+              <div className="flex justify-center py-16">
+                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : myCompetitions.length === 0 ? (
+              <div className="flex flex-col items-center py-16 gap-3 text-center">
+                <Trophy size={40} className="text-slate-600" />
+                <p className="text-slate-300 font-medium">No standings available</p>
+                <p className="text-slate-500 text-sm">Follow teams and load their fixtures to see tables.</p>
+              </div>
+            ) : selectedMyComp ? (
+              <>
+                <div className="hidden lg:flex items-center gap-2 mb-4">
+                  <CompLogo url={selectedMyComp.emblem_url} size="lg" />
+                  <h2 className="text-base font-semibold text-white">{selectedMyComp.name}</h2>
+                  {selectedMyComp.season && <span className="text-xs text-slate-500 ml-1">Season {selectedMyComp.season}</span>}
+                  <button onClick={goToFixtures} className="ml-auto p-1 text-slate-500 hover:text-slate-300 transition-colors" title="View fixtures">
+                    <Calendar size={20} />
+                  </button>
+                </div>
+                {selectedMyComp.groups.map((g, i) => (
+                  <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
+                ))}
+              </>
+            ) : null
+          )}
+
+          {/* ── All Tables content ── */}
+          {activeTab === 'all' && (
+            !allSelected ? (
+              <div className="flex flex-col items-center py-16 gap-3 text-center">
+                <Search size={40} className="text-slate-600" />
+                <p className="text-slate-300 font-medium">Select a competition</p>
+                <p className="text-slate-500 text-sm">Search by league or country name in the sidebar.</p>
+              </div>
+            ) : loadingAllStandings ? (
+              <div className="flex justify-center py-16">
+                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : allStandingsError ? (
+              <div className="flex flex-col items-center py-16 gap-3 text-center">
+                <Trophy size={40} className="text-slate-600" />
+                <p className="text-slate-300 font-medium">No standings available</p>
+                <p className="text-slate-500 text-sm">{allSelected.name} may not have a league table.</p>
                 <button
-                  onClick={goToFixtures}
-                  className="ml-auto p-1 text-slate-500 hover:text-slate-300 transition-colors"
-                  title="View fixtures"
+                  onClick={goToFixturesAll}
+                  className="mt-1 flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600/20 hover:bg-green-600/30 text-green-400 text-sm font-medium transition-colors"
                 >
-                  <Calendar size={20} />
+                  <Calendar size={14} />
+                  View Fixtures Instead
                 </button>
               </div>
-
-              {selectedComp.groups.map((g, i) => (
-                <StandingsTable
-                  key={i}
-                  table={g.table}
-                  group={g.group}
-                  stage={g.stage}
-                  startDate={g.start_date}
-                  endDate={g.end_date}
-                  followed={followed}
-                />
-              ))}
-            </>
-          ) : null}
+            ) : allStandingsGroups.length > 0 ? (
+              <>
+                <div className="hidden lg:flex items-center gap-2 mb-4">
+                  <CompLogo url={allSelected.emblem_url} size="lg" />
+                  <h2 className="text-base font-semibold text-white">{allSelected.name}</h2>
+                  <span className="text-xs text-slate-500 ml-1">{allSelected.country}</span>
+                  <button onClick={goToFixturesAll} className="ml-auto p-1 text-slate-500 hover:text-slate-300 transition-colors" title="View fixtures">
+                    <Calendar size={20} />
+                  </button>
+                </div>
+                {allStandingsGroups.map(comp =>
+                  comp.groups.map((g, i) => (
+                    <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
+                  ))
+                )}
+              </>
+            ) : null
+          )}
 
         </div>
       </div>
