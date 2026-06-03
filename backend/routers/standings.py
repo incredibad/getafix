@@ -50,6 +50,21 @@ async def get_standings_by_competition(
     return await _fetch_standings(comp, db)
 
 
+@router.get("/sofascore/{tournament_id}", response_model=list[dict])
+async def get_standings_by_sofascore_id(
+    tournament_id: int,
+    _: models.User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    """Fetch standings for any Sofascore tournament by ID."""
+    ttl = _standings_ttl(db)
+    result = await sofascore.get_competition_standings(tournament_id, db, ttl)
+    if not result:
+        raise HTTPException(status_code=404, detail="No standings available for this competition.")
+    result["cached_at"] = _cache.cached_at_str(db, f"sofascore:standings:{tournament_id}:{result.get('season', '')}")
+    return _expand_tables(result)
+
+
 @router.get("/followed", response_model=list[dict])
 async def get_standings_for_followed_teams(
     _: models.User | None = Depends(get_optional_user),
