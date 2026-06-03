@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Eye, EyeOff, Trash2, Activity } from 'lucide-react'
+import { Eye, EyeOff, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
@@ -7,9 +7,13 @@ import toast from 'react-hot-toast'
 
 const DAYS_BACK_KEY = 'footrack:settings:days_back'
 const DAYS_BACK_OPTIONS = [
-  { label: '3 months', value: '90' },
-  { label: '6 months', value: '180' },
-  { label: '1 year',   value: '365' },
+  { label: '7 days',    value: '7' },
+  { label: '14 days',   value: '14' },
+  { label: '30 days',   value: '30' },
+  { label: '60 days',   value: '60' },
+  { label: '3 months',  value: '90' },
+  { label: '6 months',  value: '180' },
+  { label: '1 year',    value: '365' },
   { label: 'Cal. year', value: 'calendar' },
 ]
 
@@ -42,13 +46,8 @@ export default function Settings() {
   const [confirmPw, setConfirmPw] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [pwLoading, setPwLoading] = useState(false)
-  const [usage, setUsage] = useState(null)
   const [clearingCache, setClearingCache] = useState(false)
   const [daysBack, setDaysBackState] = useState(() => localStorage.getItem(DAYS_BACK_KEY) ?? '90')
-
-  useEffect(() => {
-    api.get('/admin/usage').then(({ data }) => setUsage(data)).catch(() => {})
-  }, [])
 
   const changePassword = async (e) => {
     e.preventDefault()
@@ -85,9 +84,6 @@ export default function Settings() {
     localStorage.setItem(DAYS_BACK_KEY, val)
     setDaysBackState(val)
   }
-
-  const sofascoreToday = usage?.today?.find(u => u.source === 'sofascore')?.request_count ?? 0
-  const espnToday = usage?.today?.find(u => u.source === 'espn')?.request_count ?? 0
 
   return (
     <div className="p-4 sm:p-6 pt-16 lg:pt-6">
@@ -159,37 +155,6 @@ export default function Settings() {
               </button>
             ))}
           </div>
-        </Card>
-
-        {/* API Usage */}
-        <Card title="API Usage">
-          <div className="flex items-center gap-2 mb-3">
-            <Activity size={14} className="text-slate-500" />
-            <span className="text-xs text-slate-500">Today's requests</span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">Sofascore</span>
-              <span className="text-slate-200 tabular-nums">{sofascoreToday}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-400">ESPN</span>
-              <span className="text-slate-200 tabular-nums">{espnToday}</span>
-            </div>
-          </div>
-          {usage?.recent && usage.recent.length > 0 && (
-            <details className="mt-4">
-              <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-400">Recent history (7 days)</summary>
-              <div className="mt-2 space-y-1">
-                {usage.recent.map((u, i) => (
-                  <div key={i} className="flex justify-between text-xs text-slate-500">
-                    <span>{u.date} · {u.source}</span>
-                    <span>{u.request_count}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
         </Card>
 
         {/* Cache */}
