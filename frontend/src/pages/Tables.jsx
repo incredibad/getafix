@@ -194,12 +194,19 @@ function AllTablesSidebar({ selectedId, onSelect }) {
   const [allComps, setAllComps] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [openGroups, setOpenGroups] = useState(new Set())
   const inputRef = useRef(null)
   const selectedRef = useRef(null)
 
   useEffect(() => {
     api.get('/competitions/sofascore/all')
-      .then(({ data }) => setAllComps(data))
+      .then(({ data }) => {
+        setAllComps(data)
+        if (selectedId) {
+          const sel = data.find(c => c.id === selectedId)
+          if (sel) setOpenGroups(new Set([sel.country]))
+        }
+      })
       .catch(() => toast.error('Failed to load competitions.'))
       .finally(() => setLoading(false))
   }, [])
@@ -210,6 +217,14 @@ function AllTablesSidebar({ selectedId, onSelect }) {
     }
   }, [loading])
 
+  const toggleGroup = (country) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev)
+      next.has(country) ? next.delete(country) : next.add(country)
+      return next
+    })
+  }
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
     if (!q) return allComps
@@ -218,7 +233,6 @@ function AllTablesSidebar({ selectedId, onSelect }) {
     )
   }, [allComps, query])
 
-  // Group by country, sorted alphabetically
   const grouped = useMemo(() => {
     const map = {}
     for (const c of filtered) {
@@ -227,6 +241,8 @@ function AllTablesSidebar({ selectedId, onSelect }) {
     }
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
   }, [filtered])
+
+  const searching = query.trim().length > 0
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -259,24 +275,33 @@ function AllTablesSidebar({ selectedId, onSelect }) {
           </div>
         ) : grouped.length === 0 ? (
           <p className="text-xs text-slate-500 text-center py-8">No competitions found.</p>
-        ) : grouped.map(([country, comps]) => (
-          <div key={country}>
-            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide px-4 pt-3 pb-1">{country}</p>
-            {comps.map(comp => (
+        ) : grouped.map(([country, comps]) => {
+          const isOpen = searching || openGroups.has(country)
+          return (
+            <div key={country}>
               <button
-                key={comp.id}
-                ref={selectedId === comp.id ? selectedRef : null}
-                onClick={() => onSelect(comp)}
-                className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors ${
-                  selectedId === comp.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
+                onClick={() => toggleGroup(country)}
+                className="w-full flex items-center gap-1.5 px-3 pt-3 pb-1 text-left hover:text-slate-300 transition-colors"
               >
-                <CompLogo url={comp.emblem_url} size="sm" />
-                <span className="text-sm truncate">{comp.name}</span>
+                <ChevronDown size={11} className={`text-slate-600 flex-shrink-0 transition-transform duration-150 ${isOpen ? '' : '-rotate-90'}`} />
+                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{country}</span>
               </button>
-            ))}
-          </div>
-        ))}
+              {isOpen && comps.map(comp => (
+                <button
+                  key={comp.id}
+                  ref={selectedId === comp.id ? selectedRef : null}
+                  onClick={() => onSelect(comp)}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors ${
+                    selectedId === comp.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  <CompLogo url={comp.emblem_url} size="sm" />
+                  <span className="text-sm truncate">{comp.name}</span>
+                </button>
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

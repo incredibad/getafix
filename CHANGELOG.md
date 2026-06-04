@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.6] — 2026-06-04
+
+### Changed
+- Tables (All Tables): country/region headings are now accordion toggles. All groups load collapsed; the group containing the currently selected competition is pre-expanded. Groups auto-expand when a search query is active.
+
 ## [0.16.5] — 2026-06-04
 
 ### Fixed
