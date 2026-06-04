@@ -382,7 +382,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
 
   useEffect(() => {
     if (loading || loadingCompAll || !todayRef.current) return
-    todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    todayRef.current.scrollIntoView({ behavior: 'instant', block: 'start' })
   }, [loading, loadingCompAll, activeFilter, showAllForComp])
 
   const revealOne = (id) => {
@@ -489,11 +489,11 @@ const toggleRevealAll = () => setRevealAll(r => !r)
 
   return (
     <>
-    <div className="flex-1 min-h-0 lg:flex">
+    <div className="lg:flex lg:h-full">
 
       {/* ── Desktop left column: filters ── */}
       <div
-        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip"
+        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-screen"
         style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
         onMouseMove={sidebarMouseMove}
         onMouseLeave={sidebarMouseLeave}
@@ -532,7 +532,8 @@ const toggleRevealAll = () => setRevealAll(r => !r)
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 relative">
+        <div className="absolute inset-0 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
@@ -592,6 +593,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
               )}
             </>
           )}
+        </div>
         </div>
       </div>
 
