@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.8] — 2026-06-04
+
+### Changed
+- Fixtures & Tables: sidebar filter items now expand on hover to show the full name inline, overflowing the sidebar bounds to the right. The expanded button has a solid background, rounded corners, and a drop shadow and is fully clickable.
+
 ## [0.16.7] — 2026-06-04
 
 ### Added
