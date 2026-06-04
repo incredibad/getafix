@@ -4,6 +4,7 @@ import { Users, Circle, Eye, EyeOff, Lock, ChevronRight, ChevronUp, ChevronDown,
 import api from '../api/client'
 import { getDaysBack, getSpoilersMode, getRevealPersist, REVEALED_IDS_KEY } from './Settings'
 import { useSidebarResize } from '../utils/useSidebarResize'
+import ExpandableSidebarItem from '../components/ExpandableSidebarItem'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
@@ -551,23 +552,17 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                 <>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Teams</p>
                   {sortedTeams.map(team => (
-                    <button
+                    <ExpandableSidebarItem
                       key={team.id}
                       ref={activeFilter?.type === 'team' && activeFilter.value === team.name ? activeFilterRef : null}
                       onClick={() => setFilter('team', team.name)}
-                      title={team.name}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
-                        activeFilter?.type === 'team' && activeFilter.value === team.name
-                          ? 'bg-white/10 text-white'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                      }`}
-                    >
-                      {team.crest_url
-                        ? <img src={imgUrl(team.crest_url)} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
-                        : <span className="w-6 h-6 flex-shrink-0" />
+                      isActive={activeFilter?.type === 'team' && activeFilter.value === team.name}
+                      icon={team.crest_url
+                        ? <img src={imgUrl(team.crest_url)} alt="" className="w-6 h-6 object-contain" />
+                        : <span className="w-6 h-6" />
                       }
-                      <span className="text-sm truncate">{team.name}</span>
-                    </button>
+                      label={team.name}
+                    />
                   ))}
                 </>
               )}
@@ -576,23 +571,17 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                 <>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 pt-4 pb-1">Leagues</p>
                   {competitions.map(comp => (
-                    <button
+                    <ExpandableSidebarItem
                       key={comp.name}
                       ref={activeFilter?.type === 'comp' && activeFilter.value === comp.name ? activeFilterRef : null}
                       onClick={() => setFilter('comp', comp.name, comp.sofascore_id)}
-                      title={comp.name}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
-                        activeFilter?.type === 'comp' && activeFilter.value === comp.name
-                          ? 'bg-white/10 text-white'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                      }`}
-                    >
-                      {comp.emblem_url
-                        ? <img src={imgUrl(comp.emblem_url)} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
-                        : <Trophy size={18} className="text-slate-500 flex-shrink-0" />
+                      isActive={activeFilter?.type === 'comp' && activeFilter.value === comp.name}
+                      icon={comp.emblem_url
+                        ? <img src={imgUrl(comp.emblem_url)} alt="" className="w-6 h-6 object-contain" />
+                        : <Trophy size={18} className="text-slate-500" />
                       }
-                      <span className="text-sm truncate">{comp.name}</span>
-                    </button>
+                      label={comp.name}
+                    />
                   ))}
                 </>
               )}
