@@ -4,6 +4,7 @@ const STORAGE_KEY = 'footrack:sidebar:filter_width'
 const MIN_W = 200
 const MAX_W = 500
 const DEFAULT_W = 250
+const EDGE_PX = 6  // px from right border that activates resize cursor
 
 export function useSidebarResize() {
   const [width, setWidth] = useState(() => {
@@ -11,32 +12,42 @@ export function useSidebarResize() {
     return isNaN(stored) ? DEFAULT_W : Math.min(Math.max(stored, MIN_W), MAX_W)
   })
 
+  const [nearEdge, setNearEdge] = useState(false)
   const currentWidth = useRef(width)
 
-  const onResizeStart = useCallback((e) => {
+  const onMouseMove = useCallback((e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setNearEdge(e.clientX >= rect.right - EDGE_PX)
+  }, [])
+
+  const onMouseLeave = useCallback(() => setNearEdge(false), [])
+
+  const onMouseDown = useCallback((e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (e.clientX < rect.right - EDGE_PX) return
     e.preventDefault()
     const startX = e.clientX
     const startW = currentWidth.current
 
-    const onMouseMove = (e) => {
+    const onMove = (e) => {
       const next = Math.min(Math.max(startW + e.clientX - startX, MIN_W), MAX_W)
       currentWidth.current = next
       setWidth(next)
     }
 
-    const onMouseUp = () => {
+    const onUp = () => {
       localStorage.setItem(STORAGE_KEY, String(currentWidth.current))
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseup', onMouseUp)
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
 
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }, [])
 
-  return { width, onResizeStart }
+  return { width, nearEdge, onMouseMove, onMouseLeave, onMouseDown }
 }
