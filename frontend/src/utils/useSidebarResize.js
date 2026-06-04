@@ -25,7 +25,6 @@ export function useSidebarResize() {
   const onMouseDown = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect()
     if (e.clientX < rect.right - EDGE_PX) return
-    e.preventDefault()
     const startX = e.clientX
     const startW = currentWidth.current
 

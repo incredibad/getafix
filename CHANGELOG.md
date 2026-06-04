@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.10] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: sidebar scrollbar was still blocked after the drag-handle removal. The `onMouseDown` handler was calling `e.preventDefault()` near the right edge, which cancelled native scrollbar interactions (the scrollbar lives at the same right-edge zone). Removed `preventDefault` — `userSelect: none` on `document.body` already prevents text selection during resize drags.
+
 ## [0.16.9] — 2026-06-04
 
 ### Fixed
