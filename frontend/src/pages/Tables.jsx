@@ -10,10 +10,11 @@ const ALL_TAB_KEY    = 'footrack:tables:tab'
 const ALL_SEL_KEY    = 'footrack:tables:all_selected'
 
 function CompLogo({ url, size = 'sm' }) {
+  const [errored, setErrored] = useState(false)
   const imgDim  = size === 'lg' ? 'w-5 h-5' : size === 'md' ? 'w-4 h-4' : 'w-6 h-6'
   const wrapDim = size === 'lg' ? 'w-7 h-7' : size === 'md' ? 'w-6 h-6' : 'w-6 h-6'
   const iconSize = size === 'lg' ? 16 : size === 'md' ? 14 : 18
-  if (!url) {
+  if (!url || errored) {
     return (
       <div className={`${wrapDim} flex items-center justify-center flex-shrink-0`}>
         <Trophy size={iconSize} className="text-slate-500" />
@@ -22,7 +23,7 @@ function CompLogo({ url, size = 'sm' }) {
   }
   return (
     <div className={`${wrapDim} flex items-center justify-center flex-shrink-0`}>
-      <img src={imgUrl(url)} alt="" className={`${imgDim} object-contain`} />
+      <img src={imgUrl(url)} alt="" className={`${imgDim} object-contain`} onError={() => setErrored(true)} />
     </div>
   )
 }
@@ -73,7 +74,7 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
   return (
     <div className="mb-4">
       {label && (
-        <div className="flex items-center mb-2 px-1 lg:hidden">
+        <div className="flex items-center mb-2 px-1">
           <p className="text-xs text-slate-500 uppercase tracking-wide flex items-center">
             {label.replace(/_/g, ' ')}
             <RoundStatus startDate={startDate} endDate={endDate} />
@@ -157,6 +158,13 @@ function TabBar({ active, onChange }) {
 // ── My Tables sidebar ─────────────────────────────────────────────────────────
 
 function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
+  const selectedRef = useRef(null)
+  useEffect(() => {
+    if (!loading && selectedRef.current) {
+      selectedRef.current.scrollIntoView({ behavior: 'instant', block: 'center' })
+    }
+  }, [loading])
+
   return (
     <div className="flex-1 overflow-y-auto py-2">
       {loading ? (
@@ -166,6 +174,7 @@ function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
       ) : competitions.map(comp => (
         <button
           key={comp.name}
+          ref={comp.name === selectedName ? selectedRef : null}
           onClick={() => onSelect(comp.name)}
           className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
             comp.name === selectedName ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -186,6 +195,7 @@ function AllTablesSidebar({ selectedId, onSelect }) {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
+  const selectedRef = useRef(null)
 
   useEffect(() => {
     api.get('/competitions/sofascore/all')
@@ -193,6 +203,12 @@ function AllTablesSidebar({ selectedId, onSelect }) {
       .catch(() => toast.error('Failed to load competitions.'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!loading && selectedRef.current) {
+      selectedRef.current.scrollIntoView({ behavior: 'instant', block: 'center' })
+    }
+  }, [loading])
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -249,6 +265,7 @@ function AllTablesSidebar({ selectedId, onSelect }) {
             {comps.map(comp => (
               <button
                 key={comp.id}
+                ref={selectedId === comp.id ? selectedRef : null}
                 onClick={() => onSelect(comp)}
                 className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors ${
                   selectedId === comp.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
