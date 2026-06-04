@@ -532,7 +532,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
