@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.19] — 2026-06-04
+
+### Changed
+- Sidebar resize grab zone widened from 6px to 16px, making it much easier to grab the edge to resize.
+
 ## [0.16.18] — 2026-06-04
 
 ### Reverted
