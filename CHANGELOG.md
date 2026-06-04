@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.16] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: sidebar scroll still blocked while hovering a filter item. Portalled overlay now forwards wheel events to the sidebar scroll container via a non-passive native listener, and immediately hides itself on scroll so the detached overlay doesn't appear to drag while items scroll beneath it.
+
 ## [0.16.15] — 2026-06-04
 
 ### Fixed

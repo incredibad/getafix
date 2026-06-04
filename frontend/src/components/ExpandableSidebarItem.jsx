@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, forwardRef } from 'react'
+import { useState, useRef, useCallback, useEffect, forwardRef } from 'react'
 import { createPortal } from 'react-dom'
 
 const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
@@ -7,6 +7,7 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
 ) {
   const [rect, setRect] = useState(null)
   const btnRef = useRef(null)
+  const overlayRef = useRef(null)
   const hideTimer = useRef(null)
 
   const setRefs = useCallback((node) => {
@@ -26,6 +27,34 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
 
   const cancelHide = () => clearTimeout(hideTimer.current)
 
+  // Wheel events on the portalled overlay bubble to document.body, not the scroll
+  // container. Forward them manually using a non-passive listener so preventDefault
+  // can suppress the body scroll.
+  useEffect(() => {
+    const overlay = overlayRef.current
+    if (!overlay || !rect) return
+
+    let scrollEl = btnRef.current?.parentElement
+    while (scrollEl) {
+      const { overflowY } = window.getComputedStyle(scrollEl)
+      if (overflowY === 'auto' || overflowY === 'scroll') break
+      scrollEl = scrollEl.parentElement
+    }
+    if (!scrollEl) return
+
+    const handler = (e) => {
+      const multiplier = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scrollEl.clientHeight : 1
+      scrollEl.scrollTop += e.deltaY * multiplier
+      e.preventDefault()
+      // Hide overlay immediately — button position shifts with scroll so overlay
+      // would appear detached ("dragging") if left visible
+      clearTimeout(hideTimer.current)
+      setRect(null)
+    }
+    overlay.addEventListener('wheel', handler, { passive: false })
+    return () => overlay.removeEventListener('wheel', handler)
+  }, [rect])
+
   const activeClass = 'bg-white/10 text-white'
   const inactiveClass = 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
 
@@ -44,6 +73,7 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
 
       {rect && createPortal(
         <div
+          ref={overlayRef}
           onMouseEnter={cancelHide}
           onMouseLeave={hide}
           onClick={onClick}
