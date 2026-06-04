@@ -327,7 +327,7 @@ export default function Fixtures() {
   const load = useCallback(async (showToast = false) => {
     try {
       const [fixturesRes, teamsRes] = await Promise.all([
-        api.get('/fixtures', { params: { days_back: getDaysBack(), days_ahead: 90 } }),
+        api.get('/fixtures', { params: { days_back: getDaysBack(), days_ahead: 365 } }),
         api.get('/teams/followed'),
       ])
       setFixtures(fixturesRes.data)

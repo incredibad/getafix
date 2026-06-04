@@ -296,21 +296,27 @@ async def get_team_schedule(sofascore_id: int, db: Session, ttl_hours: float = 6
                 if f:
                     fixtures.append(f)
 
-    # Upcoming (404 when between seasons — handled gracefully)
-    try:
-        data = await _get(f"/team/{sofascore_id}/events/next/0")
-        for event in data.get("events", []):
-            eid = event.get("id")
-            if eid and eid not in seen_ids:
-                seen_ids.add(eid)
-                f = _parse_fixture(event)
-                if f:
-                    fixtures.append(f)
-    except _HTTPError as e:
-        if e.status_code != 404:
-            logger.error(f"Sofascore team next events error (id={sofascore_id}): {e}")
-    except Exception as e:
-        logger.error(f"Sofascore team next events error (id={sofascore_id}): {e}")
+    # Upcoming — paginate until 404 so all scheduled fixtures are included
+    for page in range(10):
+        try:
+            data = await _get(f"/team/{sofascore_id}/events/next/{page}")
+            events = data.get("events", [])
+            if not events:
+                break
+            for event in events:
+                eid = event.get("id")
+                if eid and eid not in seen_ids:
+                    seen_ids.add(eid)
+                    f = _parse_fixture(event)
+                    if f:
+                        fixtures.append(f)
+        except _HTTPError as e:
+            if e.status_code != 404:
+                logger.error(f"Sofascore team next events error (id={sofascore_id}, page={page}): {e}")
+            break
+        except Exception as e:
+            logger.error(f"Sofascore team next events error (id={sofascore_id}, page={page}): {e}")
+            break
 
     _cache.set_cached(db, cache_key, {"fixtures": fixtures})
     if any(f["status"] == "LIVE" for f in fixtures):
@@ -331,19 +337,29 @@ async def get_competition_fixtures(tournament_id: int, db: Session, ttl_hours: f
         return cached.get("fixtures", [])
 
     fixtures: list[dict] = []
+    seen_ids: set = set()
 
     for direction in ("last", "next"):
-        try:
-            data = await _get(f"/unique-tournament/{tournament_id}/season/{season_id}/events/{direction}/0")
-            for event in data.get("events", []):
-                f = _parse_fixture(event)
-                if f:
-                    fixtures.append(f)
-        except _HTTPError as e:
-            if e.status_code != 404:
-                logger.error(f"Sofascore comp fixtures error (t={tournament_id}, {direction}): {e}")
-        except Exception as e:
-            logger.error(f"Sofascore comp fixtures error (t={tournament_id}, {direction}): {e}")
+        for page in range(10):
+            try:
+                data = await _get(f"/unique-tournament/{tournament_id}/season/{season_id}/events/{direction}/{page}")
+                events = data.get("events", [])
+                if not events:
+                    break
+                for event in events:
+                    eid = event.get("id")
+                    if eid and eid not in seen_ids:
+                        seen_ids.add(eid)
+                        f = _parse_fixture(event)
+                        if f:
+                            fixtures.append(f)
+            except _HTTPError as e:
+                if e.status_code != 404:
+                    logger.error(f"Sofascore comp fixtures error (t={tournament_id}, {direction}/{page}): {e}")
+                break
+            except Exception as e:
+                logger.error(f"Sofascore comp fixtures error (t={tournament_id}, {direction}/{page}): {e}")
+                break
 
     _cache.set_cached(db, cache_key, {"fixtures": fixtures})
     return fixtures

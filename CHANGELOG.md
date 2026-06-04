@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.5] — 2026-06-04
+
+### Fixed
+- Fixtures: competition and team schedule fixture fetching now paginates until Sofascore returns a 404, ensuring all scheduled future fixtures are included regardless of how many there are (e.g. World Cup with 104 fixtures across 4 pages).
+- Fixtures: future window increased from 90 to 365 days so fixtures scheduled far in advance are always visible.
+
 ## [0.16.4] — 2026-06-04
 
 ### Fixed
