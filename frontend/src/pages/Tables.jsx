@@ -5,7 +5,6 @@ import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 import { useSidebarResize } from '../utils/useSidebarResize'
-import ExpandableSidebarItem from '../components/ExpandableSidebarItem'
 
 const STORAGE_KEY    = 'footrack:tables:competition'
 const ALL_TAB_KEY    = 'footrack:tables:tab'
@@ -175,14 +174,18 @@ function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
             <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : competitions.map(comp => (
-          <ExpandableSidebarItem
+          <button
             key={comp.name}
             ref={comp.name === selectedName ? selectedRef : null}
             onClick={() => onSelect(comp.name)}
-            isActive={comp.name === selectedName}
-            icon={<CompLogo url={comp.emblem_url} size="sm" />}
-            label={comp.name}
-          />
+            title={comp.name}
+            className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
+              comp.name === selectedName ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <CompLogo url={comp.emblem_url} size="sm" />
+            <span className="text-sm truncate">{comp.name}</span>
+          </button>
         ))}
       </div>
     </div>
@@ -289,14 +292,18 @@ function AllTablesSidebar({ selectedId, onSelect }) {
                 <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{country}</span>
               </button>
               {isOpen && comps.map(comp => (
-                <ExpandableSidebarItem
+                <button
                   key={comp.id}
                   ref={selectedId === comp.id ? selectedRef : null}
                   onClick={() => onSelect(comp)}
-                  isActive={selectedId === comp.id}
-                  icon={<CompLogo url={comp.emblem_url} size="sm" />}
-                  label={comp.name}
-                />
+                  title={comp.name}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors ${
+                    selectedId === comp.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  <CompLogo url={comp.emblem_url} size="sm" />
+                  <span className="text-sm truncate">{comp.name}</span>
+                </button>
               ))}
             </div>
           )
