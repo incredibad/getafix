@@ -1,5 +1,87 @@
 # Changelog
 
+## [0.16.3] — 2026-06-04
+
+### Changed
+- Settings: "Each session" renamed to "Current view only" with a context-specific description explaining that revealed scores are forgotten as soon as you navigate away from the fixtures screen.
+
+## [0.16.2] — 2026-06-04
+
+### Changed
+- Settings: each tab now uses a 2-column mosaic layout on desktop (columns flow left-to-right, cards never split mid-content). Single column on mobile.
+
+## [0.16.1] — 2026-06-04
+
+### Changed
+- Settings: reorganised into three tabs — General (Fixture History, Spoilers), System (Cache, About), Account (account info, Change Password).
+- Settings → System: new About section shows the installed version and a link to the GitHub repo.
+
+## [0.16.0] — 2026-06-04
+
+### Added
+- Settings: new Spoilers card with three controls:
+  - **Spoilers Mode** — hide scores and match events by default (on by default). Toggling resets all saved revealed fixtures.
+  - **Keep revealed scores** — once a score is revealed it stays visible permanently across sessions (on by default). Turning off exposes a duration select.
+  - **Hide again after** — visible when Keep revealed is off; options are Each session, 1 week, 1 month, 6 months.
+- Fixtures: individually revealed scores are now persisted to localStorage and restored on page load, respecting the reveal duration setting. Reveal All remains session-only. When Spoilers Mode is off, all scores are always visible and the eye button is hidden.
+
+## [0.15.11] — 2026-06-04
+
+### Changed
+- Match detail: scores and events now open revealed or hidden based on whether the score was revealed on the fixtures screen before navigating. Refreshing the fixtures page resets reveal state, so the match detail will also open hidden.
+
+## [0.15.10] — 2026-06-04
+
+### Changed
+- Fixtures: round name now appears on the right end of the date header line (e.g. "Saturday 5 July ─── QUARTERFINALS"). When it's today, round name sits just left of the TODAY label.
+
+## [0.15.9] — 2026-06-04
+
+### Changed
+- Fixtures: round name now appears inline in the date header (e.g. "Saturday 5 July — QUARTERFINALS ———") rather than as a separate separator. A separator still appears mid-group if the round changes within the same date.
+
+## [0.15.8] — 2026-06-04
+
+### Fixed
+- Fixtures: "All" competition view now respects the same days_back setting as My Fixtures instead of a fixed window.
+
+## [0.15.7] — 2026-06-04
+
+### Fixed
+- Fixtures: "All" view for competitions now uses a ±365-day window instead of 60 days back / 120 days forward. This fixes competitions like the FIFA Club World Cup (played ~11 months ago) showing no fixtures in the All view.
+- Fixtures: `round_name` was not being passed through `_to_schema`, so round separators were missing from the by-competition endpoint response.
+
+## [0.15.6] — 2026-06-04
+
+### Changed
+- Fixtures: desktop sidebar now scrolls instantly to the active filter (team or competition) when the page loads.
+- Tables: desktop sidebar now scrolls instantly to the selected competition (My Tables and All Tables) when the list finishes loading.
+
+## [0.15.5] — 2026-06-04
+
+### Added
+- Fixtures: round separators now appear within date groups when the round changes. Named cup rounds show as "Round of 16", "Quarterfinals" etc; league matchdays show as "Round 12" etc.
+
+## [0.15.4] — 2026-06-04
+
+### Changed
+- Fixtures: Mine/All toggle in the desktop sidebar now uses the same tab style as the Tables page (underline indicator, full-width). Score reveal button sits in a fixed-width square on the right.
+
+## [0.15.3] — 2026-06-04
+
+### Fixed
+- Tables: competition logos that fail to load (no image on Sofascore) now fall back to a Trophy icon instead of showing a broken/blank box.
+
+## [0.15.2] — 2026-06-04
+
+### Changed
+- Fixtures: removed "Fixtures" heading from the desktop sidebar header; Mine/All toggle and score reveal button now occupy the full header area.
+
+## [0.15.1] — 2026-06-04
+
+### Fixed
+- Tables: group/stage label now appears above each standings table on all screen sizes (was desktop-hidden).
+
 ## [0.15.0] — 2026-06-04
 
 ### Added
