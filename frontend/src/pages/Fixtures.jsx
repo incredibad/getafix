@@ -492,7 +492,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
 
       {/* ── Desktop left column: filters ── */}
       <div
-        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-screen"
+        className={`hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-screen${sidebarNearEdge ? ' [&_*]:!cursor-col-resize' : ''}`}
         style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
         onMouseMove={sidebarMouseMove}
         onMouseLeave={sidebarMouseLeave}
