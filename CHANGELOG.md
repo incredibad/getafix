@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.4] — 2026-06-04
+
+### Fixed
+- Fixtures: Mine/All tabs are now always visible in the desktop sidebar. They are greyed out with Mine appearing selected when no filter or a team filter is active, and only become interactive when a competition filter is selected.
+
 ## [0.16.3] — 2026-06-04
 
 ### Changed
