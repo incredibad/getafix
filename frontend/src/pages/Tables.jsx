@@ -583,7 +583,7 @@ export default function Tables() {
 
       {/* ── Desktop left column ── */}
       <div
-        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-hidden"
+        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip"
         style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
         onMouseMove={sidebarMouseMove}
         onMouseLeave={sidebarMouseLeave}
