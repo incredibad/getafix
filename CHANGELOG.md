@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.7] — 2026-06-04
+
+### Added
+- Fixtures & Tables: desktop filter sidebar is now resizable by dragging the right border (200–500px). Width persists across sessions via localStorage.
+- Fixtures & Tables: filter items show a tooltip with the full name on hover, useful when text is truncated.
+
 ## [0.16.6] — 2026-06-04
 
 ### Changed
