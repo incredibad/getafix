@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Users, Circle, Eye, EyeOff, Lock, ChevronRight, ChevronUp, ChevronDown, Trophy, Star, Search, X } from 'lucide-react'
 import api from '../api/client'
 import { getDaysBack, getSpoilersMode, getRevealPersist, REVEALED_IDS_KEY } from './Settings'
+import { useSidebarResize } from '../utils/useSidebarResize'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
@@ -308,6 +309,7 @@ export default function Fixtures() {
     if (location.state?.initialFilter) return location.state.initialFilter
     try { return JSON.parse(localStorage.getItem(FILTER_KEY)) ?? null } catch { return null }
   })
+  const { width: sidebarWidth, onResizeStart } = useSidebarResize()
   const spoilersMode = getSpoilersMode()
   const [revealAll, setRevealAll] = useState(false)
   const [revealedIds, setRevealedIds] = useState(() => {
@@ -489,7 +491,8 @@ const toggleRevealAll = () => setRevealAll(r => !r)
     <div className="lg:flex lg:h-full">
 
       {/* ── Desktop left column: filters ── */}
-      <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+      <div className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-hidden relative" style={{ borderColor: 'var(--border)', width: sidebarWidth }}>
+        <div onMouseDown={onResizeStart} className="absolute inset-y-0 right-0 w-1 cursor-col-resize z-10 hover:bg-green-500/40 transition-colors" />
         <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
           {(() => {
             const active = activeFilter?.type === 'comp'
@@ -552,6 +555,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                       key={team.id}
                       ref={activeFilter?.type === 'team' && activeFilter.value === team.name ? activeFilterRef : null}
                       onClick={() => setFilter('team', team.name)}
+                      title={team.name}
                       className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
                         activeFilter?.type === 'team' && activeFilter.value === team.name
                           ? 'bg-white/10 text-white'
@@ -576,6 +580,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                       key={comp.name}
                       ref={activeFilter?.type === 'comp' && activeFilter.value === comp.name ? activeFilterRef : null}
                       onClick={() => setFilter('comp', comp.name, comp.sofascore_id)}
+                      title={comp.name}
                       className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
                         activeFilter?.type === 'comp' && activeFilter.value === comp.name
                           ? 'bg-white/10 text-white'

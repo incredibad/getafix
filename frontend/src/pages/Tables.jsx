@@ -4,6 +4,7 @@ import { Trophy, ChevronDown, Calendar, Search, X } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
+import { useSidebarResize } from '../utils/useSidebarResize'
 
 const STORAGE_KEY    = 'footrack:tables:competition'
 const ALL_TAB_KEY    = 'footrack:tables:tab'
@@ -176,6 +177,7 @@ function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
           key={comp.name}
           ref={comp.name === selectedName ? selectedRef : null}
           onClick={() => onSelect(comp.name)}
+          title={comp.name}
           className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
             comp.name === selectedName ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
@@ -291,6 +293,7 @@ function AllTablesSidebar({ selectedId, onSelect }) {
                   key={comp.id}
                   ref={selectedId === comp.id ? selectedRef : null}
                   onClick={() => onSelect(comp)}
+                  title={comp.name}
                   className={`w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors ${
                     selectedId === comp.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                   }`}
@@ -455,6 +458,7 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
 
 export default function Tables() {
   const navigate = useNavigate()
+  const { width: sidebarWidth, onResizeStart } = useSidebarResize()
 
   // Tab state
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem(ALL_TAB_KEY) ?? 'my')
@@ -585,7 +589,8 @@ export default function Tables() {
     <div className="lg:flex lg:h-full">
 
       {/* ── Desktop left column ── */}
-      <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+      <div className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-hidden relative" style={{ borderColor: 'var(--border)', width: sidebarWidth }}>
+        <div onMouseDown={onResizeStart} className="absolute inset-y-0 right-0 w-1 cursor-col-resize z-10 hover:bg-green-500/40 transition-colors" />
         <TabBar active={activeTab} onChange={handleTabChange} />
 
         {activeTab === 'my' ? (
