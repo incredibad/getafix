@@ -579,7 +579,7 @@ export default function Tables() {
   }, [allStandings, allSelected])
 
   return (
-    <div className="lg:flex lg:h-full">
+    <div className="flex-1 min-h-0 lg:flex">
 
       {/* ── Desktop left column ── */}
       <div

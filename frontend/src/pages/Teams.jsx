@@ -159,7 +159,7 @@ export default function Teams() {
     )
 
   return (
-    <div className="p-4 sm:p-6 pt-16 lg:pt-6">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 pt-16 lg:pt-6">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-xl font-bold text-white mb-6">Teams</h1>
 
