@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, forwardRef } from 'react'
+import { createPortal } from 'react-dom'
 
 const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
   { onClick, icon, label, isActive },
@@ -41,7 +42,7 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
         <span className="text-sm truncate">{label}</span>
       </button>
 
-      {rect && (
+      {rect && createPortal(
         <div
           onMouseEnter={cancelHide}
           onMouseLeave={hide}
@@ -67,7 +68,8 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
         >
           <span className="flex-shrink-0">{icon}</span>
           <span className="text-sm whitespace-nowrap">{label}</span>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
