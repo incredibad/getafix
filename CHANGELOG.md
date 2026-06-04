@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.15] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: sidebar scroll broke after hovering any item. A `position:fixed` element rendered as a DOM child of an `overflow:auto` scroll container causes Firefox to promote the container to a compositing layer and stop delivering wheel events to it. Fixed by rendering the hover overlay via `createPortal` into `document.body` so it is never a DOM descendant of the scroll container.
+
 ## [0.16.14] — 2026-06-04
 
 ### Fixed
