@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.11] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: sidebar trackpad scroll stopped working ~2s after page load. Root cause: `overflow: hidden` on the outer sidebar div creates a CSS scroll container. `scrollIntoView` (called after load to centre the active filter) set `scrollTop` on it; subsequent trackpad scroll that hit the inner div's boundary chained to the outer div, which absorbed the input invisibly. Changed to `overflow: clip` — same visual clipping, but `clip` is not a scroll container so scroll events cannot chain into it.
+
 ## [0.16.10] — 2026-06-04
 
 ### Fixed
