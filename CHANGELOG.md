@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.17] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: filter overlay kept re-attaching to cursor while scrolling. When the wheel handler called setRect(null) to hide the overlay, onMouseEnter immediately fired on the button (now under the cursor), re-showing the overlay and re-entering the same loop. Added a suppressShow ref flag that blocks show() for 300ms after scroll starts so the button's mouseenter is ignored until the user has stopped scrolling.
+
 ## [0.16.16] — 2026-06-04
 
 ### Fixed

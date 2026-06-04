@@ -9,6 +9,8 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
   const btnRef = useRef(null)
   const overlayRef = useRef(null)
   const hideTimer = useRef(null)
+  const suppressShow = useRef(false)
+  const suppressTimer = useRef(null)
 
   const setRefs = useCallback((node) => {
     btnRef.current = node
@@ -17,6 +19,7 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
   }, [ref])
 
   const show = () => {
+    if (suppressShow.current) return
     clearTimeout(hideTimer.current)
     if (btnRef.current) setRect(btnRef.current.getBoundingClientRect())
   }
@@ -27,9 +30,14 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
 
   const cancelHide = () => clearTimeout(hideTimer.current)
 
+  useEffect(() => () => {
+    clearTimeout(hideTimer.current)
+    clearTimeout(suppressTimer.current)
+  }, [])
+
   // Wheel events on the portalled overlay bubble to document.body, not the scroll
-  // container. Forward them manually using a non-passive listener so preventDefault
-  // can suppress the body scroll.
+  // container. Forward them manually and suppress re-show so the overlay doesn't
+  // immediately reappear (onMouseEnter fires on the button once the overlay hides).
   useEffect(() => {
     const overlay = overlayRef.current
     if (!overlay || !rect) return
@@ -46,8 +54,11 @@ const ExpandableSidebarItem = forwardRef(function ExpandableSidebarItem(
       const multiplier = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? scrollEl.clientHeight : 1
       scrollEl.scrollTop += e.deltaY * multiplier
       e.preventDefault()
-      // Hide overlay immediately — button position shifts with scroll so overlay
-      // would appear detached ("dragging") if left visible
+      // Suppress re-show for 300ms so onMouseEnter on the newly exposed button
+      // doesn't immediately bring the overlay back
+      suppressShow.current = true
+      clearTimeout(suppressTimer.current)
+      suppressTimer.current = setTimeout(() => { suppressShow.current = false }, 300)
       clearTimeout(hideTimer.current)
       setRect(null)
     }
