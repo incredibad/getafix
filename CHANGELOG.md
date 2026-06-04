@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.13] — 2026-06-04
+
+### Fixed
+- Fixtures, Tables, Settings: sidebar (and settings tab content) scroll containers never actually scrolled in any browser. Root cause: flex children have `min-height: auto` by default, which lets them expand past their allocated space regardless of `overflow-y: auto`. Added `min-h-0` to all four `flex-1 overflow-y-auto` scroll containers so flex can properly constrain their height.
+
 ## [0.16.12] — 2026-06-04
 
 ### Fixed

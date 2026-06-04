@@ -175,7 +175,7 @@ export default function Settings() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-4 sm:p-6 columns-1 sm:columns-2 gap-4">
 
           {/* ── General ── */}
