@@ -120,7 +120,7 @@ export default function MatchDetail() {
   const location = useLocation()
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [revealed, setRevealed] = useState(false)
+  const [revealed, setRevealed] = useState(location.state?.revealed ?? false)
 
   useEffect(() => {
     const load = async () => {

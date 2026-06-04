@@ -21,6 +21,8 @@ AEST = timezone(timedelta(hours=10))
 async def get_fixtures_by_competition(
     name: str = Query(...),
     sofascore_id: int | None = Query(None),
+    days_back: int = Query(90, ge=0, le=730),
+    days_ahead: int = Query(365, ge=0, le=365),
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
@@ -76,8 +78,8 @@ async def get_fixtures_by_competition(
                         raw.append(f)
 
     now_utc = datetime.now(timezone.utc)
-    cutoff_past = now_utc - timedelta(days=60)
-    cutoff_future = now_utc + timedelta(days=120)
+    cutoff_past = now_utc - timedelta(days=days_back)
+    cutoff_future = now_utc + timedelta(days=days_ahead)
     filtered = [f for f in raw if _in_window(f, cutoff_past, cutoff_future)]
     filtered.sort(key=lambda f: f["utc_date"])
     await _enrich_home_leagues(filtered, db)
@@ -372,6 +374,7 @@ def _to_schema(f: dict) -> schemas.FixtureOut:
         score_ht_home=f.get("score_ht_home"),
         score_ht_away=f.get("score_ht_away"),
         matchday=f.get("matchday"),
+        round_name=f.get("round_name"),
         venue=f.get("venue"),
         league_slug=f.get("league_slug"),
     )

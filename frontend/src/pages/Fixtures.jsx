@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Users, Circle, Eye, EyeOff, Lock, ChevronRight, ChevronUp, ChevronDown, Trophy, Star, Search, X } from 'lucide-react'
 import api from '../api/client'
-import { getDaysBack } from './Settings'
+import { getDaysBack, getSpoilersMode, getRevealPersist, REVEALED_IDS_KEY } from './Settings'
 import { groupByDate, formatMatchTime, isToday } from '../utils/date'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
@@ -275,11 +275,21 @@ function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClea
   )
 }
 
-function DateGroupHeader({ label, isToday: isT = false }) {
+function RoundSeparator({ label }) {
+  return (
+    <div className="flex items-center gap-2 pt-2 pb-1">
+      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex-shrink-0">{label}</span>
+      <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+    </div>
+  )
+}
+
+function DateGroupHeader({ label, isToday: isT = false, round = null }) {
   return (
     <div className="flex items-center gap-3 py-3">
       <span className={`text-sm font-semibold flex-shrink-0 ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
       <div className={`flex-1 ${isT ? 'h-0.5' : 'h-px'}`} style={{ background: isT ? 'rgb(74,222,128)' : 'var(--border)' }} />
+      {round && <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex-shrink-0">{round}</span>}
       {isT && <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
     </div>
   )
@@ -298,8 +308,20 @@ export default function Fixtures() {
     if (location.state?.initialFilter) return location.state.initialFilter
     try { return JSON.parse(localStorage.getItem(FILTER_KEY)) ?? null } catch { return null }
   })
+  const spoilersMode = getSpoilersMode()
   const [revealAll, setRevealAll] = useState(false)
-  const [revealedIds, setRevealedIds] = useState(new Set())
+  const [revealedIds, setRevealedIds] = useState(() => {
+    if (!getSpoilersMode()) return new Set()
+    const persist = getRevealPersist()
+    if (persist === 'session') return new Set()
+    try {
+      const stored = JSON.parse(localStorage.getItem(REVEALED_IDS_KEY) || '{}')
+      if (persist === 'forever') return new Set(Object.keys(stored))
+      const ttl = { '7d': 7, '30d': 30, '180d': 180 }[persist] * 86400000
+      const now = Date.now()
+      return new Set(Object.keys(stored).filter(id => now - (stored[id] || 0) < ttl))
+    } catch { return new Set() }
+  })
   const navigate = useNavigate()
 
   const load = useCallback(async (showToast = false) => {
@@ -320,18 +342,18 @@ export default function Fixtures() {
 
   useEffect(() => { load() }, [load])
 
-const toggleRevealAll = () => {
-    if (revealAll) {
-      setRevealAll(false)
-      setRevealedIds(new Set())
-    } else {
-      setRevealAll(true)
-    }
-  }
+const toggleRevealAll = () => setRevealAll(r => !r)
 
   const [showAllForComp, setShowAllForComp] = useState(() => localStorage.getItem(SHOW_ALL_KEY) === 'true')
   const [compAllFixtures, setCompAllFixtures] = useState([])
   const [loadingCompAll, setLoadingCompAll] = useState(false)
+
+  const activeFilterRef = useRef(null)
+  useEffect(() => {
+    if (!loading && activeFilterRef.current) {
+      activeFilterRef.current.scrollIntoView({ behavior: 'instant', block: 'center' })
+    }
+  }, [loading])
 
   const todayRef = useRef(null)
   const [todayVisible, setTodayVisible] = useState(null)
@@ -360,8 +382,18 @@ const toggleRevealAll = () => {
     todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [loading, loadingCompAll, activeFilter, showAllForComp])
 
-  const revealOne = (id) => setRevealedIds(prev => new Set([...prev, id]))
-  const isRevealed = (id) => revealAll || revealedIds.has(id)
+  const revealOne = (id) => {
+    setRevealedIds(prev => new Set([...prev, id]))
+    const persist = getRevealPersist()
+    if (getSpoilersMode() && persist !== 'session') {
+      try {
+        const stored = JSON.parse(localStorage.getItem(REVEALED_IDS_KEY) || '{}')
+        stored[id] = Date.now()
+        localStorage.setItem(REVEALED_IDS_KEY, JSON.stringify(stored))
+      } catch {}
+    }
+  }
+  const isRevealed = (id) => !spoilersMode || revealAll || revealedIds.has(id)
 
   useEffect(() => {
     if (!showAllForComp || activeFilter?.type !== 'comp') {
@@ -371,7 +403,7 @@ const toggleRevealAll = () => {
     let cancelled = false
     setLoadingCompAll(true)
     setCompAllFixtures([])
-    api.get('/fixtures/by-competition', { params: { name: activeFilter.value, ...(activeFilter.sofascore_id ? { sofascore_id: activeFilter.sofascore_id } : {}) } })
+    api.get('/fixtures/by-competition', { params: { name: activeFilter.value, days_back: getDaysBack(), ...(activeFilter.sofascore_id ? { sofascore_id: activeFilter.sofascore_id } : {}) } })
       .then(({ data }) => { if (!cancelled) setCompAllFixtures(data) })
       .catch(() => { if (!cancelled) toast.error('Failed to load all competition fixtures.') })
       .finally(() => { if (!cancelled) setLoadingCompAll(false) })
@@ -437,14 +469,12 @@ const toggleRevealAll = () => {
       return next
     })
     setRevealAll(false)
-    setRevealedIds(new Set())
   }
 
   const clearFilter = () => {
     setActiveFilter(null)
     localStorage.removeItem(FILTER_KEY)
     setRevealAll(false)
-    setRevealedIds(new Set())
   }
 
   const setShowAll = (val) => {
@@ -452,7 +482,7 @@ const toggleRevealAll = () => {
     localStorage.setItem(SHOW_ALL_KEY, String(val))
   }
 
-  const hasScores = fixtures.some(f => f.status !== 'SCHEDULED')
+  const hasScores = spoilersMode && fixtures.some(f => f.status !== 'SCHEDULED')
 
   return (
     <>
@@ -460,15 +490,14 @@ const toggleRevealAll = () => {
 
       {/* ── Desktop left column: filters ── */}
       <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between px-4 h-0.54 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-          <h1 className="text-sm font-semibold text-white">Fixtures</h1>
-          <div className="flex items-center gap-1.5">
-            {activeFilter?.type !== 'team' && (
-              <div className="flex text-[10px] rounded border border-slate-700 overflow-hidden">
-                <button onClick={() => setShowAll(false)} className={`px-2 py-0.5 transition-colors ${!showAllForComp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}>Mine</button>
-                <button onClick={() => setShowAll(true)} className={`px-2 py-0.5 border-l border-slate-700 transition-colors ${showAllForComp ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-400'}`}>All</button>
-              </div>
-            )}
+        <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+          {activeFilter?.type !== 'team' ? (
+            <>
+              <button onClick={() => setShowAll(false)} className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${!showAllForComp ? 'text-white border-b-2 border-green-500 -mb-px' : 'text-slate-500 hover:text-slate-300'}`}>Mine</button>
+              <button onClick={() => setShowAll(true)} className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${showAllForComp ? 'text-green-400 border-b-2 border-green-500 -mb-px' : 'text-slate-500 hover:text-slate-300'}`}>All</button>
+            </>
+          ) : <div className="flex-1" />}
+          <div className="w-10 flex-shrink-0 flex items-center justify-center border-l" style={{ borderColor: 'var(--border)' }}>
             {hasScores && (
               <button onClick={toggleRevealAll} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" title={revealAll ? 'Hide scores' : 'Reveal scores'}>
                 {revealAll ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -487,6 +516,7 @@ const toggleRevealAll = () => {
               {/* All My Fixtures */}
               <div className="px-2 pt-3 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
                 <button
+                  ref={!activeFilter ? activeFilterRef : null}
                   onClick={clearFilter}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     !activeFilter ? 'bg-green-600/20 text-green-400' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -503,6 +533,7 @@ const toggleRevealAll = () => {
                   {sortedTeams.map(team => (
                     <button
                       key={team.id}
+                      ref={activeFilter?.type === 'team' && activeFilter.value === team.name ? activeFilterRef : null}
                       onClick={() => setFilter('team', team.name)}
                       className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
                         activeFilter?.type === 'team' && activeFilter.value === team.name
@@ -526,6 +557,7 @@ const toggleRevealAll = () => {
                   {competitions.map(comp => (
                     <button
                       key={comp.name}
+                      ref={activeFilter?.type === 'comp' && activeFilter.value === comp.name ? activeFilterRef : null}
                       onClick={() => setFilter('comp', comp.name, comp.sofascore_id)}
                       className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
                         activeFilter?.type === 'comp' && activeFilter.value === comp.name
@@ -617,21 +649,26 @@ const toggleRevealAll = () => {
                     const category = getDateCategory(grouped[date][0].utc_date)
                     return (
                       <div key={date} ref={isTodayDate ? todayRef : null} className={isTodayDate ? 'scroll-mt-[116px] lg:scroll-mt-4' : ''}>
-                        <DateGroupHeader label={date} isToday={isTodayDate} />
+                        <DateGroupHeader label={date} isToday={isTodayDate} round={grouped[date][0]?.round_name ?? null} />
                         <div className="space-y-2">
-                          {grouped[date].map(f => {
+                          {grouped[date].reduce((acc, f, i) => {
                             const fid = `${f.source}:${f.external_id}`
-                            return (
+                            const prev = grouped[date][i - 1]
+                            if (f.round_name && prev && prev.round_name !== f.round_name) {
+                              acc.push(<RoundSeparator key={`round-${date}-${f.round_name}`} label={f.round_name} />)
+                            }
+                            acc.push(
                               <FixtureCard
                                 key={fid}
                                 fixture={f}
                                 revealed={isRevealed(fid)}
                                 onRevealScore={() => revealOne(fid)}
-                                onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug } })}
+                                onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed: isRevealed(fid) } })}
                                 dateCategory={category}
                               />
                             )
-                          })}
+                            return acc
+                          }, [])}
                         </div>
                       </div>
                     )

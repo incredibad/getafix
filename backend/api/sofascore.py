@@ -131,6 +131,7 @@ def _parse_fixture(event: dict) -> dict | None:
         "score_ht_home": home_score.get("period1"),
         "score_ht_away": away_score.get("period1"),
         "matchday": (event.get("roundInfo") or {}).get("round"),
+        "round_name": (lambda ri: ri.get("name") or (f"Round {ri['round']}" if ri.get("round") else None))(event.get("roundInfo") or {}),
         "venue": None,
         "league_slug": str(tournament_id) if tournament_id else None,
     }

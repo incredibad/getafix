@@ -130,6 +130,7 @@ class FixtureOut(BaseModel):
     score_ht_home: Optional[int]
     score_ht_away: Optional[int]
     matchday: Optional[int]
+    round_name: Optional[str] = None
     venue: Optional[str]
     league_slug: Optional[str] = None
 
