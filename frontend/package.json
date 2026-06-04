@@ -2,7 +2,7 @@
   "name": "getafix",
   "description": "Personal football fixture tracker",
   "private": true,
-  "version": "0.16.17",
+  "version": "0.16.18",
   "type": "module",
   "scripts": {
     "dev": "vite",

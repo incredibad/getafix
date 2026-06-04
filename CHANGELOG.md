@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.18] — 2026-06-04
+
+### Reverted
+- Removed ExpandableSidebarItem hover overlay from Fixtures and Tables sidebars. Replaced with plain truncated buttons with native title tooltips. The position:fixed overlay caused unresolvable scroll interference in Firefox.
+
 ## [0.16.17] — 2026-06-04
 
 ### Fixed
