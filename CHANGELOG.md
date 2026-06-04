@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.12] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: sidebar scroll permanently broken in Firefox. Root cause: Firefox does not resolve `height: 100%` (`h-full`) on a child of an `overflow-y: auto` flex item, so the sidebar's outer div had no height constraint, its inner `overflow-y: auto` scroll container grew to fit content (`scrollHeight === clientHeight`), and nothing was scrollable. Fixed by restructuring the layout: `main` is now `flex flex-col overflow-hidden` (no longer `overflow-y: auto`); Fixtures, Tables, and Settings fill it with `flex-1 min-h-0`; Teams and MatchDetail add `flex-1 overflow-y-auto` on their own content wrappers.
+
 ## [0.16.11] — 2026-06-04
 
 ### Fixed

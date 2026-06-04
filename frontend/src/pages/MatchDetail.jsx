@@ -142,7 +142,7 @@ export default function MatchDetail() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex-1 flex justify-center items-center">
         <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -150,7 +150,7 @@ export default function MatchDetail() {
 
   if (!detail) {
     return (
-      <div className="p-6 pt-16 lg:pt-6 text-center">
+      <div className="flex-1 p-6 pt-16 lg:pt-6 text-center">
         <p className="text-slate-400">Match not found.</p>
         <button onClick={() => navigate(-1)} className="mt-4 text-green-400 hover:underline text-sm">Go back</button>
       </div>
@@ -165,7 +165,8 @@ export default function MatchDetail() {
   const homeEvents = events.map(e => ({ ...e, _is_home: e.team === eventsHomeName }))
 
   return (
-    <div className="p-4 sm:p-6 pt-16 lg:pt-6 max-w-2xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 pt-16 lg:pt-6">
+      <div className="max-w-2xl mx-auto">
       {/* Nav row */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -303,6 +304,7 @@ export default function MatchDetail() {
             : 'No detailed data available for this match.'}
         </p>
       )}
+      </div>
     </div>
   )
 }

@@ -155,7 +155,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="pt-16 lg:pt-0 flex flex-col h-full">
+    <div className="pt-16 lg:pt-0 flex flex-col flex-1 min-h-0">
 
       {/* Tab bar */}
       <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
