@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.14] — 2026-06-04
+
+### Fixed
+- Fixtures, Tables, Settings: reverted flex layout restructure (caused mobile scroll regression) and replaced all sidebar/tab scroll containers with `position:absolute; inset:0; overflow-y:auto` inside a `flex-1 relative` wrapper. Absolute children have no height in normal flow so the parent's `min-height:auto` is effectively 0, the flex algorithm assigns the correct remaining height, and the absolute child fills it exactly — independent of any flex height chain or browser quirk.
+- Added `h-screen` to sidebar outer divs so their height is set directly from the viewport, removing the dependency on `h-full` resolving through ancestor flex/overflow contexts.
+- Changed `scrollIntoView` for the "today" marker from `behavior:smooth` to instant — a smooth scroll animation can temporarily block user scroll input in Firefox.
+
 ## [0.16.13] — 2026-06-04
 
 ### Fixed

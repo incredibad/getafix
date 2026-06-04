@@ -168,21 +168,23 @@ function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
   }, [loading])
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto py-2">
-      {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : competitions.map(comp => (
-        <ExpandableSidebarItem
-          key={comp.name}
-          ref={comp.name === selectedName ? selectedRef : null}
-          onClick={() => onSelect(comp.name)}
-          isActive={comp.name === selectedName}
-          icon={<CompLogo url={comp.emblem_url} size="sm" />}
-          label={comp.name}
-        />
-      ))}
+    <div className="flex-1 relative">
+      <div className="absolute inset-0 overflow-y-auto py-2">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : competitions.map(comp => (
+          <ExpandableSidebarItem
+            key={comp.name}
+            ref={comp.name === selectedName ? selectedRef : null}
+            onClick={() => onSelect(comp.name)}
+            isActive={comp.name === selectedName}
+            icon={<CompLogo url={comp.emblem_url} size="sm" />}
+            label={comp.name}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -266,7 +268,8 @@ function AllTablesSidebar({ selectedId, onSelect }) {
       </div>
 
       {/* List */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 relative">
+      <div className="absolute inset-0 overflow-y-auto">
         {loading ? (
           <div className="flex flex-col items-center gap-2 py-8 text-slate-500">
             <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
@@ -298,6 +301,7 @@ function AllTablesSidebar({ selectedId, onSelect }) {
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )
@@ -579,11 +583,11 @@ export default function Tables() {
   }, [allStandings, allSelected])
 
   return (
-    <div className="flex-1 min-h-0 lg:flex">
+    <div className="lg:flex lg:h-full">
 
       {/* ── Desktop left column ── */}
       <div
-        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip"
+        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-screen"
         style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
         onMouseMove={sidebarMouseMove}
         onMouseLeave={sidebarMouseLeave}

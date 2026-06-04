@@ -155,7 +155,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="pt-16 lg:pt-0 flex flex-col flex-1 min-h-0">
+    <div className="pt-16 lg:pt-0 flex flex-col h-full">
 
       {/* Tab bar */}
       <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
@@ -175,7 +175,8 @@ export default function Settings() {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 relative">
+      <div className="absolute inset-0 overflow-y-auto">
         <div className="p-4 sm:p-6 columns-1 sm:columns-2 gap-4">
 
           {/* ── General ── */}
@@ -332,6 +333,7 @@ export default function Settings() {
           )}
 
         </div>
+      </div>
       </div>
     </div>
   )
