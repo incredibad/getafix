@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.16.24] — 2026-06-05
+
+### Fixed
+- Sidebar Mine/All tabs now fill the full row width when spoiler mode is off and the reveal button is absent. Previously the empty button container left a dead space on the right.
+
+## [0.16.23] — 2026-06-05
+
+### Fixed
+- Per-day reveal button now has a solid page-background fill (`var(--bg)`) so the divider line stops cleanly on each side rather than cutting through it.
+
+## [0.16.22] — 2026-06-05
+
+### Changed
+- Per-day reveal button is now absolutely positioned at the horizontal centre of the content column (above the score cell), rather than inline with the date label.
+- Per-day reveal state now persists across page navigation using the same TTL settings as individual score reveals (`footrack:fixtures:revealed_days`). Cleared when the global hide is triggered or the filter changes.
+
+## [0.16.21] — 2026-06-05
+
+### Added
+- Per-day reveal toggle in date group headers: when spoiler mode is on and a day has 4+ fixtures, an Eye/EyeOff button appears centred in the divider line to reveal/hide all scores for that day at once.
+
+### Changed
+- Reveal/hide icons now reflect current state (Eye = scores visible, EyeOff = scores hidden) rather than intended action, on both the global toggle and the new per-day toggles.
+- Global reveal button now has a coloured background: green tint when scores are showing, red tint when hidden.
+- Global hide clears all per-day and per-filter reveals. Filter changes also reset reveal state.
+
 ## [0.16.20] — 2026-06-04
 
 ### Fixed

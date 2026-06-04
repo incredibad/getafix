@@ -285,20 +285,32 @@ function RoundSeparator({ label }) {
   )
 }
 
-function DateGroupHeader({ label, isToday: isT = false, round = null }) {
+function DateGroupHeader({ label, isToday: isT = false, round = null, showRevealBtn = false, dayRevealed = false, onToggleReveal }) {
+  const divStyle = { background: isT ? 'rgb(74,222,128)' : 'var(--border)' }
   return (
-    <div className="flex items-center gap-3 py-3">
+    <div className="relative flex items-center gap-3 py-3">
       <span className={`text-sm font-semibold flex-shrink-0 ${isT ? 'text-green-400' : 'text-slate-400'}`}>{label}</span>
-      <div className={`flex-1 ${isT ? 'h-0.5' : 'h-px'}`} style={{ background: isT ? 'rgb(74,222,128)' : 'var(--border)' }} />
+      <div className={`flex-1 ${isT ? 'h-0.5' : 'h-px'}`} style={divStyle} />
       {round && <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex-shrink-0">{round}</span>}
       {isT && <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
+      {showRevealBtn && (
+        <button
+          onClick={onToggleReveal}
+          className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded z-10 transition-colors ${dayRevealed ? 'text-green-400 hover:text-green-300' : 'text-red-400 hover:text-red-300'}`}
+          style={{ background: 'var(--bg)' }}
+          title={dayRevealed ? 'Hide scores for this day' : 'Reveal scores for this day'}
+        >
+          {dayRevealed ? <Eye size={12} /> : <EyeOff size={12} />}
+        </button>
+      )}
     </div>
   )
 }
 
 
-const FILTER_KEY   = 'footrack:fixtures:filter'
-const SHOW_ALL_KEY = 'footrack:fixtures:show_all'
+const FILTER_KEY        = 'footrack:fixtures:filter'
+const SHOW_ALL_KEY      = 'footrack:fixtures:show_all'
+const REVEALED_DAYS_KEY = 'footrack:fixtures:revealed_days'
 
 export default function Fixtures() {
   const [fixtures, setFixtures] = useState([])
@@ -312,6 +324,18 @@ export default function Fixtures() {
   const { width: sidebarWidth, nearEdge: sidebarNearEdge, onMouseMove: sidebarMouseMove, onMouseLeave: sidebarMouseLeave, onMouseDown: sidebarMouseDown } = useSidebarResize()
   const spoilersMode = getSpoilersMode()
   const [revealAll, setRevealAll] = useState(false)
+  const [revealedDays, setRevealedDays] = useState(() => {
+    if (!getSpoilersMode()) return new Set()
+    const persist = getRevealPersist()
+    if (persist === 'session') return new Set()
+    try {
+      const stored = JSON.parse(localStorage.getItem(REVEALED_DAYS_KEY) || '{}')
+      if (persist === 'forever') return new Set(Object.keys(stored))
+      const ttl = { '7d': 7, '30d': 30, '180d': 180 }[persist] * 86400000
+      const now = Date.now()
+      return new Set(Object.keys(stored).filter(d => now - (stored[d] || 0) < ttl))
+    } catch { return new Set() }
+  })
   const [revealedIds, setRevealedIds] = useState(() => {
     if (!getSpoilersMode()) return new Set()
     const persist = getRevealPersist()
@@ -344,7 +368,40 @@ export default function Fixtures() {
 
   useEffect(() => { load() }, [load])
 
-const toggleRevealAll = () => setRevealAll(r => !r)
+const toggleRevealAll = () => {
+  if (revealAll) {
+    setRevealedDays(new Set())
+    localStorage.removeItem(REVEALED_DAYS_KEY)
+  }
+  setRevealAll(r => !r)
+}
+
+const toggleDayReveal = (date) => {
+  setRevealedDays(prev => {
+    const next = new Set(prev)
+    const persist = getRevealPersist()
+    if (next.has(date)) {
+      next.delete(date)
+      if (getSpoilersMode() && persist !== 'session') {
+        try {
+          const stored = JSON.parse(localStorage.getItem(REVEALED_DAYS_KEY) || '{}')
+          delete stored[date]
+          localStorage.setItem(REVEALED_DAYS_KEY, JSON.stringify(stored))
+        } catch {}
+      }
+    } else {
+      next.add(date)
+      if (getSpoilersMode() && persist !== 'session') {
+        try {
+          const stored = JSON.parse(localStorage.getItem(REVEALED_DAYS_KEY) || '{}')
+          stored[date] = Date.now()
+          localStorage.setItem(REVEALED_DAYS_KEY, JSON.stringify(stored))
+        } catch {}
+      }
+    }
+    return next
+  })
+}
 
   const [showAllForComp, setShowAllForComp] = useState(() => localStorage.getItem(SHOW_ALL_KEY) === 'true')
   const [compAllFixtures, setCompAllFixtures] = useState([])
@@ -395,7 +452,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
       } catch {}
     }
   }
-  const isRevealed = (id) => !spoilersMode || revealAll || revealedIds.has(id)
+  const isRevealed = (id, date) => !spoilersMode || revealAll || (date && revealedDays.has(date)) || revealedIds.has(id)
 
   useEffect(() => {
     if (!showAllForComp || activeFilter?.type !== 'comp') {
@@ -471,12 +528,16 @@ const toggleRevealAll = () => setRevealAll(r => !r)
       return next
     })
     setRevealAll(false)
+    setRevealedDays(new Set())
+    localStorage.removeItem(REVEALED_DAYS_KEY)
   }
 
   const clearFilter = () => {
     setActiveFilter(null)
     localStorage.removeItem(FILTER_KEY)
     setRevealAll(false)
+    setRevealedDays(new Set())
+    localStorage.removeItem(REVEALED_DAYS_KEY)
   }
 
   const setShowAll = (val) => {
@@ -522,13 +583,13 @@ const toggleRevealAll = () => setRevealAll(r => !r)
               </>
             )
           })()}
-          <div className="w-10 flex-shrink-0 flex items-center justify-center border-l" style={{ borderColor: 'var(--border)' }}>
-            {hasScores && (
-              <button onClick={toggleRevealAll} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" title={revealAll ? 'Hide scores' : 'Reveal scores'}>
-                {revealAll ? <EyeOff size={14} /> : <Eye size={14} />}
+          {hasScores && (
+            <div className="w-10 flex-shrink-0 flex items-center justify-center border-l" style={{ borderColor: 'var(--border)' }}>
+              <button onClick={toggleRevealAll} className={`p-1.5 rounded-lg transition-colors ${revealAll ? 'text-green-400 bg-green-500/20 hover:bg-green-500/30' : 'text-red-400 bg-red-500/20 hover:bg-red-500/30'}`} title={revealAll ? 'Hide all scores' : 'Reveal all scores'}>
+                {revealAll ? <Eye size={14} /> : <EyeOff size={14} />}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 relative">
@@ -634,8 +695,8 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                 </div>
               )}
               {hasScores && (
-                <button onClick={toggleRevealAll} className="flex-shrink-0 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                  {revealAll ? <EyeOff size={16} /> : <Eye size={16} />}
+                <button onClick={toggleRevealAll} className={`flex-shrink-0 p-2 rounded-lg transition-colors ${revealAll ? 'text-green-400 bg-green-500/20 hover:bg-green-500/30' : 'text-red-400 bg-red-500/20 hover:bg-red-500/30'}`}>
+                  {revealAll ? <Eye size={16} /> : <EyeOff size={16} />}
                 </button>
               )}
             </div>
@@ -678,7 +739,14 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                     const category = getDateCategory(grouped[date][0].utc_date)
                     return (
                       <div key={date} ref={isTodayDate ? todayRef : null} className={isTodayDate ? 'scroll-mt-[116px] lg:scroll-mt-4' : ''}>
-                        <DateGroupHeader label={date} isToday={isTodayDate} round={grouped[date][0]?.round_name ?? null} />
+                        <DateGroupHeader
+                          label={date}
+                          isToday={isTodayDate}
+                          round={grouped[date][0]?.round_name ?? null}
+                          showRevealBtn={spoilersMode && grouped[date].length >= 4}
+                          dayRevealed={revealAll || revealedDays.has(date)}
+                          onToggleReveal={() => toggleDayReveal(date)}
+                        />
                         <div className="space-y-2">
                           {grouped[date].reduce((acc, f, i) => {
                             const fid = `${f.source}:${f.external_id}`
@@ -690,7 +758,7 @@ const toggleRevealAll = () => setRevealAll(r => !r)
                               <FixtureCard
                                 key={fid}
                                 fixture={f}
-                                revealed={isRevealed(fid)}
+                                revealed={isRevealed(fid, date)}
                                 onRevealScore={() => revealOne(fid)}
                                 onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed: isRevealed(fid) } })}
                                 dateCategory={category}
