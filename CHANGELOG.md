@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.20] — 2026-06-04
+
+### Fixed
+- Sidebar resize cursor was invisible because child buttons override parent cursor. Added `[&_*]:!cursor-col-resize` to force col-resize on all descendants when near the edge, so the 16px grab zone is now visually obvious.
+
 ## [0.16.19] — 2026-06-04
 
 ### Changed
