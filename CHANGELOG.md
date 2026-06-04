@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.16.9] — 2026-06-04
+
+### Fixed
+- Fixtures & Tables: sidebar scroll was blocked by the drag handle div sitting over the scrollbar. Replaced the absolutely-positioned drag handle with edge-proximity detection on the sidebar container itself — cursor changes to col-resize within 6px of the right border, click-and-drag there resizes. No element blocks scroll events.
+
 ## [0.16.8] — 2026-06-04
 
 ### Changed

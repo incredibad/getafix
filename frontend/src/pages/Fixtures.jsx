@@ -310,7 +310,7 @@ export default function Fixtures() {
     if (location.state?.initialFilter) return location.state.initialFilter
     try { return JSON.parse(localStorage.getItem(FILTER_KEY)) ?? null } catch { return null }
   })
-  const { width: sidebarWidth, onResizeStart } = useSidebarResize()
+  const { width: sidebarWidth, nearEdge: sidebarNearEdge, onMouseMove: sidebarMouseMove, onMouseLeave: sidebarMouseLeave, onMouseDown: sidebarMouseDown } = useSidebarResize()
   const spoilersMode = getSpoilersMode()
   const [revealAll, setRevealAll] = useState(false)
   const [revealedIds, setRevealedIds] = useState(() => {
@@ -492,8 +492,13 @@ const toggleRevealAll = () => setRevealAll(r => !r)
     <div className="lg:flex lg:h-full">
 
       {/* ── Desktop left column: filters ── */}
-      <div className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-hidden relative" style={{ borderColor: 'var(--border)', width: sidebarWidth }}>
-        <div onMouseDown={onResizeStart} className="absolute inset-y-0 right-0 w-1 cursor-col-resize z-10 hover:bg-green-500/40 transition-colors" />
+      <div
+        className="hidden lg:flex flex-col flex-shrink-0 border-r overflow-hidden"
+        style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
+        onMouseMove={sidebarMouseMove}
+        onMouseLeave={sidebarMouseLeave}
+        onMouseDown={sidebarMouseDown}
+      >
         <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
           {(() => {
             const active = activeFilter?.type === 'comp'
