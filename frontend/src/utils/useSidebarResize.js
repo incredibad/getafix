@@ -4,7 +4,7 @@ const STORAGE_KEY = 'footrack:sidebar:filter_width'
 const MIN_W = 200
 const MAX_W = 500
 const DEFAULT_W = 250
-const EDGE_PX = 6  // px from right border that activates resize cursor
+const EDGE_PX = 16  // px from right border that activates resize cursor
 
 export function useSidebarResize() {
   const [width, setWidth] = useState(() => {
