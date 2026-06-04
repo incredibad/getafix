@@ -491,12 +491,29 @@ const toggleRevealAll = () => setRevealAll(r => !r)
       {/* ── Desktop left column: filters ── */}
       <div className="hidden lg:flex flex-col w-[250px] flex-shrink-0 border-r overflow-hidden" style={{ borderColor: 'var(--border)' }}>
         <div className="flex border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-          {activeFilter?.type !== 'team' ? (
-            <>
-              <button onClick={() => setShowAll(false)} className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${!showAllForComp ? 'text-white border-b-2 border-green-500 -mb-px' : 'text-slate-500 hover:text-slate-300'}`}>Mine</button>
-              <button onClick={() => setShowAll(true)} className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${showAllForComp ? 'text-green-400 border-b-2 border-green-500 -mb-px' : 'text-slate-500 hover:text-slate-300'}`}>All</button>
-            </>
-          ) : <div className="flex-1" />}
+          {(() => {
+            const active = activeFilter?.type === 'comp'
+            return (
+              <>
+                <button
+                  onClick={active ? () => setShowAll(false) : undefined}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                    active
+                      ? !showAllForComp ? 'text-white border-b-2 border-green-500 -mb-px' : 'text-slate-500 hover:text-slate-300'
+                      : 'text-slate-600 border-b-2 border-slate-700 -mb-px cursor-default'
+                  }`}
+                >Mine</button>
+                <button
+                  onClick={active ? () => setShowAll(true) : undefined}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                    active
+                      ? showAllForComp ? 'text-green-400 border-b-2 border-green-500 -mb-px' : 'text-slate-500 hover:text-slate-300'
+                      : 'text-slate-600 cursor-default'
+                  }`}
+                >All</button>
+              </>
+            )
+          })()}
           <div className="w-10 flex-shrink-0 flex items-center justify-center border-l" style={{ borderColor: 'var(--border)' }}>
             {hasScores && (
               <button onClick={toggleRevealAll} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors" title={revealAll ? 'Hide scores' : 'Reveal scores'}>
