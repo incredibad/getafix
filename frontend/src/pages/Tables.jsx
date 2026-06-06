@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronDown, Calendar, Search, X } from 'lucide-react'
+import BrowseHeader from '../components/BrowseHeader'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
@@ -329,7 +330,7 @@ function MobileMyPicker({ competitions, selectedName, onSelect, onFixtures }) {
   const selected = competitions.find(c => c.name === selectedName)
 
   return (
-    <div className="lg:hidden sticky top-14 z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+    <div className="lg:hidden sticky top-[152px] z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
       {open && <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />}
       <div className="flex items-center gap-2 px-4 py-2">
         <button
@@ -403,7 +404,7 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
   const close = () => { setOpen(false); setQuery('') }
 
   return (
-    <div className="lg:hidden sticky top-14 z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+    <div className="lg:hidden sticky top-[152px] z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
       <div className="px-4 py-2">
         <button
           onClick={() => setOpen(true)}
@@ -608,11 +609,15 @@ export default function Tables() {
   }, [allStandings, allSelected])
 
   return (
-    <div className="lg:flex lg:h-full">
+    <div className="flex flex-col lg:h-full">
+      <div className="h-14 lg:hidden" />
+      <BrowseHeader hideBack canReveal={false} />
+
+    <div className="lg:flex flex-1 min-h-0">
 
       {/* ── Desktop left column ── */}
       <div
-        className={`hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-screen${sidebarNearEdge ? ' [&_*]:!cursor-col-resize' : ''}`}
+        className={`hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-full${sidebarNearEdge ? ' [&_*]:!cursor-col-resize' : ''}`}
         style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
         onMouseMove={sidebarMouseMove}
         onMouseLeave={sidebarMouseLeave}
@@ -638,11 +643,8 @@ export default function Tables() {
       {/* ── Content area ── */}
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
 
-        {/* Spacer for fixed mobile top bar */}
-        <div className="h-14 lg:hidden" />
-
         {/* Mobile tab bar */}
-        <div className="lg:hidden sticky top-14 z-30 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+        <div className="lg:hidden sticky top-28 z-30 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
           <TabBar active={activeTab} onChange={handleTabChange} />
         </div>
 
@@ -742,6 +744,7 @@ export default function Tables() {
         </div>
       </div>
 
+    </div>
     </div>
   )
 }

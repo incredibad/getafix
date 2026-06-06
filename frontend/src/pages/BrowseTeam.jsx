@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Star, Eye, EyeOff, Lock, Trophy, Calendar, Users, MapPin, User, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { Star, Eye, EyeOff, Lock, Trophy, Calendar, Users, MapPin, User, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
 import { FixtureCard, RoundSeparator } from '../components/FixtureCard'
-import { getSpoilersMode, getRevealPersist, REVEALED_IDS_KEY } from './Settings'
+import { getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
+import BrowseHeader from '../components/BrowseHeader'
 import toast from 'react-hot-toast'
 
 const BRISBANE_TZ = 'Australia/Brisbane'
@@ -122,7 +123,7 @@ function posLabel(raw) {
 const POS_ORDER = ['G', 'D', 'M', 'F']
 const POS_SECTION = { G: 'Goalkeepers', D: 'Defenders', M: 'Midfielders', F: 'Forwards' }
 
-function SquadCard({ players }) {
+function SquadCard({ players, isNational }) {
   const navigate = useNavigate()
   const grouped = useMemo(() => {
     const map = {}
@@ -146,7 +147,7 @@ function SquadCard({ players }) {
               <th className="text-right pr-3 pl-1 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-8">#</th>
               <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">Name</th>
               <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-12">Pos</th>
-              <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide hidden sm:table-cell">Nationality</th>
+              <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide hidden sm:table-cell">{isNational ? 'Club' : 'Nationality'}</th>
               <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-12 hidden md:table-cell">Ht</th>
               <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-10 hidden md:table-cell">Age</th>
             </tr>
@@ -171,20 +172,32 @@ function SquadCard({ players }) {
                           <span className="text-[10px] font-semibold text-slate-500 bg-white/5 rounded px-1.5 py-0.5">{detailedPos}</span>
                         </td>
                         <td className="px-2 py-2 hidden sm:table-cell">
-                          {p.nationality ? (
-                            <button
-                              className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
-                              onClick={() => p.nationality_team_id
-                                ? navigate(`/browse/team/${p.nationality_team_id}`, { state: { name: p.nationality, team_type: 'national' } })
-                                : navigate('/browse', { state: { initialQuery: p.nationality } })
-                              }
-                            >
-                              {p.nationality_flag && (
-                                <img src={imgUrl(p.nationality_flag)} alt="" className="h-3 w-auto flex-shrink-0" />
-                              )}
-                              <span className="text-xs text-slate-500">{p.nationality}</span>
-                            </button>
-                          ) : <span className="text-xs text-slate-600">—</span>}
+                          {isNational ? (
+                            p.club_id ? (
+                              <button
+                                className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
+                                onClick={() => navigate(`/browse/team/${p.club_id}`, { state: { name: p.club_name, crest_url: p.club_crest_url } })}
+                              >
+                                <img src={imgUrl(p.club_crest_url)} alt="" className="h-3.5 w-auto flex-shrink-0 object-contain" />
+                                <span className="text-xs text-slate-500">{p.club_short_name}</span>
+                              </button>
+                            ) : <span className="text-xs text-slate-600">—</span>
+                          ) : (
+                            p.nationality ? (
+                              <button
+                                className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
+                                onClick={() => p.nationality_team_id
+                                  ? navigate(`/browse/team/${p.nationality_team_id}`, { state: { name: p.nationality, team_type: 'national' } })
+                                  : navigate('/browse', { state: { initialQuery: p.nationality } })
+                                }
+                              >
+                                {p.nationality_flag && (
+                                  <img src={imgUrl(p.nationality_flag)} alt="" className="h-3 w-auto flex-shrink-0" />
+                                )}
+                                <span className="text-xs text-slate-500">{p.nationality}</span>
+                              </button>
+                            ) : <span className="text-xs text-slate-600">—</span>
+                          )}
                         </td>
                         <td className="text-center px-2 py-2 text-xs text-slate-500 tabular-nums hidden md:table-cell">{p.height ? `${p.height}cm` : '—'}</td>
                         <td className="text-center px-2 py-2 text-xs text-slate-500 tabular-nums hidden md:table-cell">{p.age ?? '—'}</td>
@@ -244,7 +257,7 @@ function TransfersCard({ transfers }) {
 
 const INITIAL_SHOW = 3
 
-function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevealOne, navigate, spoilersMode }) {
+function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevealOne, navigate, spoilersMode, autoRevealAge }) {
   const [expanded, setExpanded] = useState(false)
   const canExpand = fixtures.length > INITIAL_SHOW
   const displayed = canExpand && !expanded ? fixtures.slice(0, INITIAL_SHOW) : fixtures
@@ -269,7 +282,7 @@ function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevea
                   const prev = grouped[date][i - 1]
                   if (f.round_name && prev && prev.round_name !== f.round_name)
                     acc.push(<RoundSeparator key={`r-${date}-${f.round_name}`} label={f.round_name} />)
-                  const revealed = !spoilersMode || revealAll || revealedIds.has(fid)
+                  const revealed = !spoilersMode || revealAll || revealedIds.has(fid) || isAutoRevealedByAge(f.utc_date, autoRevealAge)
                   acc.push(
                     <FixtureCard key={fid} fixture={f} revealed={revealed}
                       onRevealScore={() => onRevealOne(fid)}
@@ -305,10 +318,13 @@ export default function BrowseTeam() {
   const navState = location.state ?? {}
 
   const spoilersMode = getSpoilersMode()
+  const autoRevealAge = getAutoRevealAge()
   const [fixtures, setFixtures] = useState([])
   const [profile, setProfile] = useState(null)
   const [standingsMap, setStandingsMap] = useState({})
+  const [cupMap, setCupMap] = useState({})
   const fetchedComps = useRef(new Set())
+  const fetchedCupComps = useRef(new Set())
   const [followedTeams, setFollowedTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -327,7 +343,7 @@ export default function BrowseTeam() {
     } catch { return new Set() }
   })
 
-  const ALL_SECTIONS = ['standing', 'stats', 'form', 'fixtures']
+  const ALL_SECTIONS = ['standing', 'cup', 'stats', 'form', 'fixtures']
   const allRevealed = ALL_SECTIONS.every(s => revealedSections.has(s))
   const isRevealed = (s) => revealedSections.has(s)
   const revealSection = (s) => setRevealedSections(prev => new Set([...prev, s]))
@@ -336,7 +352,7 @@ export default function BrowseTeam() {
     ?? fixtures.find(f => f.home_team.id === parseInt(sofascoreId))?.home_team.name
     ?? fixtures.find(f => f.away_team.id === parseInt(sofascoreId))?.away_team.name
     ?? profile?.profile?.name ?? ''
-  const teamCrest = navState.crest_url ?? null
+  const teamCrest = navState.crest_url ?? `https://api.sofascore.com/api/v1/team/${sofascoreId}/image`
   const teamCountry = navState.country ?? profile?.profile?.country ?? null
 
   useEffect(() => {
@@ -391,12 +407,9 @@ export default function BrowseTeam() {
     const comps = Object.values(compMap)
     const selected = new Map()
 
-    // Base: most recently played competition(s), including any that finished within 24h of the most recent
-    const withFinished = comps.filter(c => c.lastFinished).sort((a, b) => b.lastFinished - a.lastFinished)
-    if (withFinished.length) {
-      const cutoff = withFinished[0].lastFinished - 24 * 60 * 60 * 1000
-      withFinished.filter(c => c.lastFinished >= cutoff).forEach(c => selected.set(String(c.id), c))
-    }
+    // Base: all competitions with any finished match — cup games finishing after the league
+    // would otherwise cut the league out with a narrow time window, leaving no standings
+    comps.filter(c => c.lastFinished).forEach(c => selected.set(String(c.id), c))
 
     // Supplement: any competition with a match within 7 days not already in the set
     comps.filter(c => c.nextUpcoming && (c.nextUpcoming - now) <= ONE_WEEK)
@@ -439,6 +452,13 @@ export default function BrowseTeam() {
           })),
         }))
       }).catch(() => setStandingsMap(prev => ({ ...prev, [key]: [] })))
+
+      if (!fetchedCupComps.current.has(key)) {
+        fetchedCupComps.current.add(key)
+        api.get(`/standings/cups/sofascore/${comp.id}`, { params: { team_id: sofascoreId } })
+          .then(({ data }) => setCupMap(prev => ({ ...prev, [key]: data })))
+          .catch(() => setCupMap(prev => ({ ...prev, [key]: null })))
+      }
     })
   }, [activeCompetitions])
 
@@ -474,7 +494,10 @@ export default function BrowseTeam() {
 
   const seasonStats = useMemo(() => {
     const tid = parseInt(sofascoreId)
-    const finished = fixtures.filter(f => f.status === 'FINISHED' && f.score_home != null)
+    const activeCompIds = new Set(activeCompetitions.map(c => String(c.id)))
+    const finished = fixtures.filter(f =>
+      f.status === 'FINISHED' && f.score_home != null && activeCompIds.has(String(f.competition?.id))
+    )
     if (!finished.length) return null
     let gf = 0, ga = 0, w = 0, d = 0, l = 0, cs = 0
     for (const f of finished) {
@@ -487,22 +510,59 @@ export default function BrowseTeam() {
     }
     const competitions = [...new Set(finished.map(f => f.competition.name))].sort()
     return { played: finished.length, w, d, l, gf, ga, gd: gf - ga, cs, competitions }
-  }, [fixtures, sofascoreId])
+  }, [fixtures, sofascoreId, activeCompetitions])
 
-  const activeStandings = useMemo(() => {
-    const tid = parseInt(sofascoreId)
-    return activeCompetitions.flatMap(comp => {
-      const groups = standingsMap[String(comp.id)]
-      if (!groups) return []
-      for (const group of groups) {
-        const row = (group.table || []).find(r =>
-          r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
-        )
-        if (row) return [{ row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id }]
+  // Competition with the most finished matches = domestic league
+  const domesticLeague = useMemo(() => {
+    if (!activeCompetitions.length) return null
+    const counts = {}
+    for (const f of fixtures) {
+      if (f.status === 'FINISHED' && f.competition?.id) {
+        const k = String(f.competition.id)
+        counts[k] = (counts[k] || 0) + 1
       }
-      return []
-    })
-  }, [activeCompetitions, standingsMap, sofascoreId])
+    }
+    return [...activeCompetitions].sort((a, b) => (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0))[0] ?? null
+  }, [activeCompetitions, fixtures])
+
+  const domesticStanding = useMemo(() => {
+    if (!domesticLeague) return null
+    const tid = parseInt(sofascoreId)
+    const groups = standingsMap[String(domesticLeague.id)]
+    if (!groups) return null
+    for (const group of groups) {
+      const row = (group.table || []).find(r =>
+        r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
+      )
+      if (row) return { row, competition: group.competition, lastPlayed: domesticLeague.lastFinished, competitionId: domesticLeague.id }
+    }
+    return null
+  }, [domesticLeague, standingsMap, sofascoreId])
+
+  // Most recent non-domestic competition — show knockout tree if available, else group standings
+  const recentCompetition = useMemo(() => {
+    const tid = parseInt(sofascoreId)
+    const others = activeCompetitions
+      .filter(c => c.id !== domesticLeague?.id)
+      .sort((a, b) => (b.lastFinished ?? 0) - (a.lastFinished ?? 0))
+    for (const comp of others) {
+      const key = String(comp.id)
+      const cupData = cupMap[key]
+      if (cupData?.rounds?.length) {
+        return { type: 'cup', data: { ...cupData, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+      }
+      const groups = standingsMap[key]
+      if (groups?.length) {
+        for (const group of groups) {
+          const row = (group.table || []).find(r =>
+            r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
+          )
+          if (row) return { type: 'standing', data: { row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+        }
+      }
+    }
+    return null
+  }, [activeCompetitions, domesticLeague, cupMap, standingsMap, sofascoreId])
 
   const handleFollow = async () => {
     setFollowing(true)
@@ -559,25 +619,16 @@ export default function BrowseTeam() {
     )
   }
 
-  const fixtureProps = { revealAll: isRevealed('fixtures'), revealedIds, onRevealOne: revealOne, navigate, spoilersMode }
+  const fixtureProps = { revealAll: isRevealed('fixtures'), revealedIds, onRevealOne: revealOne, navigate, spoilersMode, autoRevealAge }
 
   return (
-    <div className="p-4 sm:p-6 pt-16 lg:pt-6 pb-16">
-
-      {/* Nav row */}
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors">
-          <ArrowLeft size={16} /> Back
-        </button>
-        {hasScores && (
-          <button
-            onClick={() => setRevealedSections(allRevealed ? new Set() : new Set(ALL_SECTIONS))}
-            className={`p-2 rounded-lg transition-colors ${allRevealed ? 'text-green-400 bg-green-500/20 hover:bg-green-500/30' : 'text-red-400 bg-red-500/20 hover:bg-red-500/30'}`}
-          >
-            {allRevealed ? <Eye size={16} /> : <EyeOff size={16} />}
-          </button>
-        )}
-      </div>
+    <>
+      <BrowseHeader
+        canReveal={spoilersMode && hasScores}
+        revealed={allRevealed}
+        onToggleReveal={() => setRevealedSections(allRevealed ? new Set() : new Set(ALL_SECTIONS))}
+      />
+      <div className="p-4 sm:p-6 pb-16">
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
@@ -673,51 +724,150 @@ export default function BrowseTeam() {
             </Card>
           )}
 
-          {/* League Standing(s) — one card per active competition */}
-          {activeStandings.map((s, i) => (
-            <Card
-              key={i}
-              title="Standing"
-              icon={Trophy}
-              subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
-            >
-              <button
-                onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
-                className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
-                style={{ borderColor: 'var(--border)' }}
+          {/* Domestic league standing */}
+          {domesticStanding && (() => {
+            const s = domesticStanding
+            return (
+              <Card
+                title="Standing"
+                icon={Trophy}
+                subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
               >
-                {s.competition?.emblem_url && (
-                  <img src={imgUrl(s.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                <button
+                  onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
+                  className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  {s.competition?.emblem_url && (
+                    <img src={imgUrl(s.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  )}
+                  <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{s.competition?.name}</span>
+                  <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
+                </button>
+                {spoilersMode && !isRevealed('standing') ? (
+                  <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('standing')}>
+                    <Lock size={18} />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-center gap-8 py-2 mb-3">
+                      {[['Position', s.row.position], ['Points', s.row.points]].map(([label, val]) => (
+                        <div key={label} className="text-center">
+                          <p className="text-3xl font-bold text-white leading-none tabular-nums">{val}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-5 text-center gap-1">
+                      {[['P', s.row.played], ['W', s.row.won], ['D', s.row.draw], ['L', s.row.lost], ['GD', (s.row.goal_difference > 0 ? '+' : '') + s.row.goal_difference]].map(([k, v]) => (
+                        <div key={k} className="rounded py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                          <p className="text-sm font-semibold text-slate-200 tabular-nums">{v}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wide">{k}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 )}
-                <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{s.competition?.name}</span>
-                <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
-              </button>
-              {spoilersMode && !isRevealed('standing') ? (
-                <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('standing')}>
-                  <Lock size={18} />
+              </Card>
+            )
+          })()}
+
+          {/* Recent competition — knockout tree or group standings */}
+          {recentCompetition?.type === 'cup' && (() => {
+            const cup = recentCompetition.data
+            return (
+              <Card title="Cup Run" icon={Trophy}>
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: 'var(--border)' }}>
+                  {cup.competition?.emblem_url && (
+                    <img src={imgUrl(cup.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  )}
+                  <span className="text-sm font-medium text-slate-200 truncate flex-1">{cup.competition?.name}</span>
                 </div>
-              ) : (
-                <>
-                  <div className="flex justify-center gap-8 py-2 mb-3">
-                    {[['Position', s.row.position], ['Points', s.row.points]].map(([label, val]) => (
-                      <div key={label} className="text-center">
-                        <p className="text-3xl font-bold text-white leading-none tabular-nums">{val}</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{label}</p>
-                      </div>
-                    ))}
+                {spoilersMode && !isRevealed('cup') ? (
+                  <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('cup')}>
+                    <Lock size={18} />
                   </div>
-                  <div className="grid grid-cols-5 text-center gap-1">
-                    {[['P', s.row.played], ['W', s.row.won], ['D', s.row.draw], ['L', s.row.lost], ['GD', (s.row.goal_difference > 0 ? '+' : '') + s.row.goal_difference]].map(([k, v]) => (
-                      <div key={k} className="rounded py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                        <p className="text-sm font-semibold text-slate-200 tabular-nums">{v}</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wide">{k}</p>
-                      </div>
-                    ))}
+                ) : (
+                  <div>
+                    {cup.rounds.map((r, ri) => {
+                      const isLast = ri === cup.rounds.length - 1
+                      const [hs, as_] = (r.result || '').split(':')
+                      return (
+                        <div
+                          key={ri}
+                          className={`flex items-center gap-2 py-2 ${ri < cup.rounds.length - 1 ? 'border-b' : ''}`}
+                          style={{ borderColor: 'var(--border)' }}
+                        >
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wide w-20 flex-shrink-0 truncate">{r.round}</span>
+                          {r.opponent_crest
+                            ? <img src={imgUrl(r.opponent_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+                            : <div className="w-4 h-4 flex-shrink-0" />
+                          }
+                          <span className="text-slate-300 truncate flex-1 text-xs">{r.opponent ?? '—'}</span>
+                          {r.finished && r.result && (
+                            <span className="text-xs tabular-nums text-slate-400 flex-shrink-0">{hs}–{as_}</span>
+                          )}
+                          {r.finished && (
+                            <span className={`text-[10px] font-bold flex-shrink-0 w-5 text-right ${
+                              isLast ? (r.won ? 'text-yellow-400' : 'text-red-400') : (r.won ? 'text-green-400' : 'text-red-400')
+                            }`}>
+                              {isLast && r.won ? '🏆' : r.won ? 'W' : 'L'}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                </>
-              )}
-            </Card>
-          ))}
+                )}
+              </Card>
+            )
+          })()}
+          {recentCompetition?.type === 'standing' && (() => {
+            const s = recentCompetition.data
+            return (
+              <Card
+                title="Standing"
+                icon={Trophy}
+                subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
+              >
+                <button
+                  onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
+                  className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  {s.competition?.emblem_url && (
+                    <img src={imgUrl(s.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  )}
+                  <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{s.competition?.name}</span>
+                  <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
+                </button>
+                {spoilersMode && !isRevealed('standing') ? (
+                  <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('standing')}>
+                    <Lock size={18} />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-center gap-8 py-2 mb-3">
+                      {[['Position', s.row.position], ['Points', s.row.points]].map(([label, val]) => (
+                        <div key={label} className="text-center">
+                          <p className="text-3xl font-bold text-white leading-none tabular-nums">{val}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-5 text-center gap-1">
+                      {[['P', s.row.played], ['W', s.row.won], ['D', s.row.draw], ['L', s.row.lost], ['GD', (s.row.goal_difference > 0 ? '+' : '') + s.row.goal_difference]].map(([k, v]) => (
+                        <div key={k} className="rounded py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                          <p className="text-sm font-semibold text-slate-200 tabular-nums">{v}</p>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wide">{k}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </Card>
+            )
+          })()}
 
           {/* Injuries & Suspensions */}
           <InjuriesCard injuries={injuries} />
@@ -726,10 +876,19 @@ export default function BrowseTeam() {
           {seasonStats && (
             <Card title="Season Stats" icon={Trophy}>
               {seasonStats.competitions.length > 0 && (
-                <p className="text-[10px] text-slate-600 mb-3 leading-relaxed">
-                  {seasonStats.competitions.slice(0, 3).join(' · ')}
-                  {seasonStats.competitions.length > 3 && ` · +${seasonStats.competitions.length - 3} more`}
-                </p>
+                <div className="relative group mb-3">
+                  <p className="text-[10px] text-slate-600 leading-relaxed cursor-default">
+                    {seasonStats.competitions.slice(0, 3).join(' · ')}
+                    {seasonStats.competitions.length > 3 && ` · +${seasonStats.competitions.length - 3} more`}
+                  </p>
+                  {seasonStats.competitions.length > 3 && (
+                    <div className="absolute left-0 top-full mt-1.5 z-50 invisible group-hover:visible rounded-lg border shadow-xl py-2 px-3 w-52" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+                      {seasonStats.competitions.map((c, i) => (
+                        <p key={i} className="text-xs text-slate-300 py-0.5 leading-snug">{c}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               {spoilersMode && !isRevealed('stats') ? (
                 <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('stats')}>
@@ -762,7 +921,7 @@ export default function BrowseTeam() {
           {/* Squad — spans both sub-columns */}
           {players.length > 0 && (
             <div className="sm:col-span-2">
-              <SquadCard players={players} />
+              <SquadCard players={players} isNational={!!profileData.national} />
             </div>
           )}
 
@@ -783,6 +942,7 @@ export default function BrowseTeam() {
         )}
 
       </div>
-    </div>
+      </div>
+    </>
   )
 }

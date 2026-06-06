@@ -65,6 +65,20 @@ async def get_standings_by_sofascore_id(
     return _expand_tables(result)
 
 
+@router.get("/cups/sofascore/{tournament_id}", response_model=dict)
+async def get_cup_tree(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_db),
+):
+    """Fetch a team's cup run for a given Sofascore tournament."""
+    ttl = _standings_ttl(db)
+    result = await sofascore.get_cup_tree_for_team(tournament_id, team_id, db, ttl)
+    if not result:
+        raise HTTPException(status_code=404, detail="No cup data available.")
+    return result
+
+
 @router.get("/followed", response_model=list[dict])
 async def get_standings_for_followed_teams(
     _: models.User | None = Depends(get_optional_user),

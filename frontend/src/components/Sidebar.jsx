@@ -58,7 +58,7 @@ export default function Sidebar() {
 
   const drawerContent = (
     <>
-      <div className="flex items-center gap-2.5 px-4 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center gap-2.5 px-4 h-14 flex-shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
         <AppLogo size="md" />
       </div>
       <nav className="flex-1 px-2 py-4 space-y-1">
@@ -75,7 +75,7 @@ export default function Sidebar() {
 
   const desktopContent = (
     <>
-      <div className="flex items-center gap-2.5 px-4 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center gap-2.5 px-4 h-14 flex-shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
         <AppLogo size="md" />
       </div>
       <nav className="flex-1 px-2 py-4 space-y-1">

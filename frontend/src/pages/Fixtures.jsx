@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Users, Eye, EyeOff, ChevronUp, ChevronDown, Star, Search, X } from 'lucide-react'
+import { Users, Eye, EyeOff, ChevronUp, ChevronDown, Star, Search, X, Trophy } from 'lucide-react'
+import BrowseHeader from '../components/BrowseHeader'
 import api from '../api/client'
-import { getDaysBack, getSpoilersMode, getRevealPersist, REVEALED_IDS_KEY } from './Settings'
+import { getDaysBack, getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
 import { useSidebarResize } from '../utils/useSidebarResize'
 import { groupByDate } from '../utils/date'
 import { imgUrl } from '../utils/img'
@@ -201,6 +202,7 @@ export default function Fixtures() {
   })
   const { width: sidebarWidth, nearEdge: sidebarNearEdge, onMouseMove: sidebarMouseMove, onMouseLeave: sidebarMouseLeave, onMouseDown: sidebarMouseDown } = useSidebarResize()
   const spoilersMode = getSpoilersMode()
+  const autoRevealAge = getAutoRevealAge()
   const [revealAll, setRevealAll] = useState(false)
   const [revealedDays, setRevealedDays] = useState(() => {
     if (!getSpoilersMode()) return new Set()
@@ -330,7 +332,7 @@ const toggleDayReveal = (date) => {
       } catch {}
     }
   }
-  const isRevealed = (id, date) => !spoilersMode || revealAll || (date && revealedDays.has(date)) || revealedIds.has(id)
+  const isRevealed = (id, date, utcDate) => !spoilersMode || revealAll || (date && revealedDays.has(date)) || revealedIds.has(id) || (utcDate && isAutoRevealedByAge(utcDate, autoRevealAge))
 
   useEffect(() => {
     if (!showAllForComp || activeFilter?.type !== 'comp') {
@@ -426,12 +428,19 @@ const toggleDayReveal = (date) => {
   const hasScores = spoilersMode && fixtures.some(f => f.status !== 'SCHEDULED')
 
   return (
-    <>
-    <div className="lg:flex lg:h-full">
+    <div className="flex flex-col lg:h-full">
+      <div className="h-14 lg:hidden" />
+      <BrowseHeader
+        hideBack
+        canReveal={hasScores}
+        revealed={revealAll}
+        onToggleReveal={toggleRevealAll}
+      />
+    <div className="lg:flex flex-1 min-h-0">
 
       {/* ── Desktop left column: filters ── */}
       <div
-        className={`hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-screen${sidebarNearEdge ? ' [&_*]:!cursor-col-resize' : ''}`}
+        className={`hidden lg:flex flex-col flex-shrink-0 border-r overflow-clip h-full${sidebarNearEdge ? ' [&_*]:!cursor-col-resize' : ''}`}
         style={{ borderColor: 'var(--border)', width: sidebarWidth, cursor: sidebarNearEdge ? 'col-resize' : '' }}
         onMouseMove={sidebarMouseMove}
         onMouseLeave={sidebarMouseLeave}
@@ -461,13 +470,6 @@ const toggleDayReveal = (date) => {
               </>
             )
           })()}
-          {hasScores && (
-            <div className="w-10 flex-shrink-0 flex items-center justify-center border-l" style={{ borderColor: 'var(--border)' }}>
-              <button onClick={toggleRevealAll} className={`p-1.5 rounded-lg transition-colors ${revealAll ? 'text-green-400 bg-green-500/20 hover:bg-green-500/30' : 'text-red-400 bg-red-500/20 hover:bg-red-500/30'}`} title={revealAll ? 'Hide all scores' : 'Reveal all scores'}>
-                {revealAll ? <Eye size={14} /> : <EyeOff size={14} />}
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="flex-1 relative">
@@ -551,11 +553,9 @@ const toggleDayReveal = (date) => {
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
 
         {/* Spacer for fixed mobile top bar */}
-        <div className="h-0.54 lg:hidden" />
-
         {/* Mobile sticky filter bar */}
         {!loading && fixtures.length > 0 && (
-          <div className="lg:hidden sticky top-14 z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+          <div className="lg:hidden sticky top-28 z-10 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2 px-4 py-2">
               <div className="flex-1 min-w-0">
                 <MobileFilterSheet
@@ -571,11 +571,6 @@ const toggleDayReveal = (date) => {
                   <button onClick={() => setShowAll(false)} className={`px-2.5 py-1 transition-colors ${!showAllForComp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-400'}`}>Mine</button>
                   <button onClick={() => setShowAll(true)} className={`px-2.5 py-1 border-l border-slate-700 transition-colors ${showAllForComp ? 'bg-green-600/20 text-green-400' : 'text-slate-500 hover:text-slate-400'}`}>All</button>
                 </div>
-              )}
-              {hasScores && (
-                <button onClick={toggleRevealAll} className={`flex-shrink-0 p-2 rounded-lg transition-colors ${revealAll ? 'text-green-400 bg-green-500/20 hover:bg-green-500/30' : 'text-red-400 bg-red-500/20 hover:bg-red-500/30'}`}>
-                  {revealAll ? <Eye size={16} /> : <EyeOff size={16} />}
-                </button>
               )}
             </div>
           </div>
@@ -607,7 +602,7 @@ const toggleDayReveal = (date) => {
                   {renderItems.map((item, i) => {
                     if (item.type === 'divider') {
                       return (
-                        <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-[116px] lg:scroll-mt-4">
+                        <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-[172px] lg:scroll-mt-4">
                           <div className="flex-1 h-0.5" style={{ background: 'rgb(74,222,128)' }} />
                           <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
                         </div>
@@ -616,7 +611,7 @@ const toggleDayReveal = (date) => {
                     const { date, isToday: isTodayDate } = item
                     const category = getDateCategory(grouped[date][0].utc_date)
                     return (
-                      <div key={date} ref={isTodayDate ? todayRef : null} className={isTodayDate ? 'scroll-mt-[116px] lg:scroll-mt-4' : ''}>
+                      <div key={date} ref={isTodayDate ? todayRef : null} className={isTodayDate ? 'scroll-mt-[172px] lg:scroll-mt-4' : ''}>
                         <DateGroupHeader
                           label={date}
                           isToday={isTodayDate}
@@ -636,9 +631,9 @@ const toggleDayReveal = (date) => {
                               <FixtureCard
                                 key={fid}
                                 fixture={f}
-                                revealed={isRevealed(fid, date)}
+                                revealed={isRevealed(fid, date, f.utc_date)}
                                 onRevealScore={() => revealOne(fid)}
-                                onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed: isRevealed(fid) } })}
+                                onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed: isRevealed(fid, date, f.utc_date) } })}
                                 dateCategory={category}
                               />
                             )
@@ -668,6 +663,6 @@ const toggleDayReveal = (date) => {
         Today
       </button>
     )}
-    </>
+    </div>
   )
 }
