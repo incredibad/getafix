@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronDown, Calendar, Search, X } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 import { useSidebarResize } from '../utils/useSidebarResize'
 
-const STORAGE_KEY    = 'footrack:tables:competition'
-const ALL_TAB_KEY    = 'footrack:tables:tab'
-const ALL_SEL_KEY    = 'footrack:tables:all_selected'
+const STORAGE_KEY    = 'getafix:tables:competition'
+const ALL_TAB_KEY    = 'getafix:tables:tab'
+const ALL_SEL_KEY    = 'getafix:tables:all_selected'
 
 function CompLogo({ url, size = 'sm' }) {
   const [errored, setErrored] = useState(false)
@@ -59,8 +59,14 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
     })
   }
 
-  const goToFixturesTeam = (teamName) =>
-    navigate('/fixtures', { state: { initialFilter: { type: 'team', value: teamName } } })
+  const rowSofascoreId = (row) =>
+    row.sofascore_id ?? ((row.team_crest || '').match(/\/team\/(\d+)\/image/)?.[1] ?? null)
+
+  const goToBrowseTeam = (row) => {
+    const sid = rowSofascoreId(row)
+    if (!sid) return
+    navigate(`/browse/team/${sid}`, { state: { name: row.team_name, crest_url: row.team_crest } })
+  }
 
   const cellBg = (rowIdx, colIdx, isFollowedRow = false) => {
     if (hoveredRow === rowIdx) return isFollowedRow ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)'
@@ -104,10 +110,10 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
                 <tr
                   key={i}
                   className="border-b last:border-0 transition-colors"
-                  style={{ borderColor: 'var(--border)', cursor: isFollowed ? 'pointer' : 'default' }}
+                  style={{ borderColor: 'var(--border)', cursor: rowSofascoreId(row) ? 'pointer' : 'default' }}
                   onMouseEnter={() => setHoveredRow(i)}
                   onMouseLeave={() => setHoveredRow(null)}
-                  onClick={isFollowed ? () => goToFixturesTeam(ft.name) : undefined}
+                  onClick={rowSofascoreId(row) ? () => goToBrowseTeam(row) : undefined}
                 >
                   <td className="px-3 py-2.5 text-xs tabular-nums" style={{ background: cellBg(i, 0, isFollowed), color: isFollowed ? 'rgba(134,239,172,0.8)' : 'rgb(100,116,139)' }}>{row.position}</td>
                   <td className="px-2 py-2.5" style={{ background: cellBg(i, 1, isFollowed) }}>
@@ -243,7 +249,9 @@ function AllTablesSidebar({ selectedId, onSelect }) {
       if (!map[c.country]) map[c.country] = []
       map[c.country].push(c)
     }
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([country, comps]) => [country, [...comps].sort((a, b) => (b.user_count ?? 0) - (a.user_count ?? 0))])
   }, [filtered])
 
   const searching = query.trim().length > 0
@@ -387,7 +395,9 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
       if (!map[c.country]) map[c.country] = []
       map[c.country].push(c)
     }
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([country, comps]) => [country, [...comps].sort((a, b) => (b.user_count ?? 0) - (a.user_count ?? 0))])
   }, [filtered])
 
   const close = () => { setOpen(false); setQuery('') }
@@ -462,10 +472,11 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
 
 export default function Tables() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { width: sidebarWidth, nearEdge: sidebarNearEdge, onMouseMove: sidebarMouseMove, onMouseLeave: sidebarMouseLeave, onMouseDown: sidebarMouseDown } = useSidebarResize()
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem(ALL_TAB_KEY) ?? 'my')
+  // Tab state — seeded from route state when navigating from a team page
+  const [activeTab, setActiveTab] = useState(() => location.state?.tab ?? localStorage.getItem(ALL_TAB_KEY) ?? 'my')
 
   // My Tables state
   const [standings, setStandings] = useState([])
@@ -478,6 +489,7 @@ export default function Tables() {
   const [loadingAll, setLoadingAll] = useState(false)
   const [allFetched, setAllFetched] = useState(false)
   const [allSelected, setAllSelected] = useState(() => {
+    if (location.state?.competition) return location.state.competition
     try { return JSON.parse(localStorage.getItem(ALL_SEL_KEY)) ?? null } catch { return null }
   })
   const [allStandings, setAllStandings] = useState([])
@@ -501,6 +513,12 @@ export default function Tables() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Sync route-state overrides to localStorage once on mount
+  useEffect(() => {
+    if (location.state?.tab) localStorage.setItem(ALL_TAB_KEY, location.state.tab)
+    if (location.state?.competition) localStorage.setItem(ALL_SEL_KEY, JSON.stringify(location.state.competition))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch all competitions when All Tables tab is first opened
   useEffect(() => {

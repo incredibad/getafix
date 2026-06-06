@@ -5,11 +5,11 @@ services:
     ports:
       - "4220:4220"
     volumes:
-      - footrack_data:/data
+      - getafix_data:/data
     env_file:
       - .env
     restart: unless-stopped
 
 volumes:
-  footrack_data:
+  getafix_data:
     external: true

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Calendar, Trophy, Users, Settings, LogOut, LogIn, Menu, X } from 'lucide-react'
+import { Calendar, Trophy, Users, Settings, LogOut, LogIn, Menu, X, Compass } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import AppLogo from './AppLogo'
@@ -7,11 +7,16 @@ import AppLogo from './AppLogo'
 const NAV_PUBLIC = [
   { to: '/fixtures', icon: Calendar, label: 'Fixtures' },
   { to: '/tables',   icon: Trophy,   label: 'Tables' },
+  { to: '/browse',   icon: Compass,  label: 'Browse' },
 ]
 const NAV_AUTH = [
-  { to: '/teams',    icon: Users,    label: 'Teams' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/teams', icon: Users, label: 'My Teams' },
 ]
+
+const navLinkClass = ({ isActive }) =>
+  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+    isActive ? 'bg-green-600/20 text-green-400' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+  }`
 
 export default function Sidebar() {
   const { user, logout } = useAuth()
@@ -20,55 +25,51 @@ export default function Sidebar() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
-  // Desktop sidebar shows all nav; mobile drawer shows only auth items
   const desktopNav = user ? [...NAV_PUBLIC, ...NAV_AUTH] : NAV_PUBLIC
   const drawerNav  = user ? NAV_AUTH : []
+
+  const bottomSection = (isMobile = false) => (
+    <div className="px-2 pb-4 border-t pt-4 space-y-1" style={{ borderColor: 'var(--border)' }}>
+      {user && (
+        <NavLink to="/settings" onClick={isMobile ? () => setOpen(false) : undefined} className={navLinkClass}>
+          <Settings size={18} />
+          Settings
+        </NavLink>
+      )}
+      {user ? (
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+        >
+          <LogOut size={18} />
+          Sign out
+        </button>
+      ) : (
+        <button
+          onClick={() => { if (isMobile) setOpen(false); navigate('/login') }}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-green-400 hover:bg-green-400/10 transition-colors"
+        >
+          <LogIn size={18} />
+          Log in
+        </button>
+      )}
+    </div>
+  )
 
   const drawerContent = (
     <>
       <div className="flex items-center gap-2.5 px-4 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
         <AppLogo size="md" />
       </div>
-
       <nav className="flex-1 px-2 py-4 space-y-1">
         {drawerNav.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-green-600/20 text-green-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`
-            }
-          >
+          <NavLink key={to} to={to} onClick={() => setOpen(false)} className={navLinkClass}>
             <Icon size={18} />
             {label}
           </NavLink>
         ))}
       </nav>
-
-      <div className="px-2 pb-4 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
-        {user ? (
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-          >
-            <LogOut size={18} />
-            Sign out
-          </button>
-        ) : (
-          <button
-            onClick={() => { setOpen(false); navigate('/login') }}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-green-400 hover:bg-green-400/10 transition-colors"
-          >
-            <LogIn size={18} />
-            Log in
-          </button>
-        )}
-      </div>
+      {bottomSection(true)}
     </>
   )
 
@@ -77,45 +78,15 @@ export default function Sidebar() {
       <div className="flex items-center gap-2.5 px-4 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
         <AppLogo size="md" />
       </div>
-
       <nav className="flex-1 px-2 py-4 space-y-1">
         {desktopNav.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-green-600/20 text-green-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`
-            }
-          >
+          <NavLink key={to} to={to} className={navLinkClass}>
             <Icon size={18} />
             {label}
           </NavLink>
         ))}
       </nav>
-
-      <div className="px-2 pb-4 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
-        {user ? (
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-          >
-            <LogOut size={18} />
-            Sign out
-          </button>
-        ) : (
-          <button
-            onClick={() => navigate('/login')}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-green-400 hover:bg-green-400/10 transition-colors"
-          >
-            <LogIn size={18} />
-            Log in
-          </button>
-        )}
-      </div>
+      {bottomSection(false)}
     </>
   )
 

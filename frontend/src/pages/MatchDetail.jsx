@@ -190,7 +190,10 @@ export default function MatchDetail() {
         className="rounded-xl border p-5 mb-4 text-center"
         style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}
       >
-        <div className="flex items-center justify-center gap-1.5 mb-3">
+        <div
+          className={`flex items-center justify-center gap-1.5 mb-3${fixture.competition.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
+          onClick={fixture.competition.id ? () => navigate(`/browse/league/${fixture.competition.id}`, { state: { name: fixture.competition.name, emblem_url: fixture.competition.emblem_url } }) : undefined}
+        >
           {fixture.competition.emblem_url && (
             <img src={imgUrl(fixture.competition.emblem_url)} alt="" className="w-4 h-4 object-contain opacity-70" />
           )}
@@ -200,14 +203,17 @@ export default function MatchDetail() {
 
         <div className="flex items-center justify-between gap-4">
           {/* Home */}
-          <div className="flex-1 flex flex-col items-center gap-2">
+          <button
+            className="flex-1 flex flex-col items-center gap-2 hover:opacity-80 transition-opacity"
+            onClick={() => fixture.home_team.id && navigate(`/browse/team/${fixture.home_team.id}`, { state: { name: fixture.home_team.name, crest_url: fixture.home_team.crest_url, country: fixture.home_team.country } })}
+          >
             {fixture.home_team.crest_url && (
               <img src={imgUrl(fixture.home_team.crest_url)} alt="" className="w-12 h-12 object-contain" />
             )}
             <span className="text-sm font-semibold text-white text-center leading-tight">
               {fixture.home_team.name}
             </span>
-          </div>
+          </button>
 
           {/* Score */}
           <div className="flex flex-col items-center gap-1 px-2">
@@ -237,14 +243,17 @@ export default function MatchDetail() {
           </div>
 
           {/* Away */}
-          <div className="flex-1 flex flex-col items-center gap-2">
+          <button
+            className="flex-1 flex flex-col items-center gap-2 hover:opacity-80 transition-opacity"
+            onClick={() => fixture.away_team.id && navigate(`/browse/team/${fixture.away_team.id}`, { state: { name: fixture.away_team.name, crest_url: fixture.away_team.crest_url, country: fixture.away_team.country } })}
+          >
             {fixture.away_team.crest_url && (
               <img src={imgUrl(fixture.away_team.crest_url)} alt="" className="w-12 h-12 object-contain" />
             )}
             <span className="text-sm font-semibold text-white text-center leading-tight">
               {fixture.away_team.name}
             </span>
-          </div>
+          </button>
         </div>
 
         {fixture.venue && <p className="text-xs text-slate-500 mt-3">{fixture.venue}</p>}

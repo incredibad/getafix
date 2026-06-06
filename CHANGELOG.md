@@ -1,5 +1,213 @@
 # Changelog
 
+## [0.17.30] — 2026-06-06
+
+### Changed
+- Renamed all `footrack:` localStorage keys to `getafix:` across Fixtures, Tables, Settings, Teams, App, and the sidebar resize utility.
+- `backend/config.py`: database path updated to `/data/getafix.db`.
+- `docker-compose.yml`: volume reference updated to `getafix_data`.
+
+## [0.17.29] — 2026-06-06
+
+### Fixed
+- Revealed scores are now persistent across the app. BrowseTeam now reads from and writes to the same `REVEALED_IDS_KEY` localStorage store as the Fixtures page, so revealing a score in one place keeps it revealed everywhere (subject to the same persist setting).
+
+## [0.17.28] — 2026-06-06
+
+### Fixed
+- "Scroll to Today" button now correctly centres within the fixtures column. The position accounts for both the 224px nav sidebar and the resizable filter sidebar: `calc(50% + 112 + sidebarWidth/2)`. The previous fix (`0.17.27`) omitted the nav sidebar offset.
+
+## [0.17.27] — 2026-06-06
+
+### Fixed
+- "Scroll to Today" button on the Fixtures page now centres correctly within the fixture column. The position was hardcoded to `calc(50% + 237px)` regardless of actual sidebar width; it now uses `calc(50% + sidebarWidth/2)` dynamically.
+
+## [0.17.26] — 2026-06-05
+
+### Changed
+- Squad nationality flags now link directly to that country's national team page. A `_get_national_team_id` helper searches Sofascore by country name (cached 30 days per country). All unique nationalities in a squad are fetched in parallel on first load.
+
+## [0.17.25] — 2026-06-05
+
+### Fixed
+- Squad nationality flag links: SquadCard was missing `const navigate = useNavigate()`, so clicking the flag threw a silent ReferenceError and did nothing.
+
+## [0.17.24] — 2026-06-05
+
+### Fixed
+- Squad nationality flags: switched from flagcdn.com to Sofascore category images (`/category/{id}/image`), which work through the existing img proxy with browser impersonation. Sofascore's alpha2 codes (including non-standard ones like EN for England) are resolved to category IDs via a cached map from `/sport/football/categories`.
+- Browse page: clicking a nationality flag now correctly pre-fills the search query even when Browse is already mounted (useEffect on location state, not just useState initializer).
+
+## [0.17.23] — 2026-06-05
+
+### Fixed
+- Squad nationality flags: Sofascore's country image endpoint returns 403; switched to flagcdn.com (16×12 PNG, public CDN). Bumped player cache key to v3 to force refresh.
+
+## [0.17.22] — 2026-06-05
+
+### Changed
+- Squad list: Nationality cell now shows the country's flag (from Sofascore's country image API) alongside the name. Clicking navigates to Browse with the country name pre-searched, making it easy to find the national team.
+- Browse page now accepts an `initialQuery` from route state so it can be deep-linked with a pre-filled search.
+
+## [0.17.21] — 2026-06-05
+
+### Changed
+- Squad list: Position column now shows Sofascore's detailed position codes (DC, RW, ST, DM, etc.) instead of the generic group label (DEF/MID/FWD). Grouping sections still use the broad category.
+- Squad list: Added Nationality, Height (cm), and Age columns. Height and Age are hidden on small screens (md breakpoint).
+
+## [0.17.20] — 2026-06-05
+
+### Changed
+- Injury dates now labelled "Ret. [date]" so it's clear the date is the expected return, not the injury start.
+
+## [0.17.19] — 2026-06-05
+
+### Fixed
+- Injuries & Suspensions: was calling a dead `/team/{id}/injuries` endpoint (404). Now reads the `injury` field embedded in each player's record from `/team/{id}/players`, which is where Sofascore actually puts it.
+- Squad jersey numbers: were reading `item.shirtNumber` (always undefined) instead of `player.shirtNumber`. Corrected to read from the player sub-object.
+- Both fixes share a single `/team/{id}/players` raw cache (12h TTL, key `team_players_raw:v2`) so no duplicate API calls.
+
+## [0.17.18] — 2026-06-05
+
+### Changed
+- Browse team standings card: redesigned for symmetry — Position and Points shown as two centred equal-weight numbers with labels, followed by a uniform 5-column grid (P W D L GD) with consistent value-over-label layout.
+
+## [0.17.17] — 2026-06-05
+
+### Fixed
+- League crest links now work for ESPN-sourced fixtures: the enrichment step looks up the DB competition record and injects the Sofascore tournament ID + emblem, so clicking a competition emblem navigates correctly regardless of data source.
+- Browse team standings card: position/pts/W-D-L are now hidden behind a spoiler lock (like Season Stats and Form); the competition name link remains visible so users can still navigate to the table. "Standing" added to the global eye toggle.
+
+## [0.17.16] — 2026-06-05
+
+### Changed
+- Competition/league crests are now clickable everywhere they appear: fixture cards (across all pages), match detail header, and the BrowseLeague header — all navigate to the league browse page.
+- Opponent rows in the Browse team "Recent Form" card are now clickable (crest + name), navigating to that team's browse page.
+- Team crests were already linked via TeamCrest component in fixture cards; no regressions introduced.
+
+## [0.17.15] — 2026-06-05
+
+### Changed
+- Browse league search results now sorted by Sofascore `userCount` (follower count) descending — LaLiga appears before amateur Spanish leagues. Same ordering applied within each country group in the All Tables sidebar.
+- Backend: `userCount` stored in the all-competitions cache (cache key bumped to `v2` to force refresh).
+
+## [0.17.14] — 2026-06-05
+
+### Fixed
+- Browse search bar: removed green focus outline on the input field; increased padding for breathing room.
+- Browse league results: slug-derived official name shown as a dim hint (e.g. "· Brasileirao Serie A") when it differs from the commercial/sponsor display name, making it clear the two names refer to the same competition.
+- Standings backend: `competition.name` is now populated with the current season's official name (e.g. "Brasileiro Serie A 2026") instead of empty string, so it shows consistently in standings cards and table headers.
+
+## [0.17.13] — 2026-06-05
+
+### Fixed
+- Browse team spoilers: each section (Season Stats, Recent Form, fixtures) now has an independent reveal; clicking one lock no longer blows open all sections. Global eye toggle still reveals/hides everything at once.
+
+### Added
+- Browse team header: national teams now show "FIFA ranking #N" in place of the country/league subtitle.
+- Browse team header: Sofascore link button opens the team's page on sofascore.com in a new tab.
+
+## [0.17.12] — 2026-06-05
+
+### Changed
+- Browse team standings card: competition name is now a tappable link that opens the Tables page on the "All Tables" tab with that competition pre-selected.
+- Browse team standings card: last-match date shown as subtitle so users know how stale the standings are; GD moved inline with position/pts; layout tightened.
+
+## [0.17.11] — 2026-06-05
+
+### Fixed
+- Browse team page: increase fixture history window from 90 to 400 days so national teams with long qualifying cycles (e.g. Australia's WC Qual. AFC, ~359 days ago) are correctly identified as the base competition rather than falling back to an upcoming tournament with 0 games played.
+
+## [0.17.10] — 2026-06-05
+
+### Changed
+- Browse team standings algorithm: always show the most recently played competitive competition as the baseline, and supplement with any competition that has a match within 7 days. The two-week cutoff is removed — the WC (or any tournament) only appears once it's within a week, regardless of how far in the past the current league season is.
+
+## [0.17.9] — 2026-06-05
+
+### Fixed
+- Browse team page: standings were not showing for teams whose most recent or next match is a friendly/exhibition (e.g. Austria, Australia). Two fixes: (1) friendly competitions are excluded from the standings selection algorithm by name pattern; (2) the "imminent" window widened from 7 to 14 days so teams with a competitive match 8–14 days away (e.g. upcoming World Cup groups) are correctly selected.
+
+## [0.17.8] — 2026-06-05
+
+### Changed
+- Browse team page: standings selection algorithm replaced. Old approach counted fixture appearances (arbitrary tie-breaking). New approach:
+  1. If any competition has a match within 7 days, show standings for all such competitions.
+  2. Otherwise, show the competition(s) with the most recently played match (any that played within 24h of the most recent).
+  3. Fallback: if no finished matches, show the soonest upcoming competition.
+- Multiple standing cards are shown simultaneously when a team is active in more than one competition at the same time.
+
+## [0.17.7] — 2026-06-05
+
+### Fixed
+- Browse team page: League Standing card was showing "League" as the competition title. The standings API endpoint returns an empty name; the fix enriches the response with the competition name and emblem sourced from the already-loaded fixture data.
+
+## [0.17.6] — 2026-06-05
+
+### Added
+- Browse team page: Injuries & Suspensions card in left column (red/yellow severity dot, player name, type, expected return date). Shows "No injuries reported" when clean.
+
+### Changed
+- Recent Form moved to right 2 columns above Upcoming Fixtures.
+- Recent Form now shows opponent crest, name, H/A indicator, and score for each of the last 5 results — not just W/D/L pills.
+
+## [0.17.5] — 2026-06-05
+
+### Changed
+- Browse team page: Club Info, League Standing, Recent Form, and Season Stats each occupy one column in a 2-column sub-grid within the left half. Squad spans both sub-columns below them.
+
+## [0.17.4] — 2026-06-05
+
+### Changed
+- Browse team page layout: stat boxes (Club Info, Standing, Form, Season Stats, Squad) occupy the left 2 columns; Upcoming and Recent Results occupy the right 2 columns stacked.
+- Upcoming and Recent Results each show 3 fixtures initially with an expand arrow to reveal the rest.
+- League Standing card now shows competition emblem and name prominently so it's clear which league is being shown.
+- Season Stats card now lists the competitions the stats are drawn from beneath the title.
+- Transfers moved to full width at the bottom.
+
+## [0.17.3] — 2026-06-05
+
+### Changed
+- Browse team page layout redesigned to a 4-column desktop grid.
+  - Row 1: Header (full width).
+  - Row 2: Upcoming fixtures (2 col) | Club Info + Standing (1 col) | Form + Season Stats (1 col).
+  - Row 3: Recent Results (2 col) | Squad table (2 col).
+  - Row 4: Transfers full width with arrivals/departures side by side.
+- Squad is now a proper table with #, Name, Position badge, and Country columns grouped by position.
+- Form pills now stretch evenly across the full card width.
+- Season stats is now a two-column label/value table instead of an isolated number grid.
+- Standing card shows position prominently with a compact P/W/D/L row beneath.
+
+## [0.17.2] — 2026-06-05
+
+### Added
+- Browse team page now shows Club Info (manager, stadium, founded year), Squad grouped by position, Transfers (arrivals/departures), and Season Stats (goals, conceded, clean sheets, W/D/L) alongside the existing fixtures, standing, and form cards.
+- Season stats and form are spoiler-protected when spoiler mode is on.
+
+## [0.17.1] — 2026-06-05
+
+### Fixed
+- Standings table rows were not clickable for cached data (fetched before `sofascore_id` was added to the schema). Now falls back to extracting the team ID from the crest URL pattern (`/team/{id}/image`), so all Sofascore-sourced rows are always navigable without requiring a cache flush.
+
+## [0.17.0] — 2026-06-05
+
+### Added
+- Browse section: search any team or league not in your followed list.
+  - Landing page (`/browse`) with debounced team search (Sofascore API) and instant client-side league search, results in segregated Teams / Leagues sections.
+  - Team page (`/browse/team/:id`) — mosaic grid: header with Follow/Unfollow + "My Fixtures" shortcut for followed teams; upcoming fixtures card; league standing card; recent form (spoiler-protected); recent results card.
+  - League page (`/browse/league/:id`) — Fixtures tab (default, spoiler-protected) and Table tab with clickable team rows.
+- Browse added as a top-level nav item (Compass icon) alongside Fixtures and Tables.
+- Settings moved to the bottom of the nav column (above Sign out).
+- Teams renamed to My Teams in the nav.
+- Team crests in fixture cards now navigate to the team's Browse page when clicked.
+- Team names/crests in match detail header now navigate to Browse.
+- All standings table rows (not just followed teams) now navigate to Browse when clicked.
+
+### Changed
+- Extracted `FixtureCard`, `TeamCrest`, `RoundSeparator`, `DATE_CAT_STYLE` to shared `components/FixtureCard.jsx` — used by Fixtures, BrowseTeam, and BrowseLeague.
+- `StandingEntry` schema now includes `sofascore_id` for table row navigation.
+- Team search endpoint (`/api/teams/search`) now works without authentication.
+
 ## [0.16.24] — 2026-06-05
 
 ### Fixed

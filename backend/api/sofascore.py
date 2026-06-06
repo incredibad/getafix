@@ -58,6 +58,10 @@ def _tournament_emblem(tournament_id) -> str | None:
     return f"{BASE}/unique-tournament/{tournament_id}/image/dark"
 
 
+def _country_flag_url(category_id: int) -> str:
+    return f"{BASE}/category/{category_id}/image"
+
+
 def _names_match(a: str, b: str) -> bool:
     if a in b or b in a:
         return True
@@ -155,11 +159,259 @@ async def get_team_primary_league(team_id: int, db: Session) -> str | None:
         return None
 
 
+# ── Team profile ──────────────────────────────────────────────────────────────
+
+async def get_team_profile(team_id: int, db: Session) -> dict:
+    cache_key = f"sofascore:team_profile:v2:{team_id}"
+    cached = _cache.get_cached(db, cache_key, 24 * 7)
+    if cached is not None:
+        return cached
+    try:
+        data = await _get(f"/team/{team_id}")
+        team = data.get("team") or {}
+        manager = team.get("manager") or {}
+        venue = team.get("venue") or {}
+        primary = team.get("primaryUniqueTournament") or {}
+        founded_ts = team.get("foundationDateTimestamp")
+        founded_year = None
+        if founded_ts:
+            try:
+                founded_year = datetime.fromtimestamp(founded_ts, tz=timezone.utc).year
+            except Exception:
+                pass
+        result = {
+            "name": team.get("name", ""),
+            "short_name": team.get("nameCode"),
+            "country": (team.get("country") or {}).get("name"),
+            "manager": manager.get("name"),
+            "venue": venue.get("name") or (venue.get("stadium") or {}).get("name"),
+            "venue_city": venue.get("city", {}).get("name") if isinstance(venue.get("city"), dict) else venue.get("city"),
+            "founded": founded_year,
+            "primary_tournament_id": primary.get("id"),
+            "primary_tournament_name": primary.get("name"),
+            "primary_tournament_emblem": _tournament_emblem(primary.get("id")),
+            "national": bool(team.get("national", False)),
+            "gender": team.get("gender"),
+            "slug": team.get("slug"),
+        }
+        _cache.set_cached(db, cache_key, result)
+        return result
+    except Exception as e:
+        logger.error(f"Sofascore team profile error (id={team_id}): {e}")
+        return {}
+
+
+async def get_team_ranking(team_id: int, db: Session) -> int | None:
+    cache_key = f"sofascore:team_ranking:{team_id}"
+    cached = _cache.get_cached(db, cache_key, 24 * 2)
+    if cached is not None:
+        return cached.get("ranking")
+    try:
+        data = await _get(f"/team/{team_id}/rankings")
+        rankings = data.get("rankings") or []
+        if rankings:
+            ranking = rankings[0].get("ranking")
+            _cache.set_cached(db, cache_key, {"ranking": ranking})
+            return ranking
+        return None
+    except Exception:
+        return None
+
+
+# ── Team squad ────────────────────────────────────────────────────────────────
+
+async def _get_national_team_id(country_name: str, db: Session) -> int | None:
+    """Look up the Sofascore national team ID for a country, cached 30 days."""
+    cache_key = f"sofascore:national_team_id:{country_name.lower()}"
+    cached = _cache.get_cached(db, cache_key, 24 * 30)
+    if cached is not None:
+        return cached.get("team_id")
+    try:
+        data = await _get(f"/search/all?q={urllib.parse.quote(country_name)}")
+        team_id = None
+        for item in data.get("results", []):
+            if item.get("type") != "team":
+                continue
+            entity = item.get("entity") or {}
+            if (entity.get("sport") or {}).get("slug") != "football":
+                continue
+            if not entity.get("national"):
+                continue
+            if entity.get("name", "").lower() == country_name.lower():
+                team_id = entity.get("id")
+                break
+            if team_id is None:
+                team_id = entity.get("id")
+        _cache.set_cached(db, cache_key, {"team_id": team_id})
+        return team_id
+    except Exception as e:
+        logger.error(f"National team lookup error for {country_name}: {e}")
+        return None
+
+
+async def _get_alpha2_category_map(db: Session) -> dict[str, int]:
+    """Return a mapping of ISO/Sofascore alpha2 code → Sofascore category id."""
+    cache_key = "sofascore:alpha2_category_map"
+    cached = _cache.get_cached(db, cache_key, 24 * 30)
+    if cached is not None:
+        return cached.get("map", {})
+    try:
+        data = await _get("/sport/football/categories")
+        mapping = {c["alpha2"]: c["id"] for c in data.get("categories", []) if c.get("alpha2") and c.get("id")}
+        _cache.set_cached(db, cache_key, {"map": mapping})
+        return mapping
+    except Exception as e:
+        logger.error(f"Sofascore alpha2 category map error: {e}")
+        return {}
+
+
+async def _get_team_players_raw(team_id: int, db: Session) -> list[dict]:
+    """Fetch and cache the raw /team/{id}/players response items."""
+    cache_key = f"sofascore:team_players_raw:v3:{team_id}"
+    cached = _cache.get_cached(db, cache_key, 12)
+    if cached is not None:
+        return cached.get("items", [])
+    try:
+        data = await _get(f"/team/{team_id}/players")
+        items = data.get("players", [])
+        _cache.set_cached(db, cache_key, {"items": items})
+        return items
+    except Exception as e:
+        logger.error(f"Sofascore team players raw error (id={team_id}): {e}")
+        return []
+
+
+async def get_team_players(team_id: int, db: Session) -> list[dict]:
+    items, alpha2_map = await asyncio.gather(
+        _get_team_players_raw(team_id, db),
+        _get_alpha2_category_map(db),
+    )
+
+    # Batch-fetch national team IDs for all unique nationalities in parallel
+    unique_countries: set[str] = set()
+    for item in items:
+        name = (item.get("player") or {}).get("country", {}).get("name")
+        if name:
+            unique_countries.add(name)
+    nat_team_ids: dict[str, int | None] = {}
+    if unique_countries:
+        results = await asyncio.gather(*[_get_national_team_id(c, db) for c in unique_countries])
+        nat_team_ids = dict(zip(unique_countries, results))
+
+    players = []
+    for item in items:
+        player = item.get("player") or {}
+        dob_ts = player.get("dateOfBirthTimestamp")
+        age = None
+        if dob_ts:
+            try:
+                dob = datetime.fromtimestamp(dob_ts, tz=timezone.utc)
+                today = datetime.now(timezone.utc)
+                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            except Exception:
+                pass
+        detailed = player.get("positionsDetailed") or []
+        country = player.get("country") or {}
+        alpha2 = country.get("alpha2")
+        country_name = country.get("name")
+        cat_id = alpha2_map.get(alpha2) if alpha2 else None
+        players.append({
+            "name": player.get("name", ""),
+            "short_name": player.get("shortName") or player.get("name", ""),
+            "position": item.get("position") or player.get("position"),
+            "positions_detailed": detailed,
+            "jersey_number": player.get("shirtNumber") or player.get("jerseyNumber"),
+            "nationality": country_name,
+            "nationality_flag": _country_flag_url(cat_id) if cat_id else None,
+            "nationality_team_id": nat_team_ids.get(country_name) if country_name else None,
+            "height": player.get("height"),
+            "age": age,
+            "player_id": player.get("id"),
+        })
+    return players
+
+
+# ── Team injuries ────────────────────────────────────────────────────────────
+
+async def get_team_injuries(team_id: int, db: Session) -> list[dict]:
+    items = await _get_team_players_raw(team_id, db)
+    injuries = []
+    for item in items:
+        player = item.get("player") or {}
+        inj = player.get("injury")
+        if not inj:
+            continue
+        status = inj.get("status", "")
+        reason = inj.get("reason") or inj.get("type") or ""
+        end_ts = inj.get("endDateTimestamp")
+        return_str = None
+        if end_ts:
+            try:
+                return_str = datetime.fromtimestamp(end_ts, tz=timezone.utc).strftime("%-d %b %Y")
+            except Exception:
+                pass
+        if not return_str:
+            ret = inj.get("expectedReturnDateData") or {}
+            if ret.get("month") and ret.get("year"):
+                months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+                m = ret["month"]
+                if 1 <= m <= 12:
+                    return_str = f"{months[m-1]} {ret['year']}"
+        injuries.append({
+            "player": player.get("name", ""),
+            "type": reason,
+            "severity": "red" if status == "out" else "yellow",
+            "expected_return": return_str,
+        })
+    return injuries
+
+
+# ── Team transfers ────────────────────────────────────────────────────────────
+
+async def get_team_transfers(team_id: int, db: Session) -> dict:
+    cache_key = f"sofascore:team_transfers:{team_id}"
+    cached = _cache.get_cached(db, cache_key, 24)
+    if cached is not None:
+        return cached
+    try:
+        data = await _get(f"/team/{team_id}/transfers/last/0")
+        arrivals, departures = [], []
+        for t in (data.get("transferHistory") or []):
+            player = t.get("player") or {}
+            from_team = t.get("fromTeam") or {}
+            to_team = t.get("toTeam") or {}
+            ts = t.get("transferDateTimestamp")
+            date_str = None
+            if ts:
+                try:
+                    date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %Y")
+                except Exception:
+                    pass
+            entry = {
+                "player": player.get("name", ""),
+                "from_team": from_team.get("name"),
+                "to_team": to_team.get("name"),
+                "date": date_str,
+                "transfer_type": t.get("type"),
+                "fee": t.get("transferFee"),
+            }
+            if to_team.get("id") == team_id:
+                arrivals.append(entry)
+            elif from_team.get("id") == team_id:
+                departures.append(entry)
+        result = {"in": arrivals[:15], "out": departures[:15]}
+        _cache.set_cached(db, cache_key, result)
+        return result
+    except Exception as e:
+        logger.error(f"Sofascore team transfers error (id={team_id}): {e}")
+        return {"in": [], "out": []}
+
+
 # ── All competitions index ────────────────────────────────────────────────────
 
 async def get_all_competitions(db: Session) -> list[dict]:
     """Return a flat list of all Sofascore football competitions, cached for 30 days."""
-    cache_key = "sofascore:all_competitions"
+    cache_key = "sofascore:all_competitions:v2"
     cached = _cache.get_cached(db, cache_key, 24 * 30)
     if cached is not None:
         return cached.get("competitions", [])
@@ -198,6 +450,7 @@ async def get_all_competitions(db: Session) -> list[dict]:
                         "slug": t.get("slug", ""),
                         "country": cat_names.get(cid, ""),
                         "emblem_url": _tournament_emblem(tid),
+                        "user_count": t.get("userCount", 0),
                     })
 
     _cache.set_cached(db, cache_key, {"competitions": competitions})
@@ -395,6 +648,7 @@ async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: 
                     "position": entry.get("position", 0),
                     "team_name": team.get("name", ""),
                     "team_crest": _team_crest(team.get("id")),
+                    "sofascore_id": team.get("id"),
                     "played": entry.get("matches", 0) or 0,
                     "won": entry.get("wins", 0) or 0,
                     "draw": entry.get("draws", 0) or 0,
@@ -413,23 +667,22 @@ async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: 
                 "end_date": None,
             })
 
-        # Pull season year from season endpoint (already cached)
-        season_data = _cache.get_cached(db, f"sofascore:season:{tournament_id}", 24 * 7)
         season_year = None
-        if season_data:
-            try:
-                seasons_resp = await _get(f"/unique-tournament/{tournament_id}/seasons")
-                for s in seasons_resp.get("seasons", []):
-                    if s.get("id") == season_id:
-                        season_year = s.get("year")
-                        break
-            except Exception:
-                pass
+        season_name = None
+        try:
+            seasons_resp = await _get(f"/unique-tournament/{tournament_id}/seasons")
+            for s in seasons_resp.get("seasons", []):
+                if s.get("id") == season_id:
+                    season_year = s.get("year")
+                    season_name = s.get("name")
+                    break
+        except Exception:
+            pass
 
         result = {
             "competition": {
                 "id": tournament_id,
-                "name": "",
+                "name": season_name or "",
                 "emblem_url": _tournament_emblem(tournament_id),
             },
             "season": season_year,

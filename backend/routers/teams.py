@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -134,10 +135,35 @@ def unfollow_team(
     return {"message": "Unfollowed."}
 
 
+@router.get("/sofascore/{sofascore_id}/profile", response_model=dict)
+async def get_team_browse_profile(
+    sofascore_id: int,
+    _: models.User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    profile, players, transfers, injuries, ranking = await asyncio.gather(
+        sofascore.get_team_profile(sofascore_id, db),
+        sofascore.get_team_players(sofascore_id, db),
+        sofascore.get_team_transfers(sofascore_id, db),
+        sofascore.get_team_injuries(sofascore_id, db),
+        sofascore.get_team_ranking(sofascore_id, db),
+        return_exceptions=True,
+    )
+    profile_data = profile if isinstance(profile, dict) else {}
+    if isinstance(ranking, int) and profile_data.get("national"):
+        profile_data = {**profile_data, "ranking": ranking}
+    return {
+        "profile": profile_data,
+        "players": players if isinstance(players, list) else [],
+        "transfers": transfers if isinstance(transfers, dict) else {"in": [], "out": []},
+        "injuries": injuries if isinstance(injuries, list) else [],
+    }
+
+
 @router.get("/search", response_model=list[schemas.TeamSearchResult])
 async def search_teams(
     q: str = Query(..., min_length=2),
-    _: models.User = Depends(get_current_user),
+    _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
     cache_key = f"team_search:{q.lower().strip()}"

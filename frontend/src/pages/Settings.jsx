@@ -6,10 +6,10 @@ import api from '../api/client'
 import toast from 'react-hot-toast'
 import { version } from '../../package.json'
 
-const DAYS_BACK_KEY        = 'footrack:settings:days_back'
-const SPOILERS_KEY         = 'footrack:settings:spoilers_mode'
-const REVEAL_PERSIST_KEY   = 'footrack:settings:reveal_persist'
-export const REVEALED_IDS_KEY = 'footrack:revealed_fixtures'
+const DAYS_BACK_KEY        = 'getafix:settings:days_back'
+const SPOILERS_KEY         = 'getafix:settings:spoilers_mode'
+const REVEAL_PERSIST_KEY   = 'getafix:settings:reveal_persist'
+export const REVEALED_IDS_KEY = 'getafix:revealed_fixtures'
 
 export function getSpoilersMode() {
   const v = localStorage.getItem(SPOILERS_KEY)

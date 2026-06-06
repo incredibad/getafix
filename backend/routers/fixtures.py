@@ -86,6 +86,24 @@ async def get_fixtures_by_competition(
     return [_to_schema(f) for f in filtered]
 
 
+@router.get("/team/sofascore/{sofascore_id}", response_model=list[schemas.FixtureOut])
+async def get_fixtures_for_team(
+    sofascore_id: int,
+    days_back: int = Query(90, ge=0, le=730),
+    days_ahead: int = Query(365, ge=0, le=365),
+    _: models.User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    raw = await sofascore.get_team_schedule(sofascore_id, db)
+    now_utc = datetime.now(timezone.utc)
+    cutoff_past = now_utc - timedelta(days=days_back)
+    cutoff_future = now_utc + timedelta(days=days_ahead)
+    filtered = [f for f in raw if _in_window(f, cutoff_past, cutoff_future)]
+    filtered.sort(key=lambda f: f["utc_date"])
+    await _enrich_home_leagues(filtered, db)
+    return [_to_schema(f) for f in filtered]
+
+
 @router.get("", response_model=list[schemas.FixtureOut])
 async def get_fixtures(
     days_back: int = Query(365, ge=0, le=730),
@@ -356,6 +374,18 @@ async def _enrich_home_leagues(fixtures: list[dict], db: Session) -> None:
             if td:
                 k = (source, td.get("id"), td.get("name", ""), bool(td.get("national")))
                 td["home_league"] = lookup.get(k)
+
+        # Enrich ESPN fixtures: inject Sofascore tournament ID + emblem from DB
+        comp = f.get("competition", {})
+        if source == "espn" and not comp.get("id"):
+            comp_name = comp.get("name", "")
+            db_comp = _match_espn_competition(comp_name, db)
+            if db_comp:
+                ss_tid = getattr(db_comp, "sofascore_tournament_id", None)
+                if ss_tid:
+                    comp["id"] = ss_tid
+                    comp["emblem_url"] = comp.get("emblem_url") or sofascore._tournament_emblem(ss_tid)
+                    f["league_slug"] = str(ss_tid)
 
 
 def _to_schema(f: dict) -> schemas.FixtureOut:

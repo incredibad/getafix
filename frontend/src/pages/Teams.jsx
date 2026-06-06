@@ -122,7 +122,7 @@ export default function Teams() {
         ? `Following ${team.name} · added to ${comps.join(', ')}`
         : `Following ${team.name}`
       toast.success(msg, { duration: 6000 })
-      localStorage.setItem('footrack:pending_toast', JSON.stringify({
+      localStorage.setItem('getafix:pending_toast', JSON.stringify({
         message: msg, type: 'success', expires: Date.now() + 5 * 60 * 1000,
       }))
       await loadFollowed()

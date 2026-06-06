@@ -10,6 +10,9 @@ import Tables from './pages/Tables'
 import Teams from './pages/Teams'
 import MatchDetail from './pages/MatchDetail'
 import Settings from './pages/Settings'
+import Browse from './pages/Browse'
+import BrowseTeam from './pages/BrowseTeam'
+import BrowseLeague from './pages/BrowseLeague'
 import api from './api/client'
 
 function AppRoutes() {
@@ -53,6 +56,9 @@ function AppRoutes() {
             <Route path="/tables" element={<Tables />} />
             <Route path="/teams" element={user ? <Teams /> : <Navigate to="/login" state={{ from: location }} replace />} />
             <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" state={{ from: location }} replace />} />
+            <Route path="/browse" element={<Browse />} />
+            <Route path="/browse/team/:sofascoreId" element={<BrowseTeam />} />
+            <Route path="/browse/league/:tournamentId" element={<BrowseLeague />} />
             <Route path="*" element={<Navigate to="/fixtures" replace />} />
           </Routes>
         </Layout>
@@ -64,9 +70,9 @@ function AppRoutes() {
 function PendingToastReplay() {
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('footrack:pending_toast')
+      const raw = localStorage.getItem('getafix:pending_toast')
       if (!raw) return
-      localStorage.removeItem('footrack:pending_toast')
+      localStorage.removeItem('getafix:pending_toast')
       const { message, expires } = JSON.parse(raw)
       if (message && Date.now() < expires) {
         toast.success(message, { duration: 6000 })
