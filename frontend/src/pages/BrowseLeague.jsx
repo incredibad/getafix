@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Eye, EyeOff, Trophy } from 'lucide-react'
+import { Trophy } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
 import { FixtureCard, RoundSeparator } from '../components/FixtureCard'
-import { getSpoilersMode } from './Settings'
+import { getSpoilersMode, getAutoRevealAge, getRevealPersist, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
+import BrowseHeader from '../components/BrowseHeader'
 import toast from 'react-hot-toast'
 
 const BRISBANE_TZ = 'Australia/Brisbane'
@@ -102,6 +103,7 @@ export default function BrowseLeague() {
   const navState = location.state ?? {}
 
   const spoilersMode = getSpoilersMode()
+  const autoRevealAge = getAutoRevealAge()
   const [tab, setTab] = useState('fixtures')
   const [fixtures, setFixtures] = useState([])
   const [standings, setStandings] = useState([])
@@ -111,7 +113,13 @@ export default function BrowseLeague() {
   const [fixturesFetched, setFixturesFetched] = useState(false)
   const [standingsFetched, setStandingsFetched] = useState(false)
   const [revealAll, setRevealAll] = useState(false)
-  const [revealedIds, setRevealedIds] = useState(() => new Set())
+  const [revealedIds, setRevealedIds] = useState(() => {
+    if (!getRevealPersist()) return new Set()
+    try {
+      const stored = JSON.parse(localStorage.getItem(REVEALED_IDS_KEY) || '{}')
+      return new Set(Object.keys(stored))
+    } catch { return new Set() }
+  })
 
   const leagueName = navState.name ?? ''
   const leagueEmblem = navState.emblem_url ?? null
@@ -144,7 +152,14 @@ export default function BrowseLeague() {
   const dateKeys = Object.keys(grouped)
   const hasScores = spoilersMode && fixtures.some(f => f.status !== 'SCHEDULED')
 
-  const revealOne = (id) => setRevealedIds(prev => new Set([...prev, id]))
+  const revealOne = (id) => {
+    setRevealedIds(prev => new Set([...prev, id]))
+    if (getRevealPersist()) {
+      const stored = JSON.parse(localStorage.getItem(REVEALED_IDS_KEY) || '{}')
+      stored[id] = Date.now()
+      localStorage.setItem(REVEALED_IDS_KEY, JSON.stringify(stored))
+    }
+  }
 
   const standingsGroups = useMemo(() => {
     if (!standings.length) return []
@@ -161,22 +176,13 @@ export default function BrowseLeague() {
   }, [standings, leagueName])
 
   return (
-    <div className="p-4 sm:p-6 pt-16 lg:pt-6 pb-16 max-w-4xl mx-auto">
-
-      {/* Nav row */}
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors">
-          <ArrowLeft size={16} /> Back
-        </button>
-        {tab === 'fixtures' && hasScores && (
-          <button
-            onClick={() => setRevealAll(r => !r)}
-            className={`p-2 rounded-lg transition-colors ${revealAll ? 'text-green-400 bg-green-500/20 hover:bg-green-500/30' : 'text-red-400 bg-red-500/20 hover:bg-red-500/30'}`}
-          >
-            {revealAll ? <Eye size={16} /> : <EyeOff size={16} />}
-          </button>
-        )}
-      </div>
+    <>
+      <BrowseHeader
+        canReveal={spoilersMode && tab === 'fixtures' && hasScores}
+        revealed={revealAll}
+        onToggleReveal={() => setRevealAll(r => !r)}
+      />
+      <div className="p-4 sm:p-6 pb-16">
 
       {/* League header */}
       <div className="flex items-center gap-3 mb-5">
@@ -228,7 +234,7 @@ export default function BrowseLeague() {
                       if (f.round_name && prev && prev.round_name !== f.round_name) {
                         acc.push(<RoundSeparator key={`r-${date}-${f.round_name}`} label={f.round_name} />)
                       }
-                      const revealed = !spoilersMode || revealAll || revealedIds.has(fid)
+                      const revealed = !spoilersMode || revealAll || revealedIds.has(fid) || isAutoRevealedByAge(f.utc_date, autoRevealAge)
                       acc.push(
                         <FixtureCard
                           key={fid}
@@ -266,6 +272,7 @@ export default function BrowseLeague() {
         )
       )}
 
-    </div>
+      </div>
+    </>
   )
 }

@@ -1,5 +1,132 @@
 # Changelog
 
+## [0.21.4] — 2026-06-06
+
+### Changed
+- Season Stats competition list tooltip is now a styled dropdown matching the app theme, appearing instantly on hover with each competition on its own line.
+
+## [0.21.3] — 2026-06-06
+
+### Fixed
+- Season Stats card no longer includes friendlies or pre-season tournaments (e.g. Emirates Cup, Club Friendly Games) in its competition list or aggregate stats. Now restricted to the same competitive competitions used for standings.
+
+## [0.21.2] — 2026-06-06
+
+### Fixed
+- Season Stats card: hovering the competition list now shows a tooltip with all competitions when there are more than 3.
+
+## [0.21.1] — 2026-06-06
+
+### Changed
+- Team page now always shows the domestic league standing (competition with the most finished matches), plus a second card for the most recent other competition.
+- The second card shows a knockout/cup run tree if the team reached that stage; otherwise falls back to group standings (e.g. UCL league phase, Copa Libertadores group).
+- A team in the UCL knockout stage gets a cup run card; a team eliminated in the league phase gets a standings card instead — no manual classification needed.
+
+## [0.21.0] — 2026-06-06
+
+## [0.20.5] — 2026-06-06
+
+### Changed
+- Fixture History setting description now notes that it also controls how far back cup runs are shown on team pages.
+
+## [0.20.4] — 2026-06-06
+
+### Fixed
+- Team page standings now include all competitions with finished matches, not just those within 24h of the most recent. Previously, a cup game finishing after the league would cause the league standings to be excluded entirely.
+
+## [0.20.3] — 2026-06-06
+
+### Fixed
+- Revealing an individual score on the Browse League page now persists to the shared localStorage store, so the score stays revealed when navigating to a team page or back to Fixtures.
+
+## [0.20.2] — 2026-06-06
+
+### Fixed
+- Browse League fixtures now respect the auto-reveal by age setting (older matches were staying hidden instead of being revealed automatically).
+
+## [0.20.1] — 2026-06-06
+
+### Fixed
+- Browse League page (fixtures/table) now uses full width instead of being constrained to `max-w-4xl`.
+
+## [0.20.0] — 2026-06-06
+
+### Changed
+- Match Detail page redesigned to mosaic/full-width two-column layout: result card and match events in the left column, statistics and lineups in the right column.
+- Browse search header (with reveal toggle) added to Match Detail, replacing the old back-button/eye nav row.
+
+## [0.19.1] — 2026-06-06
+
+### Fixed
+- Search header on Fixtures and Tables now spans the full width of the content area (above both the filter sidebar and the content column), matching the intended layout.
+
+## [0.19.0] — 2026-06-06
+
+### Added
+- Browse search bar (with overlay dropdown, follow/unfollow, team and league navigation) now appears at the top of Fixtures and Tables pages, consistent with Browse pages.
+
+### Changed
+- Reveal all scores button removed from the Fixtures filter tabs row (desktop) and mobile filter bar — it now lives in the new search header on the right.
+- Desktop sidebar logo section height reduced from `py-5` to `h-14` to align with the search header height on all pages.
+- Mobile sticky offsets updated throughout Fixtures and Tables to account for the new header row.
+
+## [0.18.5] — 2026-06-06
+
+### Changed
+- My Teams grid cards are now at least 200px wide (auto-fill columns) so they read comfortably at any viewport size. Unfollow button moved below the team name as a full-width labelled button rather than a small corner icon.
+
+## [0.18.4] — 2026-06-06
+
+### Added
+- Follow/Unfollow buttons on team results in the Browse search dropdown. Followed teams are loaded on mount; button state updates immediately after each action without closing the dropdown.
+
+## [0.18.3] — 2026-06-06
+
+### Added
+- Grid/List view toggle on the My Teams page, persisted to localStorage. Grid view shows square cards with a large crest as the focal point and a small unfollow button in the corner. List view shows a single compact line per team with crest, name, country, and an inline unfollow button.
+
+## [0.18.2] — 2026-06-06
+
+### Changed
+- My Teams page now uses the same sticky header and overlay dropdown pattern as Browse pages. Search results appear as an overlay above the followed-teams list with inline Follow/Unfollow buttons. Followed teams list is now full-width with a responsive grid (1–4 columns depending on viewport). Clicking a team card navigates to its team page.
+
+## [0.18.1] — 2026-06-06
+
+### Changed
+- Search dropdown is now consistent across all Browse pages, including the main Browse screen. The Browse page no longer shows inline results; all three pages use the same overlay dropdown. Dropdown max-height now uses most of the available screen height (~100px clearance from the bottom).
+
+## [0.18.0] — 2026-06-06
+
+### Changed
+- Search box in BrowseHeader no longer navigates away when focused on team or league pages. Typing now shows an overlay dropdown with matching teams and leagues directly above the current page content, leaving the page visible underneath. Clicking away, pressing Escape, or clicking the × button closes the dropdown and clears the query. The Browse search page retains its existing full-page results behaviour.
+
+## [0.17.35] — 2026-06-06
+
+### Added
+- Persistent sticky header across all Browse pages (Browse, BrowseTeam, BrowseLeague): Back button, Search box, and Hide/Show button — equal height, back and eye buttons equal width, search box fills remaining space. On team and league pages the search box navigates to Browse on focus; on the Browse search page it is the live search input. Eye button is greyed and inactive when there are no scores to reveal.
+
+## [0.17.34] — 2026-06-06
+
+### Added
+- National team squad tables now show each player's club instead of their nationality. Club crest and short name are displayed; clicking navigates to the club's team page. Club data (`club_id`, `club_name`, `club_short_name`, `club_crest_url`) is extracted from the existing cached Sofascore players response — no extra API calls.
+
+## [0.17.33] — 2026-06-06
+
+### Fixed
+- Country team pages now always show the team crest. When navigating from a squad nationality flag, `crest_url` was not passed in route state, leaving the crest blank. It is now derived directly from the Sofascore team ID (always available from the URL), so no profile load is required.
+
+## [0.17.32] — 2026-06-06
+
+### Changed
+- Turning spoiler mode off no longer clears stored reveal history. Reveal history is preserved and restored when spoiler mode is turned back on.
+- Turning spoiler mode off now requires confirmation via a modal, explaining that scores will become visible and that reveal history is kept.
+- "Keep revealed scores" toggle now remembers the previous persist option (e.g. 7d, 30d) when toggled off and restores it when toggled back on, rather than always defaulting to "forever".
+
+## [0.17.31] — 2026-06-06
+
+### Added
+- New spoiler setting: "Reveal scores after" — scores for matches older than the chosen threshold (1 day → 1 year → Immediately) are shown automatically, regardless of individual reveal history. Setting is non-destructive: changing or reverting it never touches stored revealed IDs. Only visible when Spoilers Mode is on.
+
 ## [0.17.30] — 2026-06-06
 
 ### Changed

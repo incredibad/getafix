@@ -315,6 +315,7 @@ async def get_team_players(team_id: int, db: Session) -> list[dict]:
         alpha2 = country.get("alpha2")
         country_name = country.get("name")
         cat_id = alpha2_map.get(alpha2) if alpha2 else None
+        club = player.get("team") or {}
         players.append({
             "name": player.get("name", ""),
             "short_name": player.get("shortName") or player.get("name", ""),
@@ -327,6 +328,10 @@ async def get_team_players(team_id: int, db: Session) -> list[dict]:
             "height": player.get("height"),
             "age": age,
             "player_id": player.get("id"),
+            "club_id": club.get("id"),
+            "club_name": club.get("name"),
+            "club_short_name": club.get("shortName") or club.get("name"),
+            "club_crest_url": _team_crest(club.get("id")),
         })
     return players
 
@@ -696,6 +701,65 @@ async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: 
         logger.error(f"Sofascore standings error (tournament={tournament_id}): {e}")
         _cache.set_cached(db, cache_key, {})
         return None
+
+
+# ── Cup tree ─────────────────────────────────────────────────────────────────
+
+async def get_cup_tree_for_team(tournament_id: int, team_id: int, db: Session, ttl_hours: float = 24) -> dict | None:
+    season_id = await get_current_season(tournament_id, db)
+    if not season_id:
+        return None
+
+    cache_key = f"sofascore:cuptree:{tournament_id}:{season_id}"
+    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    if cached is not None:
+        raw_tree = cached if cached else None
+    else:
+        try:
+            data = await _get(f"/unique-tournament/{tournament_id}/season/{season_id}/cuptrees")
+            trees = data.get("cupTrees", [])
+            raw_tree = trees[0] if trees else None
+            _cache.set_cached(db, cache_key, raw_tree or {})
+        except _HTTPError as e:
+            if e.status_code == 404:
+                _cache.set_cached(db, cache_key, {})
+                return None
+            raise
+        except Exception as e:
+            logger.error(f"Sofascore cup tree error (tournament={tournament_id}): {e}")
+            return None
+
+    if not raw_tree:
+        return None
+
+    rounds = []
+    for r in raw_tree.get("rounds", []):
+        for b in r.get("blocks", []):
+            for p in b.get("participants", []):
+                if p.get("team", {}).get("id") == team_id:
+                    other = next((x for x in b["participants"] if x.get("team", {}).get("id") != team_id), None)
+                    rounds.append({
+                        "round": r.get("description"),
+                        "round_order": r.get("order", 0),
+                        "opponent": other["team"]["name"] if other else None,
+                        "opponent_id": other["team"]["id"] if other else None,
+                        "opponent_crest": _team_crest(other["team"].get("id")) if other else None,
+                        "result": b.get("result"),
+                        "won": p.get("winner", False),
+                        "finished": b.get("finished", False),
+                    })
+
+    if not rounds:
+        return None
+
+    return {
+        "competition": {
+            "id": tournament_id,
+            "name": raw_tree.get("name", ""),
+            "emblem_url": _tournament_emblem(tournament_id),
+        },
+        "rounds": sorted(rounds, key=lambda x: x["round_order"]),
+    }
 
 
 # ── Match detail ──────────────────────────────────────────────────────────────

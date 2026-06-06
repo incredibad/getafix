@@ -6,9 +6,11 @@ import api from '../api/client'
 import toast from 'react-hot-toast'
 import { version } from '../../package.json'
 
-const DAYS_BACK_KEY        = 'getafix:settings:days_back'
-const SPOILERS_KEY         = 'getafix:settings:spoilers_mode'
-const REVEAL_PERSIST_KEY   = 'getafix:settings:reveal_persist'
+const DAYS_BACK_KEY           = 'getafix:settings:days_back'
+const SPOILERS_KEY            = 'getafix:settings:spoilers_mode'
+const REVEAL_PERSIST_KEY      = 'getafix:settings:reveal_persist'
+const REVEAL_PERSIST_PREV_KEY = 'getafix:settings:reveal_persist_prev'
+const AUTO_REVEAL_AGE_KEY     = 'getafix:settings:auto_reveal_age'
 export const REVEALED_IDS_KEY = 'getafix:revealed_fixtures'
 
 export function getSpoilersMode() {
@@ -18,6 +20,29 @@ export function getSpoilersMode() {
 
 export function getRevealPersist() {
   return localStorage.getItem(REVEAL_PERSIST_KEY) ?? 'forever'
+}
+
+export function getAutoRevealAge() {
+  return localStorage.getItem(AUTO_REVEAL_AGE_KEY) ?? 'never'
+}
+
+const AUTO_REVEAL_AGE_MS = {
+  '1d': 86400000,
+  '1w': 604800000,
+  '2w': 1209600000,
+  '1m': 2592000000,
+  '3m': 7776000000,
+  '6m': 15552000000,
+  '1y': 31536000000,
+}
+
+export function isAutoRevealedByAge(utcDate, threshold) {
+  if (!threshold || threshold === 'never') return false
+  const age = Date.now() - new Date(utcDate).getTime()
+  if (age <= 0) return false
+  if (threshold === 'immediately') return true
+  const ms = AUTO_REVEAL_AGE_MS[threshold]
+  return ms !== undefined && age >= ms
 }
 
 const DAYS_BACK_OPTIONS = [
@@ -100,6 +125,8 @@ export default function Settings() {
   const [daysBack, setDaysBackState] = useState(() => localStorage.getItem(DAYS_BACK_KEY) ?? '90')
   const [spoilersMode, setSpoilersMode] = useState(getSpoilersMode)
   const [revealPersist, setRevealPersistState] = useState(getRevealPersist)
+  const [autoRevealAge, setAutoRevealAgeState] = useState(getAutoRevealAge)
+  const [showSpoilerOffWarning, setShowSpoilerOffWarning] = useState(false)
 
   const changePassword = async (e) => {
     e.preventDefault()
@@ -138,20 +165,37 @@ export default function Settings() {
   }
 
   const handleSpoilersMode = (val) => {
-    localStorage.setItem(SPOILERS_KEY, String(val))
-    localStorage.removeItem(REVEALED_IDS_KEY)
-    setSpoilersMode(val)
+    if (!val) { setShowSpoilerOffWarning(true); return }
+    localStorage.setItem(SPOILERS_KEY, 'true')
+    setSpoilersMode(true)
+  }
+
+  const confirmSpoilersOff = () => {
+    localStorage.setItem(SPOILERS_KEY, 'false')
+    setSpoilersMode(false)
+    setShowSpoilerOffWarning(false)
   }
 
   const handleKeepForever = (val) => {
-    const persist = val ? 'forever' : 'session'
-    localStorage.setItem(REVEAL_PERSIST_KEY, persist)
-    setRevealPersistState(persist)
+    if (val) {
+      const prev = localStorage.getItem(REVEAL_PERSIST_PREV_KEY) ?? 'forever'
+      localStorage.setItem(REVEAL_PERSIST_KEY, prev)
+      setRevealPersistState(prev)
+    } else {
+      localStorage.setItem(REVEAL_PERSIST_PREV_KEY, revealPersist)
+      localStorage.setItem(REVEAL_PERSIST_KEY, 'session')
+      setRevealPersistState('session')
+    }
   }
 
   const handleRevealPersist = (val) => {
     localStorage.setItem(REVEAL_PERSIST_KEY, val)
     setRevealPersistState(val)
+  }
+
+  const handleAutoRevealAge = (val) => {
+    localStorage.setItem(AUTO_REVEAL_AGE_KEY, val)
+    setAutoRevealAgeState(val)
   }
 
   return (
@@ -183,7 +227,7 @@ export default function Settings() {
           {activeTab === 'General' && (
             <>
               <Col><Card title="Fixture History">
-                <p className="text-xs text-slate-500 mb-3">How far back to load past fixtures.</p>
+                <p className="text-xs text-slate-500 mb-3">How far back to load past fixtures. Also determines how far back cup runs are shown on team pages.</p>
                 <div className="flex gap-2 flex-wrap">
                   {DAYS_BACK_OPTIONS.map(({ label, value }) => (
                     <button
@@ -238,6 +282,37 @@ export default function Settings() {
                           </select>
                         </div>
                       )}
+                      <div>
+                        <p className="text-sm font-medium text-slate-200 mb-0.5">Reveal scores after</p>
+                        <p className="text-xs text-slate-500 mb-2 leading-snug">
+                          Scores for matches older than this are shown automatically, regardless of whether you've revealed them individually. Changing this setting won't affect scores you've already revealed.
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {[
+                            { label: 'Never',       value: 'never' },
+                            { label: '1 day',       value: '1d' },
+                            { label: '1 week',      value: '1w' },
+                            { label: '2 weeks',     value: '2w' },
+                            { label: '1 month',     value: '1m' },
+                            { label: '3 months',    value: '3m' },
+                            { label: '6 months',    value: '6m' },
+                            { label: '1 year',      value: '1y' },
+                            { label: 'Immediately', value: 'immediately' },
+                          ].map(({ label, value }) => (
+                            <button
+                              key={value}
+                              onClick={() => handleAutoRevealAge(value)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                                autoRevealAge === value
+                                  ? 'bg-green-600/20 border-green-500/40 text-green-400'
+                                  : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -335,6 +410,31 @@ export default function Settings() {
         </div>
       </div>
       </div>
+
+      {showSpoilerOffWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="rounded-xl border p-6 max-w-sm w-full" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h3 className="text-sm font-semibold text-white mb-2">Turn off spoiler mode?</h3>
+            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+              All scores and match results will be visible immediately. Your reveal history is kept — turning spoiler mode back on will restore it.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowSpoilerOffWarning(false)}
+                className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSpoilersOff}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+              >
+                Turn off
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
