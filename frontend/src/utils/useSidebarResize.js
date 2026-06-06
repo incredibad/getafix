@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 
-const STORAGE_KEY = 'footrack:sidebar:filter_width'
+const STORAGE_KEY = 'getafix:sidebar:filter_width'
 const MIN_W = 200
 const MAX_W = 500
 const DEFAULT_W = 250

@@ -141,6 +141,7 @@ class StandingEntry(BaseModel):
     position: int
     team_name: str
     team_crest: Optional[str]
+    sofascore_id: Optional[int] = None
     played: int
     won: int
     draw: int
