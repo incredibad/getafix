@@ -28,6 +28,8 @@ class Team(Base):
     api_football_id = Column(Integer, nullable=True, index=True)
     espn_id = Column(Integer, nullable=True, index=True)
     sofascore_id = Column(Integer, nullable=True, index=True)
+    espn_id_confirmed = Column(Boolean, default=False, nullable=False, server_default="0")
+    sofascore_id_confirmed = Column(Boolean, default=False, nullable=False, server_default="0")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     followed = relationship("FollowedTeam", back_populates="team", uselist=False)

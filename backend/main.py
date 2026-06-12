@@ -35,6 +35,15 @@ with engine.connect() as _conn:
     if "sofascore_id" not in _team_cols:
         _conn.execute(text("ALTER TABLE teams ADD COLUMN sofascore_id INTEGER"))
         _conn.commit()
+    if "espn_id_confirmed" not in _team_cols:
+        _conn.execute(text("ALTER TABLE teams ADD COLUMN espn_id_confirmed BOOLEAN NOT NULL DEFAULT 0"))
+        _conn.commit()
+    if "sofascore_id_confirmed" not in _team_cols:
+        _conn.execute(text("ALTER TABLE teams ADD COLUMN sofascore_id_confirmed BOOLEAN NOT NULL DEFAULT 0"))
+        _conn.commit()
+        # Existing sofascore_ids were set via user search — treat as already confirmed
+        _conn.execute(text("UPDATE teams SET sofascore_id_confirmed = 1 WHERE sofascore_id IS NOT NULL"))
+        _conn.commit()
     _comp_cols = {row[1] for row in _conn.execute(text("PRAGMA table_info(competitions)"))}
     if "espn_slug" not in _comp_cols:
         _conn.execute(text("ALTER TABLE competitions ADD COLUMN espn_slug VARCHAR"))

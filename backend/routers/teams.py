@@ -69,14 +69,19 @@ async def follow_team(
             api_football_id=data.api_football_id,
             espn_id=data.espn_id,
             sofascore_id=data.sofascore_id,
+            # IDs supplied directly by the user's search are confirmed; auto-resolved ones are not
+            sofascore_id_confirmed=bool(data.sofascore_id),
+            espn_id_confirmed=False,
         )
         db.add(team)
         db.flush()
     else:
         if data.sofascore_id and not team.sofascore_id:
             team.sofascore_id = data.sofascore_id
+            team.sofascore_id_confirmed = True  # came from user's search result
         if data.espn_id and not team.espn_id:
             team.espn_id = data.espn_id
+            team.espn_id_confirmed = False  # needs cross-validation
         if data.football_data_id and not team.football_data_id:
             team.football_data_id = data.football_data_id
         if data.api_football_id and not team.api_football_id:
@@ -84,17 +89,19 @@ async def follow_team(
         if data.crest_url and not team.crest_url:
             team.crest_url = data.crest_url
 
-    # Resolve Sofascore ID if still missing
+    # Resolve Sofascore ID if still missing (auto-resolved — needs cross-validation later)
     if not team.sofascore_id:
         ss_id = await sofascore.resolve_sofascore_id(data.name, db)
         if ss_id:
             team.sofascore_id = ss_id
+            team.sofascore_id_confirmed = False
 
-    # Resolve ESPN ID if still missing
+    # Resolve ESPN ID if still missing (auto-resolved — needs cross-validation later)
     if not team.espn_id:
         espn_id = await espn.resolve_espn_id(data.name, db)
         if espn_id:
             team.espn_id = espn_id
+            team.espn_id_confirmed = False
 
     existing = db.query(models.FollowedTeam).filter(models.FollowedTeam.team_id == team.id).first()
     if not existing:

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.23.0] — 2026-06-13
+
+### Added
+- Cross-source ESPN/Sofascore ID confirmation via fixture matching. Each team now has `espn_id_confirmed` and `sofascore_id_confirmed` flags in the DB. IDs set via the user's search are immediately confirmed; auto-resolved IDs are unconfirmed. On every fixture fetch, if an ID is unconfirmed and both sources return data, a fixture cross-match runs: same date + same opponents across Sofascore and ESPN confirms the ID. If one source is unavailable the check is skipped and retried next fetch. A bad ID detected by name mismatch or failed cross-match is cleared so it self-heals on the next request.
+
 ## [0.22.4] — 2026-06-13
 
 ### Fixed

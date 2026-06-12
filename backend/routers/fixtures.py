@@ -153,9 +153,83 @@ async def get_fixtures(
     return [_to_schema(f) for f in filtered]
 
 
+def _espn_league_slug(team: models.Team) -> str | None:
+    """Return the ESPN slug for the team's domestic league, if known."""
+    if getattr(team, "team_type", None) == "national":
+        return None
+    for tc in getattr(team, "competitions", []):
+        comp = tc.competition
+        if comp.competition_type == "league" and comp.espn_slug:
+            return comp.espn_slug
+    return None
+
+
+def _cross_match_fixtures(fixtures_a: list[dict], fixtures_b: list[dict]) -> bool:
+    """Return True if at least one fixture appears in both lists (same date, same opponents)."""
+    for a in fixtures_a[:15]:
+        date_a = (a.get("utc_date") or "")[:10]
+        home_a = a.get("home_team", {}).get("name", "").lower()
+        away_a = a.get("away_team", {}).get("name", "").lower()
+        if not date_a or not home_a or not away_a:
+            continue
+        for b in fixtures_b[:15]:
+            if (b.get("utc_date") or "")[:10] != date_a:
+                continue
+            home_b = b.get("home_team", {}).get("name", "").lower()
+            away_b = b.get("away_team", {}).get("name", "").lower()
+            if (
+                espn._names_match(home_a, home_b) and espn._names_match(away_a, away_b)
+            ) or (
+                espn._names_match(home_a, away_b) and espn._names_match(away_a, home_b)
+            ):
+                return True
+    return False
+
+
+async def _maybe_confirm_espn_id(team: models.Team, sofascore_fixtures: list[dict], db: Session) -> None:
+    """If the ESPN ID is unconfirmed, cross-validate it against Sofascore fixture data."""
+    if team.espn_id_confirmed or not team.espn_id or not sofascore_fixtures:
+        return
+    result = await espn.get_team_schedule(
+        team.espn_id, db,
+        league_slug=_espn_league_slug(team),
+        expected_name=team.name,
+    )
+    if result is None:
+        # get_team_schedule already logged the mismatch; clear the ID
+        team.espn_id = None
+        team.espn_id_confirmed = False
+    elif result and _cross_match_fixtures(sofascore_fixtures, result):
+        team.espn_id_confirmed = True
+        logger.info(f"Confirmed ESPN ID {team.espn_id} for '{team.name}' via fixture cross-match")
+    else:
+        logger.debug(f"ESPN ID {team.espn_id} for '{team.name}': no matching fixture yet (will retry)")
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+async def _maybe_confirm_sofascore_id(team: models.Team, espn_fixtures: list[dict], db: Session) -> None:
+    """If the Sofascore ID is unconfirmed, cross-validate it against ESPN fixture data."""
+    if team.sofascore_id_confirmed or not team.sofascore_id or not espn_fixtures:
+        return
+    ss_fixtures = await sofascore.get_team_schedule(team.sofascore_id, db)
+    if not ss_fixtures:
+        return  # Sofascore unavailable — try again next fetch
+    if _cross_match_fixtures(ss_fixtures, espn_fixtures):
+        team.sofascore_id_confirmed = True
+        logger.info(f"Confirmed Sofascore ID {team.sofascore_id} for '{team.name}' via fixture cross-match")
+    else:
+        logger.debug(f"Sofascore ID {team.sofascore_id} for '{team.name}': no matching fixture yet (will retry)")
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
 async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore: bool = False) -> list[dict]:
     is_national = team.team_type == "national"
-
     ss_id = getattr(team, "sofascore_id", None)
 
     if not disable_sofascore:
@@ -164,6 +238,7 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
             ss_id = await sofascore.resolve_sofascore_id(team.name, db)
             if ss_id:
                 team.sofascore_id = ss_id
+                team.sofascore_id_confirmed = False  # auto-resolved; needs cross-validation
                 try:
                     db.commit()
                 except Exception:
@@ -173,6 +248,10 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
             fixtures = await sofascore.get_team_schedule(ss_id, db)
             if fixtures:
                 _auto_link_competitions(team, fixtures, db)
+                # Opportunistically confirm the ESPN ID against these Sofascore fixtures
+                await _maybe_confirm_espn_id(team, fixtures, db)
+                if is_national:
+                    fixtures = await _supplement_national_team_fixtures(team, fixtures, db)
                 return fixtures
 
     # ESPN fallback
@@ -181,25 +260,23 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
         espn_id = await espn.resolve_espn_id(team.name, db)
         if espn_id:
             team.espn_id = espn_id
+            team.espn_id_confirmed = False  # auto-resolved; needs cross-validation
             try:
                 db.commit()
             except Exception:
                 db.rollback()
 
     if espn_id:
-        # For club teams, prefer the league-specific ESPN endpoint — it returns full season history
-        league_slug = None
-        if not is_national:
-            for tc in getattr(team, "competitions", []):
-                comp = tc.competition
-                if comp.competition_type == "league" and comp.espn_slug:
-                    league_slug = comp.espn_slug
-                    break
-        result = await espn.get_team_schedule(espn_id, db, league_slug=league_slug, expected_name=team.name)
+        result = await espn.get_team_schedule(
+            espn_id, db,
+            league_slug=_espn_league_slug(team),
+            expected_name=team.name,
+        )
         if result is None:
             # ESPN says this ID belongs to a different team — clear it so it re-resolves
             logger.warning(f"Clearing bad ESPN ID {espn_id} for team '{team.name}'")
             team.espn_id = None
+            team.espn_id_confirmed = False
             try:
                 db.commit()
             except Exception:
@@ -207,9 +284,10 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
         fixtures = result or []
         if fixtures:
             _auto_link_competitions(team, fixtures, db)
+            # Opportunistically confirm the Sofascore ID against these ESPN fixtures
+            if not disable_sofascore:
+                await _maybe_confirm_sofascore_id(team, fixtures, db)
 
-        # National team schedules on ESPN omit live international tournaments;
-        # supplement with scoreboard data from every linked competition.
         if is_national:
             fixtures = await _supplement_national_team_fixtures(team, fixtures, db)
 
