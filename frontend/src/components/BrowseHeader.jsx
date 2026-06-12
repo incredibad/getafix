@@ -5,8 +5,7 @@ import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 
-function TeamResult({ team, followed, onFollow, onUnfollow }) {
-  const navigate = useNavigate()
+function TeamResult({ team, followed, onFollow, onUnfollow, onNavigate }) {
   const [loading, setLoading] = useState(false)
 
   const handleFollow = async e => {
@@ -18,9 +17,7 @@ function TeamResult({ team, followed, onFollow, onUnfollow }) {
 
   return (
     <div
-      onClick={() => team.sofascore_id && navigate(`/browse/team/${team.sofascore_id}`, {
-        state: { name: team.name, short_name: team.short_name, crest_url: team.crest_url, country: team.country, team_type: team.team_type }
-      })}
+      onClick={() => team.sofascore_id && onNavigate(team)}
       className={`flex items-center gap-2.5 px-3 py-2.5 transition-colors ${team.sofascore_id ? 'cursor-pointer hover:bg-white/5' : ''}`}
     >
       {team.crest_url
@@ -158,7 +155,7 @@ export default function BrowseHeader({ canReveal, revealed, onToggleReveal, auto
   return (
     <div
       className="sticky top-14 lg:top-0 z-20 flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
-      style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       {/* Back */}
       {!hideBack && (
@@ -174,7 +171,7 @@ export default function BrowseHeader({ canReveal, revealed, onToggleReveal, auto
       <div className="flex-1 relative" ref={wrapperRef}>
         <div
           className="flex items-center gap-2 px-3 h-10 rounded-lg border"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}
         >
           <Search size={14} className="text-slate-500 flex-shrink-0" />
           <input
@@ -222,6 +219,12 @@ export default function BrowseHeader({ canReveal, revealed, onToggleReveal, auto
                       followed={isFollowed(team)}
                       onFollow={followTeam}
                       onUnfollow={unfollowTeam}
+                      onNavigate={team => {
+                        closeDropdown()
+                        navigate(`/browse/team/${team.sofascore_id}`, {
+                          state: { name: team.name, short_name: team.short_name, crest_url: team.crest_url, country: team.country, team_type: team.team_type }
+                        })
+                      }}
                     />
                   ))}
                 </>

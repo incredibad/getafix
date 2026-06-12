@@ -7,11 +7,11 @@ or API-Football on the free tier.
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
-import httpx
 from sqlalchemy.orm import Session
 
 import cache as _cache
 import models as _models
+from http_client import get_json, HTTPError
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +43,11 @@ _INTL_SLUGS = [
 
 
 async def _get(path: str, params: dict | None = None) -> dict:
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.get(f"{BASE}{path}", params=params)
-        r.raise_for_status()
-        return r.json()
+    return await get_json(f"{BASE}{path}", params=params)
 
 
 async def _get_v2(path: str, params: dict | None = None) -> dict:
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.get(f"{BASE_V2}{path}", params=params)
-        r.raise_for_status()
-        return r.json()
+    return await get_json(f"{BASE_V2}{path}", params=params)
 
 
 def _norm_status(raw: str) -> str:
@@ -160,6 +154,63 @@ async def get_team_schedule(espn_id: int, db: Session, ttl_hours: float = 24) ->
         return []
 
 
+async def get_competition_schedule(slug: str, days_back: int, days_ahead: int, db: Session) -> list[dict]:
+    """Fetch all fixtures for a competition via the scoreboard endpoint.
+
+    ESPN's scoreboard silently returns nothing for ranges > ~30 days, so we
+    chunk the window into 30-day slices and merge the results.
+    """
+    from datetime import date, timedelta as _td
+    today = date.today()
+    start = today - _td(days=days_back)
+    end = today + _td(days=days_ahead)
+
+    # Build 30-day chunks covering [start, end]
+    chunks: list[tuple[date, date]] = []
+    chunk_start = start
+    while chunk_start <= end:
+        chunk_end = min(chunk_start + _td(days=29), end)
+        chunks.append((chunk_start, chunk_end))
+        chunk_start = chunk_end + _td(days=1)
+
+    cache_key = f"espn:comp_schedule:{slug}:{start.strftime('%Y%m%d')}-{end.strftime('%Y%m%d')}"
+    cached = _cache.get_cached(db, cache_key, 1)
+    if cached is not None:
+        fixtures = cached.get("fixtures", [])
+        if fixtures and any(f["status"] == "LIVE" for f in fixtures):
+            live = _cache.get_cached(db, cache_key + ":live", 1 / 60)
+            if live:
+                return live.get("fixtures", fixtures)
+        return fixtures
+
+    try:
+        responses = await asyncio.gather(
+            *[_get(f"/{slug}/scoreboard", params={"dates": f"{s.strftime('%Y%m%d')}-{e.strftime('%Y%m%d')}"}) for s, e in chunks],
+            return_exceptions=True,
+        )
+        seen: set[str] = set()
+        fixtures: list[dict] = []
+        for resp in responses:
+            if isinstance(resp, Exception):
+                continue
+            # Scoreboard puts league info at the top level, not on each event
+            leagues = resp.get("leagues", [])
+            league_info = leagues[0] if leagues else {}
+            for event in resp.get("events", []):
+                event_with_league = {**event, "league": league_info}
+                f = _parse_fixture(event_with_league)
+                if f and f["external_id"] and str(f["external_id"]) not in seen:
+                    seen.add(str(f["external_id"]))
+                    fixtures.append(f)
+        _cache.set_cached(db, cache_key, {"fixtures": fixtures})
+        if any(f["status"] == "LIVE" for f in fixtures):
+            _cache.set_cached(db, cache_key + ":live", {"fixtures": fixtures})
+        return fixtures
+    except Exception as e:
+        logger.error(f"ESPN competition schedule error ({slug}): {e}")
+        return []
+
+
 async def _get_competition_teams(slug: str, db: Session) -> list[dict]:
     cache_key = f"espn:comp_teams:{slug}"
     cached = _cache.get_cached(db, cache_key, 24 * 7)
@@ -249,7 +300,6 @@ async def search_teams(q: str, db: Session) -> list[dict]:
     q_lower = q.lower().strip()
     comps = db.query(_models.Competition).filter(
         _models.Competition.espn_slug.isnot(None),
-        _models.Competition.competition_type == "league",
     ).all()
 
     # Fetch all team lists in parallel (cached ones return immediately)

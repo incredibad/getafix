@@ -8,16 +8,15 @@ import logging
 import urllib.parse
 from datetime import datetime, timezone
 
-from curl_cffi.requests import AsyncSession
 from sqlalchemy.orm import Session
 
 import cache as _cache
 import models as _models
+from http_client import get_json, HTTPError as _HTTPError
 
 logger = logging.getLogger(__name__)
 
-BASE = "https://api.sofascore.com/api/v1"
-_HEADERS = {"Referer": "https://www.sofascore.com/"}
+BASE = "https://www.sofascore.com/api/v1"
 
 _NORM_STATUS = {
     "notstarted":  "SCHEDULED",
@@ -29,21 +28,8 @@ _NORM_STATUS = {
 }
 
 
-class _HTTPError(Exception):
-    def __init__(self, status_code: int):
-        super().__init__(f"HTTP {status_code}")
-        self.status_code = status_code
-
-
 async def _get(path: str, params: dict | None = None) -> dict:
-    url = f"{BASE}{path}"
-    if params:
-        url = f"{url}?{urllib.parse.urlencode(params)}"
-    async with AsyncSession(impersonate="chrome120", timeout=15) as session:
-        r = await session.get(url, headers=_HEADERS)
-        if r.status_code >= 400:
-            raise _HTTPError(r.status_code)
-        return r.json()
+    return await get_json(f"{BASE}{path}", params=params)
 
 
 def _team_crest(team_id) -> str | None:
@@ -130,14 +116,18 @@ def _parse_fixture(event: dict) -> dict | None:
             "name": unique_t.get("name", tournament.get("name", "")),
             "emblem_url": _tournament_emblem(tournament_id),
         },
-        "score_home": home_score.get("current"),
-        "score_away": away_score.get("current"),
+        "score_home": home_score.get("display") if home_score.get("display") is not None else home_score.get("current"),
+        "score_away": away_score.get("display") if away_score.get("display") is not None else away_score.get("current"),
         "score_ht_home": home_score.get("period1"),
         "score_ht_away": away_score.get("period1"),
+        "score_pen_home": home_score.get("penalties"),
+        "score_pen_away": away_score.get("penalties"),
         "matchday": (event.get("roundInfo") or {}).get("round"),
         "round_name": (lambda ri: ri.get("name") or (f"Round {ri['round']}" if ri.get("round") else None))(event.get("roundInfo") or {}),
         "venue": None,
         "league_slug": str(tournament_id) if tournament_id else None,
+        "season_id": (event.get("season") or {}).get("id"),
+        "season_year": (event.get("season") or {}).get("year"),
     }
 
 
@@ -162,7 +152,7 @@ async def get_team_primary_league(team_id: int, db: Session) -> str | None:
 # ── Team profile ──────────────────────────────────────────────────────────────
 
 async def get_team_profile(team_id: int, db: Session) -> dict:
-    cache_key = f"sofascore:team_profile:v2:{team_id}"
+    cache_key = f"sofascore:team_profile:v3:{team_id}"
     cached = _cache.get_cached(db, cache_key, 24 * 7)
     if cached is not None:
         return cached
@@ -179,6 +169,8 @@ async def get_team_profile(team_id: int, db: Session) -> dict:
                 founded_year = datetime.fromtimestamp(founded_ts, tz=timezone.utc).year
             except Exception:
                 pass
+        capacity = venue.get("capacity") or (venue.get("stadium") or {}).get("capacity")
+        colors = team.get("teamColors") or {}
         result = {
             "name": team.get("name", ""),
             "short_name": team.get("nameCode"),
@@ -186,7 +178,12 @@ async def get_team_profile(team_id: int, db: Session) -> dict:
             "manager": manager.get("name"),
             "venue": venue.get("name") or (venue.get("stadium") or {}).get("name"),
             "venue_city": venue.get("city", {}).get("name") if isinstance(venue.get("city"), dict) else venue.get("city"),
+            "venue_capacity": int(capacity) if capacity else None,
             "founded": founded_year,
+            "colors": {
+                "primary": colors.get("primary"),
+                "secondary": colors.get("secondary"),
+            } if colors.get("primary") else None,
             "primary_tournament_id": primary.get("id"),
             "primary_tournament_name": primary.get("name"),
             "primary_tournament_emblem": _tournament_emblem(primary.get("id")),
@@ -333,7 +330,16 @@ async def get_team_players(team_id: int, db: Session) -> list[dict]:
             "club_short_name": club.get("shortName") or club.get("name"),
             "club_crest_url": _team_crest(club.get("id")),
         })
-    return players
+
+    # Sofascore returns players across multiple squad categories; deduplicate by player id.
+    seen: set = set()
+    deduped = []
+    for p in players:
+        key = p.get("player_id") or p.get("name")
+        if key not in seen:
+            seen.add(key)
+            deduped.append(p)
+    return deduped
 
 
 # ── Team injuries ────────────────────────────────────────────────────────────
@@ -374,37 +380,43 @@ async def get_team_injuries(team_id: int, db: Session) -> list[dict]:
 # ── Team transfers ────────────────────────────────────────────────────────────
 
 async def get_team_transfers(team_id: int, db: Session) -> dict:
-    cache_key = f"sofascore:team_transfers:{team_id}"
+    cache_key = f"sofascore:team_transfers:v3:{team_id}"
     cached = _cache.get_cached(db, cache_key, 24)
     if cached is not None:
         return cached
     try:
-        data = await _get(f"/team/{team_id}/transfers/last/0")
-        arrivals, departures = [], []
-        for t in (data.get("transferHistory") or []):
-            player = t.get("player") or {}
-            from_team = t.get("fromTeam") or {}
-            to_team = t.get("toTeam") or {}
-            ts = t.get("transferDateTimestamp")
-            date_str = None
-            if ts:
-                try:
-                    date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %Y")
-                except Exception:
-                    pass
-            entry = {
-                "player": player.get("name", ""),
-                "from_team": from_team.get("name"),
-                "to_team": to_team.get("name"),
-                "date": date_str,
-                "transfer_type": t.get("type"),
-                "fee": t.get("transferFee"),
-            }
-            if to_team.get("id") == team_id:
-                arrivals.append(entry)
-            elif from_team.get("id") == team_id:
-                departures.append(entry)
-        result = {"in": arrivals[:15], "out": departures[:15]}
+        data = await _get(f"/team/{team_id}/transfers")
+        _TRANSFER_TYPE = {1: "loan", 2: "loan", 3: "permanent"}
+
+        def _parse(items, direction):
+            out = []
+            for t in (items or []):
+                player = t.get("player") or {}
+                from_team = t.get("transferFrom") or {}
+                to_team   = t.get("transferTo")   or {}
+                ts = t.get("transferDateTimestamp")
+                date_str = None
+                if ts:
+                    try:
+                        date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %Y")
+                    except Exception:
+                        pass
+                fee_desc = t.get("transferFeeDescription") or ""
+                fee = fee_desc if fee_desc and fee_desc != "-" else None
+                out.append({
+                    "player": player.get("name", ""),
+                    "from_team": from_team.get("name"),
+                    "to_team":   to_team.get("name"),
+                    "date": date_str,
+                    "transfer_type": _TRANSFER_TYPE.get(t.get("type")),
+                    "fee": fee,
+                })
+            return out[:15]
+
+        result = {
+            "in":  _parse(data.get("transfersIn"),  "in"),
+            "out": _parse(data.get("transfersOut"), "out"),
+        }
         _cache.set_cached(db, cache_key, result)
         return result
     except Exception as e:
@@ -705,21 +717,24 @@ async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: 
 
 # ── Cup tree ─────────────────────────────────────────────────────────────────
 
-async def get_cup_tree_for_team(tournament_id: int, team_id: int, db: Session, ttl_hours: float = 24) -> dict | None:
-    season_id = await get_current_season(tournament_id, db)
+async def get_cup_tree_for_team(tournament_id: int, team_id: int, db: Session, ttl_hours: float = 24, season_id: int | None = None) -> dict | None:
+    if season_id is None:
+        season_id = await get_current_season(tournament_id, db)
     if not season_id:
         return None
 
     cache_key = f"sofascore:cuptree:{tournament_id}:{season_id}"
     cached = _cache.get_cached(db, cache_key, ttl_hours)
     if cached is not None:
-        raw_tree = cached if cached else None
+        all_trees = cached if cached else None
+        # Old cache stored a single dict; normalise to list
+        if isinstance(all_trees, dict):
+            all_trees = [all_trees]
     else:
         try:
             data = await _get(f"/unique-tournament/{tournament_id}/season/{season_id}/cuptrees")
-            trees = data.get("cupTrees", [])
-            raw_tree = trees[0] if trees else None
-            _cache.set_cached(db, cache_key, raw_tree or {})
+            all_trees = data.get("cupTrees", []) or None
+            _cache.set_cached(db, cache_key, all_trees or {})
         except _HTTPError as e:
             if e.status_code == 404:
                 _cache.set_cached(db, cache_key, {})
@@ -729,25 +744,42 @@ async def get_cup_tree_for_team(tournament_id: int, team_id: int, db: Session, t
             logger.error(f"Sofascore cup tree error (tournament={tournament_id}): {e}")
             return None
 
-    if not raw_tree:
+    if not all_trees:
         return None
 
+    # Search all trees — some tournaments put 3rd-place match in a separate tree
     rounds = []
-    for r in raw_tree.get("rounds", []):
-        for b in r.get("blocks", []):
-            for p in b.get("participants", []):
-                if p.get("team", {}).get("id") == team_id:
-                    other = next((x for x in b["participants"] if x.get("team", {}).get("id") != team_id), None)
-                    rounds.append({
-                        "round": r.get("description"),
-                        "round_order": r.get("order", 0),
-                        "opponent": other["team"]["name"] if other else None,
-                        "opponent_id": other["team"]["id"] if other else None,
-                        "opponent_crest": _team_crest(other["team"].get("id")) if other else None,
-                        "result": b.get("result"),
-                        "won": p.get("winner", False),
-                        "finished": b.get("finished", False),
-                    })
+    first = all_trees[0] if all_trees else {}
+    comp_name = (
+        (first.get("tournament") or {}).get("uniqueTournament", {}).get("name")
+        or (first.get("tournament") or {}).get("name")
+        or first.get("name")
+        or ""
+    )
+    for tree in (all_trees if isinstance(all_trees, list) else [all_trees]):
+        for r in tree.get("rounds", []):
+            for b in r.get("blocks", []):
+                for p in b.get("participants", []):
+                    if p.get("team", {}).get("id") == team_id:
+                        other = next((x for x in b["participants"] if x.get("team", {}).get("id") != team_id), None)
+                        hs = b.get("homeTeamScore")
+                        as_ = b.get("awayTeamScore")
+                        ts = b.get("seriesStartDateTimestamp")
+                        utc_date = (
+                            datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                            if ts else None
+                        )
+                        rounds.append({
+                            "round": r.get("description"),
+                            "round_order": r.get("order", 0),
+                            "opponent": other["team"]["name"] if other else None,
+                            "opponent_id": other["team"]["id"] if other else None,
+                            "opponent_crest": _team_crest(other["team"].get("id")) if other else None,
+                            "result": f"{hs}:{as_}" if hs is not None and as_ is not None else None,
+                            "won": p.get("winner", False),
+                            "finished": b.get("finished", False),
+                            "utc_date": utc_date,
+                        })
 
     if not rounds:
         return None
@@ -755,7 +787,7 @@ async def get_cup_tree_for_team(tournament_id: int, team_id: int, db: Session, t
     return {
         "competition": {
             "id": tournament_id,
-            "name": raw_tree.get("name", ""),
+            "name": comp_name,
             "emblem_url": _tournament_emblem(tournament_id),
         },
         "rounds": sorted(rounds, key=lambda x: x["round_order"]),
@@ -941,6 +973,8 @@ async def get_match_detail(event_id: int, db: Session) -> dict | None:
         score_away=fixture.get("score_away"),
         score_ht_home=fixture.get("score_ht_home"),
         score_ht_away=fixture.get("score_ht_away"),
+        score_pen_home=fixture.get("score_pen_home"),
+        score_pen_away=fixture.get("score_pen_away"),
         matchday=fixture.get("matchday"),
         venue=fixture.get("venue"),
         league_slug=fixture.get("league_slug"),

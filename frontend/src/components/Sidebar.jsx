@@ -29,7 +29,7 @@ export default function Sidebar() {
   const drawerNav  = user ? NAV_AUTH : []
 
   const bottomSection = (isMobile = false) => (
-    <div className="px-2 pb-4 border-t pt-4 space-y-1" style={{ borderColor: 'var(--border)' }}>
+    <div className={`px-2 pb-2 space-y-1 ${isMobile ? 'pt-2' : 'border-t pt-4 pb-4'}`} style={isMobile ? {} : { borderColor: 'var(--border)' }}>
       {user && (
         <NavLink to="/settings" onClick={isMobile ? () => setOpen(false) : undefined} className={navLinkClass}>
           <Settings size={18} />
@@ -58,17 +58,16 @@ export default function Sidebar() {
 
   const drawerContent = (
     <>
-      <div className="flex items-center gap-2.5 px-4 h-14 flex-shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
-        <AppLogo size="md" />
-      </div>
-      <nav className="flex-1 px-2 py-4 space-y-1">
-        {drawerNav.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} onClick={() => setOpen(false)} className={navLinkClass}>
-            <Icon size={18} />
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+      {drawerNav.length > 0 && (
+        <nav className="px-2 pt-2 pb-1 space-y-1">
+          {drawerNav.map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to} onClick={() => setOpen(false)} className={navLinkClass}>
+              <Icon size={18} />
+              {label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
       {bottomSection(true)}
     </>
   )
@@ -103,18 +102,17 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile dropdown menu */}
       {open && (
-        <div className="lg:hidden fixed inset-0 z-30" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/50" />
+        <>
+          <div className="lg:hidden fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className="absolute left-0 top-14 bottom-0 w-64 flex flex-col"
-            style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
-            onClick={e => e.stopPropagation()}
+            className="lg:hidden fixed top-14 left-0 right-0 z-50 border-b shadow-xl"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             {drawerContent}
           </div>
-        </div>
+        </>
       )}
 
       {/* Mobile bottom nav */}

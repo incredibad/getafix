@@ -48,17 +48,20 @@ async def get_fixtures_by_competition(
     if not raw and comp:
         espn_slug = getattr(comp, "espn_slug", None)
         if espn_slug:
-            teams = await espn._get_competition_teams(espn_slug, db)
-            seen: set[str] = set()
-            for t in teams:
-                espn_id = t.get("espn_id")
-                if not espn_id:
-                    continue
-                for f in await espn.get_team_schedule(espn_id, db):
-                    key = _dedup_key(f)
-                    if key and key not in seen:
-                        seen.add(key)
-                        raw.append(f)
+            # Try scoreboard first — covers live tournaments the team-schedule endpoint misses
+            raw = await espn.get_competition_schedule(espn_slug, days_back, days_ahead, db)
+            if not raw:
+                teams = await espn._get_competition_teams(espn_slug, db)
+                seen: set[str] = set()
+                for t in teams:
+                    espn_id = t.get("espn_id")
+                    if not espn_id:
+                        continue
+                    for f in await espn.get_team_schedule(espn_id, db):
+                        key = _dedup_key(f)
+                        if key and key not in seen:
+                            seen.add(key)
+                            raw.append(f)
 
     # Final fallback: filter followed-team fixtures by competition name / sofascore_id
     if not raw:
@@ -94,7 +97,11 @@ async def get_fixtures_for_team(
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
-    raw = await sofascore.get_team_schedule(sofascore_id, db)
+    team = db.query(models.Team).filter(models.Team.sofascore_id == sofascore_id).first()
+    if team:
+        raw = await _fetch_team_fixtures(team, db)
+    else:
+        raw = await sofascore.get_team_schedule(sofascore_id, db)
     now_utc = datetime.now(timezone.utc)
     cutoff_past = now_utc - timedelta(days=days_back)
     cutoff_future = now_utc + timedelta(days=days_ahead)
@@ -173,9 +180,48 @@ async def _fetch_team_fixtures(team: models.Team, db: Session) -> list[dict]:
         fixtures = await espn.get_team_schedule(espn_id, db)
         if fixtures:
             _auto_link_competitions(team, fixtures, db)
+
+        # National team schedules on ESPN omit live international tournaments;
+        # supplement with scoreboard data from every linked competition.
+        if is_national:
+            fixtures = await _supplement_national_team_fixtures(team, fixtures, db)
+
+        if fixtures:
             return fixtures
 
     return []
+
+
+async def _supplement_national_team_fixtures(
+    team: models.Team, fixtures: list[dict], db: Session
+) -> list[dict]:
+    team_comps = db.query(models.TeamCompetition).filter_by(team_id=team.id).all()
+    slugs = [tc.competition.espn_slug for tc in team_comps if tc.competition and tc.competition.espn_slug]
+    if not slugs:
+        return fixtures
+
+    comp_schedules = await asyncio.gather(
+        *[espn.get_competition_schedule(slug, 365, 365, db) for slug in slugs],
+        return_exceptions=True,
+    )
+
+    existing_ids: set[str] = {f"{f['source']}:{f['external_id']}" for f in fixtures}
+    name_lower = team.name.lower()
+
+    for comp_fixtures in comp_schedules:
+        if isinstance(comp_fixtures, Exception):
+            continue
+        for f in comp_fixtures:
+            fid = f"{f['source']}:{f['external_id']}"
+            if fid in existing_ids:
+                continue
+            home = f.get("home_team", {}).get("name", "").lower()
+            away = f.get("away_team", {}).get("name", "").lower()
+            if espn._names_match(name_lower, home) or espn._names_match(name_lower, away):
+                existing_ids.add(fid)
+                fixtures.append(f)
+
+    return fixtures
 
 
 def _auto_link_competitions(team: models.Team, fixtures: list[dict], db: Session):
@@ -252,7 +298,9 @@ _ESPN_COMP_KEYWORDS = {
     "japanese j.league": "J1 League",
     # Europe domestic
     "turkish super lig": "Turkish Süper Lig",
-    # International tournaments
+    # International tournaments — exact matches must come before qualifying entries
+    # to prevent "fifa world cup" matching "fifa world cup qualifying - afc" via substring
+    "fifa world cup": "FIFA World Cup",
     "copa américa": "Copa América",
     "copa america": "Copa América",
     "africa cup of nations": "Africa Cup of Nations",
@@ -267,6 +315,12 @@ _ESPN_COMP_KEYWORDS = {
 
 def _match_espn_competition(comp_name: str, db: Session) -> models.Competition | None:
     name_lower = comp_name.lower()
+    # Exact keyword match first — prevents "fifa world cup" from matching
+    # "fifa world cup qualifying - afc" via substring
+    if name_lower in _ESPN_COMP_KEYWORDS:
+        return db.query(models.Competition).filter(
+            models.Competition.name == _ESPN_COMP_KEYWORDS[name_lower]
+        ).first()
     for keyword, db_name in _ESPN_COMP_KEYWORDS.items():
         if keyword in name_lower or name_lower in keyword:
             return db.query(models.Competition).filter(
@@ -403,8 +457,12 @@ def _to_schema(f: dict) -> schemas.FixtureOut:
         score_away=f.get("score_away"),
         score_ht_home=f.get("score_ht_home"),
         score_ht_away=f.get("score_ht_away"),
+        score_pen_home=f.get("score_pen_home"),
+        score_pen_away=f.get("score_pen_away"),
         matchday=f.get("matchday"),
         round_name=f.get("round_name"),
         venue=f.get("venue"),
         league_slug=f.get("league_slug"),
+        season_id=f.get("season_id"),
+        season_year=f.get("season_year"),
     )

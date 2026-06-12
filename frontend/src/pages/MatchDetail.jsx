@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Circle, Shirt, BarChart2, Zap, Lock } from 'lucide-react'
+import { Circle, Shirt, BarChart2, Zap, EyeOff } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import { formatMatchDateTime } from '../utils/date'
@@ -11,11 +11,11 @@ function Spoiler({ revealed, onReveal, children }) {
   if (revealed) return <>{children}</>
   return (
     <div
-      className="flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-300 transition-colors py-3"
+      className="flex items-center justify-center min-h-[12rem] cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
       onClick={onReveal}
       title="Click to reveal"
     >
-      <Lock size={18} />
+      <EyeOff size={18} />
     </div>
   )
 }
@@ -227,6 +227,11 @@ export default function MatchDetail() {
                       <div className="text-4xl font-bold text-white tabular-nums">
                         {fixture.score_home ?? 0} – {fixture.score_away ?? 0}
                       </div>
+                      {fixture.score_pen_home != null && (
+                        <span className="text-xs text-slate-400 mt-0.5 tabular-nums">
+                          {fixture.score_pen_home}–{fixture.score_pen_away} pens
+                        </span>
+                      )}
                       {fixture.score_ht_home != null && (
                         <span className="text-xs text-slate-500 mt-1">
                           HT: {fixture.score_ht_home}–{fixture.score_ht_away}

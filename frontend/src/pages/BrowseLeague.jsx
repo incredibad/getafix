@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Trophy } from 'lucide-react'
+import { Trophy, ChevronUp, ChevronDown, EyeOff } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
 import { FixtureCard, RoundSeparator } from '../components/FixtureCard'
-import { getSpoilersMode, getAutoRevealAge, getRevealPersist, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
+import { getSpoilersMode, getAutoRevealAge, getRevealPersist, isAutoRevealedByAge, getDaysBack, getHideTables, REVEALED_IDS_KEY } from './Settings'
 import BrowseHeader from '../components/BrowseHeader'
 import toast from 'react-hot-toast'
 
@@ -21,6 +21,7 @@ function getDateCategory(utcDate) {
 function StandingsTable({ table, group, followed = [] }) {
   const navigate = useNavigate()
   const [hoveredRow, setHoveredRow] = useState(null)
+  const [revealed, setRevealed] = useState(false)
   const label = group || null
 
   const findFollowedTeam = (rowTeamName) => {
@@ -38,11 +39,45 @@ function StandingsTable({ table, group, followed = [] }) {
     return rowIdx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent'
   }
 
+  const hideMode = getHideTables()
+  const hasAnyFollowed = table.some(row => !!findFollowedTeam(row.team_name))
+  const shouldHide = !revealed && getSpoilersMode() && (hideMode === 'all' || (hideMode === 'followed' && hasAnyFollowed))
+
   return (
     <div className="mb-4">
       {label && (
         <p className="text-xs text-slate-500 uppercase tracking-wide px-1 mb-2">{label.replace(/_/g, ' ')}</p>
       )}
+      {shouldHide ? (
+        <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-slate-500 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <th className="text-left px-3 py-2 w-8">#</th>
+                <th className="text-left px-2 py-2">Team</th>
+                <th className="text-center px-2 py-2 w-8">P</th>
+                <th className="text-center px-2 py-2 w-8">W</th>
+                <th className="text-center px-2 py-2 w-8">D</th>
+                <th className="text-center px-2 py-2 w-8">L</th>
+                <th className="text-center px-2 py-2 w-10 hidden sm:table-cell">GD</th>
+                <th className="text-center px-3 py-2 w-10 font-bold text-slate-300">Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colSpan={8} style={{ background: 'var(--surface)' }}>
+                  <div
+                    className="flex items-center justify-center min-h-[10rem] cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
+                    onClick={() => setRevealed(true)}
+                  >
+                    <EyeOff size={18} />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
           <thead>
@@ -92,6 +127,7 @@ function StandingsTable({ table, group, followed = [] }) {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )
 }
@@ -113,6 +149,30 @@ export default function BrowseLeague() {
   const [fixturesFetched, setFixturesFetched] = useState(false)
   const [standingsFetched, setStandingsFetched] = useState(false)
   const [revealAll, setRevealAll] = useState(false)
+  const todayRef = useRef(null)
+  const [todayVisible, setTodayVisible] = useState(null)
+  const [todayDirection, setTodayDirection] = useState('down')
+
+  const updateTodayVisibility = useCallback(() => {
+    const el = todayRef.current
+    if (!el) { setTodayVisible(null); return }
+    const { top, bottom } = el.getBoundingClientRect()
+    const visible = top < window.innerHeight && bottom > 0
+    setTodayVisible(visible)
+    if (!visible) setTodayDirection(top < 0 ? 'up' : 'down')
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('scroll', updateTodayVisibility, true)
+    return () => window.removeEventListener('scroll', updateTodayVisibility, true)
+  }, [updateTodayVisibility])
+
+  useEffect(() => { updateTodayVisibility() }, [loadingFixtures, updateTodayVisibility])
+
+  useEffect(() => {
+    if (loadingFixtures || !todayRef.current) return
+    todayRef.current.scrollIntoView({ behavior: 'instant', block: 'start' })
+  }, [loadingFixtures])
   const [revealedIds, setRevealedIds] = useState(() => {
     if (!getRevealPersist()) return new Set()
     try {
@@ -132,7 +192,7 @@ export default function BrowseLeague() {
   useEffect(() => {
     if (tab !== 'fixtures' || fixturesFetched) return
     setLoadingFixtures(true)
-    api.get('/fixtures/by-competition', { params: { name: leagueName, sofascore_id: parseInt(tournamentId), days_back: 90, days_ahead: 365 } })
+    api.get('/fixtures/by-competition', { params: { name: leagueName, sofascore_id: parseInt(tournamentId), days_back: getDaysBack(), days_ahead: 365 } })
       .then(({ data }) => { setFixtures(data); setFixturesFetched(true) })
       .catch(() => toast.error('Failed to load fixtures.'))
       .finally(() => setLoadingFixtures(false))
@@ -144,7 +204,7 @@ export default function BrowseLeague() {
     setLoadingStandings(true)
     api.get(`/standings/sofascore/${tournamentId}`)
       .then(({ data }) => { setStandings(data); setStandingsFetched(true) })
-      .catch(() => toast.error('Failed to load standings.'))
+      .catch(() => {})
       .finally(() => setLoadingStandings(false))
   }, [tab, standingsFetched, tournamentId])
 
@@ -177,12 +237,13 @@ export default function BrowseLeague() {
 
   return (
     <>
+      <div className="h-14 lg:hidden" />
       <BrowseHeader
         canReveal={spoilersMode && tab === 'fixtures' && hasScores}
         revealed={revealAll}
         onToggleReveal={() => setRevealAll(r => !r)}
       />
-      <div className="p-4 sm:p-6 pb-16">
+      <div className="p-4 sm:p-6 pb-24 lg:pb-6">
 
       {/* League header */}
       <div className="flex items-center gap-3 mb-5">
@@ -216,43 +277,67 @@ export default function BrowseLeague() {
           </div>
         ) : dateKeys.length === 0 ? (
           <p className="text-center text-slate-500 text-sm py-12">No fixtures found.</p>
-        ) : (
-          <div className="space-y-1">
-            {dateKeys.map(date => {
-              const category = getDateCategory(grouped[date][0].utc_date)
-              return (
-                <div key={date}>
-                  <div className="flex items-center gap-3 py-3">
-                    <span className={`text-sm font-semibold flex-shrink-0 ${category === 'today' ? 'text-green-400' : 'text-slate-400'}`}>{date}</span>
-                    <div className={`flex-1 ${category === 'today' ? 'h-0.5' : 'h-px'}`} style={{ background: category === 'today' ? 'rgb(74,222,128)' : 'var(--border)' }} />
-                    {category === 'today' && <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
+        ) : (() => {
+          const hasTodayFixtures = dateKeys.some(d => getDateCategory(grouped[d][0].utc_date) === 'today')
+          let dividerInserted = false
+          const items = []
+          for (const date of dateKeys) {
+            const cat = getDateCategory(grouped[date][0].utc_date)
+            if (!hasTodayFixtures && !dividerInserted && cat !== 'past') {
+              items.push({ type: 'divider' })
+              dividerInserted = true
+            }
+            items.push({ type: 'date', date, isToday: cat === 'today' })
+          }
+          if (!hasTodayFixtures && !dividerInserted) items.push({ type: 'divider' })
+          return (
+            <div className="space-y-1">
+              {items.map((item, i) => {
+                if (item.type === 'divider') {
+                  return (
+                    <div key="today-divider" ref={todayRef} className="flex items-center gap-3 py-3 scroll-mt-40 lg:scroll-mt-32">
+                      <div className="flex-1 h-0.5" style={{ background: 'rgb(74,222,128)' }} />
+                      <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>
+                    </div>
+                  )
+                }
+                const { date, isToday } = item
+                const category = getDateCategory(grouped[date][0].utc_date)
+                return (
+                  <div key={date} ref={isToday ? todayRef : null} className={isToday ? 'scroll-mt-40 lg:scroll-mt-32' : ''}>
+                    <div className="flex items-center gap-3 py-3">
+                      <span className={`text-sm font-semibold flex-shrink-0 ${isToday ? 'text-green-400' : 'text-slate-400'}`}>{date}</span>
+                      <div className={`flex-1 ${isToday ? 'h-0.5' : 'h-px'}`} style={{ background: isToday ? 'rgb(74,222,128)' : 'var(--border)' }} />
+                      {grouped[date][0]?.round_name && <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex-shrink-0">{grouped[date][0].round_name}</span>}
+                      {isToday && <span className="text-sm font-bold text-green-400 tracking-widest uppercase flex-shrink-0">Today</span>}
+                    </div>
+                    <div className="space-y-2">
+                      {grouped[date].reduce((acc, f, idx) => {
+                        const fid = `${f.source}:${f.external_id}`
+                        const prev = grouped[date][idx - 1]
+                        if (f.round_name && prev && prev.round_name !== f.round_name) {
+                          acc.push(<RoundSeparator key={`r-${date}-${f.round_name}`} label={f.round_name} />)
+                        }
+                        const revealed = !spoilersMode || revealAll || revealedIds.has(fid) || isAutoRevealedByAge(f.utc_date, autoRevealAge)
+                        acc.push(
+                          <FixtureCard
+                            key={fid}
+                            fixture={f}
+                            revealed={revealed}
+                            onRevealScore={() => revealOne(fid)}
+                            onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed } })}
+                            dateCategory={category}
+                          />
+                        )
+                        return acc
+                      }, [])}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    {grouped[date].reduce((acc, f, i) => {
-                      const fid = `${f.source}:${f.external_id}`
-                      const prev = grouped[date][i - 1]
-                      if (f.round_name && prev && prev.round_name !== f.round_name) {
-                        acc.push(<RoundSeparator key={`r-${date}-${f.round_name}`} label={f.round_name} />)
-                      }
-                      const revealed = !spoilersMode || revealAll || revealedIds.has(fid) || isAutoRevealedByAge(f.utc_date, autoRevealAge)
-                      acc.push(
-                        <FixtureCard
-                          key={fid}
-                          fixture={f}
-                          revealed={revealed}
-                          onRevealScore={() => revealOne(fid)}
-                          onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed } })}
-                          dateCategory={category}
-                        />
-                      )
-                      return acc
-                    }, [])}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )
+                )
+              })}
+            </div>
+          )
+        })()
       )}
 
       {/* Table tab */}
@@ -273,6 +358,17 @@ export default function BrowseLeague() {
       )}
 
       </div>
+
+      {todayVisible === false && tab === 'fixtures' && (
+        <button
+          onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="fixed bottom-[72px] lg:bottom-[10px] -translate-x-1/2 z-40 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-green-600 hover:bg-green-500 text-white text-xs font-semibold shadow-lg transition-colors"
+          style={{ left: window.innerWidth >= 1024 ? 'calc(50% + 7rem)' : '50%' }}
+        >
+          {todayDirection === 'up' ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          Today
+        </button>
+      )}
     </>
   )
 }

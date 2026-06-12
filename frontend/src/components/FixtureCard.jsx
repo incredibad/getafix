@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Lock, Circle, ChevronRight, Trophy } from 'lucide-react'
+import { EyeOff, Circle, ChevronRight, Trophy } from 'lucide-react'
 import { formatMatchTime } from '../utils/date'
 import { imgUrl } from '../utils/img'
 
@@ -49,8 +49,9 @@ export function RoundSeparator({ label }) {
   )
 }
 
-export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory }) {
-  const { home_team, away_team, competition, utc_date, status, score_home, score_away } = fixture
+export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory, compact = false }) {
+  const navigate = useNavigate()
+  const { home_team, away_team, competition, utc_date, status, score_home, score_away, score_pen_home, score_pen_away } = fixture
   const isLive = status === 'LIVE'
   const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
   const hasDetail = status === 'FINISHED' || status === 'LIVE'
@@ -58,26 +59,36 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
   const cardStyle = isLive ? { ...catStyle, borderColor: 'rgba(248,113,113,0.35)' } : catStyle
   const sep = { borderColor: 'rgba(255,255,255,0.06)' }
 
+  const compTooltip = (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+      <div className="px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap text-xs" style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)' }}>
+        <p className="font-semibold text-white leading-tight">{competition.name}</p>
+      </div>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0" style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #1e293b' }} />
+    </div>
+  )
+
   return (
-    <div className="fixture-card w-full rounded-xl border" style={cardStyle}>
+    <div className={`fixture-card w-full rounded-xl border${compact ? ' compact' : ''}`} style={cardStyle}>
 
       {/* Cell 1 — competition */}
-      <div className="flex items-center justify-center lg:flex-col lg:items-start lg:justify-center gap-1 px-2 lg:px-3 py-3 border-r rounded-l-xl" style={sep}>
+      <div className={`flex items-center justify-center py-3 border-r rounded-l-xl${compact ? ' px-2' : ' gap-1 px-2 lg:px-3 lg:flex-col lg:items-start lg:justify-center'}`} style={sep}>
         <div
-          className={`flex items-center gap-1.5 lg:w-full min-w-0${competition.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
-          onClick={competition.id ? (e) => { e.stopPropagation(); navigate(`/browse/league/${competition.id}`, { state: { name: competition.name, emblem_url: competition.emblem_url } }) } : undefined}
+          className={`relative group flex items-center gap-1.5 min-w-0${compact ? '' : ' lg:w-full'}${competition.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
+          onClick={competition.id ? (e) => { e.stopPropagation(); navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: competition.name, sofascore_id: competition.id }, showAll: true } }) } : undefined}
         >
           {competition.emblem_url
-            ? <img src={imgUrl(competition.emblem_url)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
-            : <Trophy size={14} className="text-slate-500 flex-shrink-0" />
+            ? <img src={imgUrl(competition.emblem_url)} alt="" className={`${compact ? 'w-6 h-6' : 'w-4 h-4'} object-contain flex-shrink-0`} />
+            : <Trophy size={compact ? 22 : 14} className="text-slate-500 flex-shrink-0" />
           }
-          <span className="hidden lg:inline text-xs text-slate-400 truncate">{competition.name}</span>
+          {!compact && <span className="hidden lg:inline text-xs text-slate-400 truncate">{competition.name}</span>}
+          {compTooltip}
         </div>
       </div>
 
       {/* Cell 2 — home team */}
       <div className="flex items-center gap-1.5 lg:gap-2 justify-end min-w-0 pl-3 lg:pl-4 pr-3 py-3">
-        <span className="text-base lg:text-xl font-semibold text-slate-200 truncate text-right leading-tight">
+        <span className={`font-semibold text-slate-200 truncate text-right leading-tight${compact ? ' text-base hidden min-[420px]:block lg:hidden min-[1200px]:block' : ' text-base lg:text-xl'}`}>
           {home_team.short_name || home_team.name}
         </span>
         <TeamCrest
@@ -99,12 +110,19 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
               onClick={e => { e.stopPropagation(); onRevealScore() }}
               title="Click to reveal score"
             >
-              <Lock size={18} />
+              <EyeOff size={18} />
             </div>
           ) : (
-            <span className="text-xl lg:text-[26px] font-bold text-white tabular-nums leading-none">
-              {score_home ?? 0} – {score_away ?? 0}
-            </span>
+            <>
+              <span className="text-xl lg:text-[26px] font-bold text-white tabular-nums leading-none">
+                {score_home ?? 0} – {score_away ?? 0}
+              </span>
+              {score_pen_home != null && (
+                <span className="text-[10px] text-slate-500 tabular-nums leading-none">
+                  {score_pen_home}–{score_pen_away} pens
+                </span>
+              )}
+            </>
           )
         ) : status === 'POSTPONED' ? (
           <span className="text-xs lg:text-sm font-bold text-yellow-500">PST</span>
@@ -133,7 +151,7 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
           national={away_team.national}
           sofascoreId={away_team.id}
         />
-        <span className="text-base lg:text-xl font-semibold text-slate-200 truncate leading-tight">
+        <span className={`font-semibold text-slate-200 truncate leading-tight${compact ? ' text-base hidden min-[420px]:block lg:hidden min-[1200px]:block' : ' text-base lg:text-xl'}`}>
           {away_team.short_name || away_team.name}
         </span>
       </div>

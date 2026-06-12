@@ -129,10 +129,14 @@ class FixtureOut(BaseModel):
     score_away: Optional[int]
     score_ht_home: Optional[int]
     score_ht_away: Optional[int]
+    score_pen_home: Optional[int] = None
+    score_pen_away: Optional[int] = None
     matchday: Optional[int]
     round_name: Optional[str] = None
     venue: Optional[str]
     league_slug: Optional[str] = None
+    season_id: Optional[int] = None
+    season_year: Optional[str] = None
 
 
 # ── Standings ─────────────────────────────────────────────────────────────────

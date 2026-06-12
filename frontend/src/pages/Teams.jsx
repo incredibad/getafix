@@ -249,15 +249,16 @@ export default function Teams() {
 
   return (
     <>
+      <div className="h-14 lg:hidden" />
       {/* Header */}
       <div
         className="sticky top-14 lg:top-0 z-20 flex items-center gap-2 px-4 py-2 border-b flex-shrink-0"
-        style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         <div className="flex-1 relative" ref={wrapperRef}>
           <div
             className="flex items-center gap-2 px-3 h-10 rounded-lg border"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}
           >
             <Search size={14} className="text-slate-500 flex-shrink-0" />
             <input

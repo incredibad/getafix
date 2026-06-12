@@ -69,11 +69,12 @@ async def get_standings_by_sofascore_id(
 async def get_cup_tree(
     tournament_id: int,
     team_id: int,
+    season_id: int | None = None,
     db: Session = Depends(get_db),
 ):
     """Fetch a team's cup run for a given Sofascore tournament."""
     ttl = _standings_ttl(db)
-    result = await sofascore.get_cup_tree_for_team(tournament_id, team_id, db, ttl)
+    result = await sofascore.get_cup_tree_for_team(tournament_id, team_id, db, ttl, season_id=season_id)
     if not result:
         raise HTTPException(status_code=404, detail="No cup data available.")
     return result

@@ -11,6 +11,7 @@ const SPOILERS_KEY            = 'getafix:settings:spoilers_mode'
 const REVEAL_PERSIST_KEY      = 'getafix:settings:reveal_persist'
 const REVEAL_PERSIST_PREV_KEY = 'getafix:settings:reveal_persist_prev'
 const AUTO_REVEAL_AGE_KEY     = 'getafix:settings:auto_reveal_age'
+const HIDE_TABLES_KEY         = 'getafix:settings:hide_tables'
 export const REVEALED_IDS_KEY = 'getafix:revealed_fixtures'
 
 export function getSpoilersMode() {
@@ -24,6 +25,10 @@ export function getRevealPersist() {
 
 export function getAutoRevealAge() {
   return localStorage.getItem(AUTO_REVEAL_AGE_KEY) ?? 'never'
+}
+
+export function getHideTables() {
+  return localStorage.getItem(HIDE_TABLES_KEY) ?? 'off'
 }
 
 const AUTO_REVEAL_AGE_MS = {
@@ -126,6 +131,7 @@ export default function Settings() {
   const [spoilersMode, setSpoilersMode] = useState(getSpoilersMode)
   const [revealPersist, setRevealPersistState] = useState(getRevealPersist)
   const [autoRevealAge, setAutoRevealAgeState] = useState(getAutoRevealAge)
+  const [hideTables, setHideTablesState] = useState(() => localStorage.getItem(HIDE_TABLES_KEY) ?? 'off')
   const [showSpoilerOffWarning, setShowSpoilerOffWarning] = useState(false)
 
   const changePassword = async (e) => {
@@ -196,6 +202,11 @@ export default function Settings() {
   const handleAutoRevealAge = (val) => {
     localStorage.setItem(AUTO_REVEAL_AGE_KEY, val)
     setAutoRevealAgeState(val)
+  }
+
+  const handleHideTables = (val) => {
+    localStorage.setItem(HIDE_TABLES_KEY, val)
+    setHideTablesState(val)
   }
 
   return (
@@ -282,6 +293,31 @@ export default function Settings() {
                           </select>
                         </div>
                       )}
+                      <div>
+                        <p className="text-sm font-medium text-slate-200 mb-0.5">Hide tables</p>
+                        <p className="text-xs text-slate-500 mb-2 leading-snug">
+                          Replace league tables with a reveal prompt. "Followed teams" hides tables where any of your followed teams appear.
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {[
+                            { label: 'Off',            value: 'off' },
+                            { label: 'Followed teams',  value: 'followed' },
+                            { label: 'All tables',      value: 'all' },
+                          ].map(({ label, value }) => (
+                            <button
+                              key={value}
+                              onClick={() => handleHideTables(value)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                                hideTables === value
+                                  ? 'bg-green-600/20 border-green-500/40 text-green-400'
+                                  : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div>
                         <p className="text-sm font-medium text-slate-200 mb-0.5">Reveal scores after</p>
                         <p className="text-xs text-slate-500 mb-2 leading-snug">

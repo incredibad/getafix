@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Star, Eye, EyeOff, Lock, Trophy, Calendar, Users, MapPin, User, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { Star, Eye, EyeOff, TrendingUp, Clock, Info, LayoutGrid, BarChart2, Trophy, ArrowLeftRight, ArrowDownLeft, Calendar, Users, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
@@ -41,37 +41,77 @@ const RESULT_COLOURS = {
   L: 'bg-red-500/20 text-red-400',
 }
 
-function FormCard({ form, spoilersMode, revealAll, onReveal }) {
+function timeAgo(utcDate) {
+  const ms = Date.now() - new Date(utcDate).getTime()
+  const mins = Math.floor(ms / 60000)
+  const hours = Math.floor(ms / 3600000)
+  const days = Math.floor(ms / 86400000)
+  const weeks = Math.floor(days / 7)
+  const months = Math.floor(days / 30)
+  if (months >= 2) return `${months} months ago`
+  if (months === 1) return '1 month ago'
+  if (weeks >= 2) return `${weeks} weeks ago`
+  if (weeks === 1) return '1 week ago'
+  if (days >= 2) return `${days} days ago`
+  if (days === 1) return 'Yesterday'
+  if (hours >= 2) return `${hours} hours ago`
+  if (hours === 1) return '1 hour ago'
+  return 'Today'
+}
+
+function FormCard({ form, spoilersMode, revealedIds, onRevealOne, autoRevealAge, className = '' }) {
   const navigate = useNavigate()
   if (!form.length) return null
   return (
-    <Card title="Recent Form" icon={Trophy} className="lg:col-span-2">
-      {spoilersMode && !revealAll ? (
-        <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={onReveal}>
-          <Lock size={18} />
-        </div>
-      ) : (
-        <div className="divide-y" style={{ '--tw-divide-opacity': 1 }}>
-          {form.map((item, i) => (
-            <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderColor: 'var(--border)' }}>
-              <span className={`w-7 h-7 flex-shrink-0 flex items-center justify-center rounded text-xs font-bold ${RESULT_COLOURS[item.result]}`}>
-                {item.result}
-              </span>
-              <div
-                className={`flex items-center gap-2 flex-1 min-w-0${item.opponent.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
-                onClick={item.opponent.id ? () => navigate(`/browse/team/${item.opponent.id}`, { state: { name: item.opponent.name, crest_url: item.opponent.crest_url, country: item.opponent.country } }) : undefined}
-              >
-                {item.opponent.crest_url && (
-                  <img src={imgUrl(item.opponent.crest_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
-                )}
-                <span className="text-sm text-slate-200 truncate">{item.opponent.short_name || item.opponent.name}</span>
-                <span className="text-[10px] font-semibold text-slate-600 flex-shrink-0 bg-white/5 px-1 rounded">{item.isHome ? 'H' : 'A'}</span>
+    <Card title="Recent Form" icon={TrendingUp} className={className}>
+      <div>
+        {form.map((item, i) => {
+          const fid = item.fid
+          const revealed = !spoilersMode || isAutoRevealedByAge(item.utc_date, autoRevealAge) || (fid && revealedIds.has(fid))
+          return (
+            <div
+              key={i}
+              className={`flex items-center gap-2.5 py-2.5 border-b last:border-0 transition-colors${item.opponent.id ? ' cursor-pointer hover:bg-white/5 -mx-1 px-1 rounded' : ''}`}
+              style={{ borderColor: 'var(--border)' }}
+              onClick={item.opponent.id ? () => navigate(`/browse/team/${item.opponent.id}`, { state: { name: item.opponent.name, crest_url: item.opponent.crest_url, country: item.opponent.country } }) : undefined}
+            >
+              {revealed ? (
+                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold flex-shrink-0 ${RESULT_COLOURS[item.result]}`}>
+                  {item.result}
+                </span>
+              ) : (
+                <button className="w-6 h-6 flex items-center justify-center flex-shrink-0 text-slate-600 hover:text-slate-300 transition-colors" onClick={e => { e.stopPropagation(); onRevealOne(fid) }} title="Reveal score">
+                  <EyeOff size={14} />
+                </button>
+              )}
+              <div className="relative flex-shrink-0 group/crest">
+                {item.opponent.crest_url
+                  ? <img src={imgUrl(item.opponent.crest_url)} alt={item.opponent.name} className="w-5 h-5 object-contain" />
+                  : <div className="w-5 h-5" />
+                }
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 pointer-events-none hidden group-hover/crest:block">
+                  <div className="whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium text-slate-200 shadow-lg" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    {item.opponent.name}
+                  </div>
+                </div>
               </div>
-              <span className="text-sm font-semibold text-slate-300 tabular-nums flex-shrink-0">{item.gf}–{item.ga}</span>
+              <span className="text-xs text-slate-300 truncate flex-1">{item.opponent.short_name || item.opponent.name}</span>
+              {item.utc_date && <span className="text-[10px] text-slate-600 flex-shrink-0 hidden sm:inline">{timeAgo(item.utc_date)}</span>}
+              <span className="text-[10px] font-semibold text-slate-500 flex-shrink-0">{item.isHome ? 'H' : 'A'}</span>
+              {revealed ? (
+                <span className="flex flex-col items-end flex-shrink-0">
+                  <span className="text-xs font-semibold text-slate-200 tabular-nums">{item.gf}–{item.ga}</span>
+                  {item.penH != null && <span className="text-[10px] text-slate-500 tabular-nums">{item.penH}–{item.penA} pens</span>}
+                </span>
+              ) : (
+                <button className="text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0" onClick={e => { e.stopPropagation(); onRevealOne(fid) }} title="Reveal score">
+                  <EyeOff size={14} />
+                </button>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
     </Card>
   )
 }
@@ -101,22 +141,62 @@ function InjuriesCard({ injuries }) {
   )
 }
 
+const POS_GROUP = { GK: 'G', SW: 'G', CB: 'D', LB: 'D', RB: 'D', LWB: 'D', RWB: 'D', DM: 'M', CM: 'M', AM: 'M', LM: 'M', RM: 'M', LW: 'M', RW: 'M', SS: 'F', CF: 'F', ST: 'F', FWD: 'F', MID: 'M', DEF: 'D' }
+
 function posGroup(raw) {
-  const p = (raw || '').toLowerCase()
-  if (!p) return '?'
+  if (!raw) return '?'
+  const up = raw.toUpperCase()
+  if (POS_GROUP[up]) return POS_GROUP[up]
+  const p = raw.toLowerCase()
   if (p.startsWith('g')) return 'G'
   if (p.startsWith('d')) return 'D'
   if (p.startsWith('m')) return 'M'
   if (p.startsWith('f') || p.startsWith('a')) return 'F'
-  return p.charAt(0).toUpperCase()
+  return '?'
+}
+
+const POS_FULL = {
+  GK: 'Goalkeeper', SW: 'Sweeper',
+  CB: 'Centre-Back', DC: 'Centre-Back', LB: 'Left Back', DL: 'Left Back', RB: 'Right Back', DR: 'Right Back',
+  LWB: 'Left Wing-Back', RWB: 'Right Wing-Back',
+  DM: 'Defensive Mid', CM: 'Central Mid', MC: 'Central Mid', AM: 'Attacking Mid',
+  LM: 'Left Mid', RM: 'Right Mid',
+  LW: 'Left Winger', RW: 'Right Winger',
+  SS: 'Second Striker', CF: 'Centre Forward', ST: 'Striker',
+  FWD: 'Forward', MID: 'Midfielder', DEF: 'Defender',
+}
+
+function PosTooltip({ abbr }) {
+  const [show, setShow] = useState(false)
+  const full = POS_FULL[abbr]
+  const hasTooltip = full && full !== abbr
+  return (
+    <div className="relative inline-block">
+      <button
+        className="text-[10px] font-semibold text-slate-500 bg-white/5 rounded px-1.5 py-0.5 focus:outline-none"
+        onMouseEnter={() => hasTooltip && setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onClick={() => hasTooltip && setShow(s => !s)}
+      >
+        {abbr}
+      </button>
+      {show && hasTooltip && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 pointer-events-none">
+          <div className="whitespace-nowrap rounded px-2 py-1 text-[10px] font-medium text-slate-200 shadow-lg" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+            {full}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function posLabel(raw) {
   const p = (raw || '').toLowerCase()
   if (p.startsWith('g')) return 'GK'
-  if (p.startsWith('d')) return 'DEF'
-  if (p.startsWith('m')) return 'MID'
-  if (p.startsWith('f') || p.startsWith('a')) return 'FWD'
+  if (p.startsWith('d') || p.includes('back') || p.includes('defender')) return 'DEF'
+  if (p.startsWith('m') || p.includes('midfielder')) return 'MID'
+  if (p.startsWith('f') || p.startsWith('a') || p.includes('forward') || p.includes('winger') || p.includes('striker')) return 'FWD'
   return (raw || '').toUpperCase().slice(0, 3)
 }
 
@@ -125,15 +205,34 @@ const POS_SECTION = { G: 'Goalkeepers', D: 'Defenders', M: 'Midfielders', F: 'Fo
 
 function SquadCard({ players, isNational }) {
   const navigate = useNavigate()
+
+  const unique = useMemo(() => {
+    const seen = new Set()
+    return players.filter(p => {
+      const key = p.id ?? `${p.name}|${p.jersey_number}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [players])
+
+  const duplicateNumbers = useMemo(() => {
+    const counts = {}
+    for (const p of unique) {
+      if (p.jersey_number != null) counts[p.jersey_number] = (counts[p.jersey_number] || 0) + 1
+    }
+    return new Set(Object.keys(counts).filter(n => counts[n] > 1).map(Number))
+  }, [unique])
+
   const grouped = useMemo(() => {
     const map = {}
-    for (const p of players) {
-      const key = posGroup(p.position)
+    for (const p of unique) {
+      const key = posGroup(p.positions_detailed?.[0] || p.position)
       if (!map[key]) map[key] = []
       map[key].push(p)
     }
     return map
-  }, [players])
+  }, [unique])
 
   const keys = [...POS_ORDER.filter(k => grouped[k]), ...Object.keys(grouped).filter(k => !POS_ORDER.includes(k) && k !== '?')]
   if (!keys.length) return null
@@ -146,10 +245,10 @@ function SquadCard({ players, isNational }) {
             <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
               <th className="text-right pr-3 pl-1 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-8">#</th>
               <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">Name</th>
-              <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-12">Pos</th>
-              <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide hidden sm:table-cell">{isNational ? 'Club' : 'Nationality'}</th>
-              <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-12 hidden md:table-cell">Ht</th>
-              <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-10 hidden md:table-cell">Age</th>
+              <th className="text-right px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-20">Pos</th>
+              <th className="text-left px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide hidden sm:table-cell">{isNational ? 'Club' : 'Nat'}</th>
+              <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-12 hidden sm:table-cell">Ht</th>
+              <th className="text-center px-2 py-1.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide w-10 hidden sm:table-cell">Age</th>
             </tr>
           </thead>
           <tbody>
@@ -163,13 +262,47 @@ function SquadCard({ players, isNational }) {
                 {grouped[key]
                   .sort((a, b) => (a.jersey_number ?? 99) - (b.jersey_number ?? 99))
                   .map((p, i) => {
-                    const detailedPos = p.positions_detailed?.[0] ?? posLabel(p.position)
+                    const allPositions = p.positions_detailed?.length ? p.positions_detailed : [posLabel(p.position)]
+                    const abbr = allPositions[0]
+                    const clubOrNat = isNational
+                      ? (p.club_short_name || p.club_name || null)
+                      : (p.nationality || null)
                     return (
                       <tr key={i} className="border-b last:border-0 hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--border)' }}>
-                        <td className="text-right pr-3 pl-1 py-2 text-xs text-slate-600 tabular-nums">{p.jersey_number ?? '—'}</td>
-                        <td className="px-2 py-2 text-xs text-slate-200">{p.name}</td>
-                        <td className="text-center px-2 py-2">
-                          <span className="text-[10px] font-semibold text-slate-500 bg-white/5 rounded px-1.5 py-0.5">{detailedPos}</span>
+                        <td className="text-right pr-3 pl-1 py-2 text-xs text-slate-600 tabular-nums">{p.jersey_number != null && !duplicateNumbers.has(p.jersey_number) ? p.jersey_number : '—'}</td>
+                        <td className="px-2 py-2">
+                          <span className="text-xs text-slate-200">{p.name}</span>
+                          {/* Mobile sub-info: club/nat, height, age */}
+                          <div className="sm:hidden flex items-center gap-2 mt-0.5 flex-wrap">
+                            {clubOrNat && (
+                              <button
+                                className="text-[10px] text-slate-500 flex items-center gap-1 hover:opacity-70 transition-opacity"
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (isNational) {
+                                    if (p.club_id) navigate(`/browse/team/${p.club_id}`, { state: { name: p.club_name, crest_url: p.club_crest_url } })
+                                  } else {
+                                    if (p.nationality_team_id) navigate(`/browse/team/${p.nationality_team_id}`, { state: { name: p.nationality, team_type: 'national' } })
+                                    else navigate('/browse', { state: { initialQuery: p.nationality } })
+                                  }
+                                }}
+                              >
+                                {!isNational && p.nationality_flag
+                                  ? <img src={imgUrl(p.nationality_flag)} alt="" className="h-2.5 w-auto flex-shrink-0" />
+                                  : isNational && p.club_crest_url
+                                  ? <img src={imgUrl(p.club_crest_url)} alt="" className="h-2.5 w-auto flex-shrink-0 object-contain" />
+                                  : null}
+                                {clubOrNat}
+                              </button>
+                            )}
+                            {p.height && <span className="text-[10px] text-slate-600">{p.height}cm</span>}
+                            {p.age != null && <span className="text-[10px] text-slate-600">{p.age}y</span>}
+                          </div>
+                        </td>
+                        <td className="text-right px-2 py-2">
+                          <div className="flex gap-0.5 justify-end">
+                            {allPositions.map(a => <PosTooltip key={a} abbr={a} />)}
+                          </div>
                         </td>
                         <td className="px-2 py-2 hidden sm:table-cell">
                           {isNational ? (
@@ -199,8 +332,8 @@ function SquadCard({ players, isNational }) {
                             ) : <span className="text-xs text-slate-600">—</span>
                           )}
                         </td>
-                        <td className="text-center px-2 py-2 text-xs text-slate-500 tabular-nums hidden md:table-cell">{p.height ? `${p.height}cm` : '—'}</td>
-                        <td className="text-center px-2 py-2 text-xs text-slate-500 tabular-nums hidden md:table-cell">{p.age ?? '—'}</td>
+                        <td className="text-center px-2 py-2 text-xs text-slate-500 tabular-nums hidden sm:table-cell">{p.height ? `${p.height}cm` : '—'}</td>
+                        <td className="text-center px-2 py-2 text-xs text-slate-500 tabular-nums hidden sm:table-cell">{p.age ?? '—'}</td>
                       </tr>
                     )
                   })}
@@ -225,8 +358,13 @@ function TransferRow({ t, direction }) {
           {direction === 'in' ? `From ${t.from_team ?? '?'}` : `To ${t.to_team ?? '?'}`}
           {t.transfer_type === 'loan' && <span className="ml-1 text-yellow-500">· Loan</span>}
         </p>
+        {(t.fee || t.date) && (
+          <p className="text-[10px] text-slate-600 mt-0.5">
+            {t.date && <span>{t.date}</span>}
+            {t.fee && <span className="ml-1 text-slate-500">{t.fee}</span>}
+          </p>
+        )}
       </div>
-      {t.date && <span className="text-[10px] text-slate-600 flex-shrink-0 mt-0.5">{t.date}</span>}
     </div>
   )
 }
@@ -236,7 +374,7 @@ function TransfersCard({ transfers }) {
   const hasOut = transfers.out?.length > 0
   if (!hasIn && !hasOut) return null
   return (
-    <Card title="Transfers" icon={ArrowDownLeft}>
+    <Card title="Transfers" icon={ArrowLeftRight}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
         {hasIn && (
           <div>
@@ -257,7 +395,7 @@ function TransfersCard({ transfers }) {
 
 const INITIAL_SHOW = 3
 
-function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevealOne, navigate, spoilersMode, autoRevealAge }) {
+function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevealOne, navigate, spoilersMode, autoRevealAge, compact = false }) {
   const [expanded, setExpanded] = useState(false)
   const canExpand = fixtures.length > INITIAL_SHOW
   const displayed = canExpand && !expanded ? fixtures.slice(0, INITIAL_SHOW) : fixtures
@@ -288,6 +426,7 @@ function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevea
                       onRevealScore={() => onRevealOne(fid)}
                       onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed } })}
                       dateCategory={category}
+                      compact={compact}
                     />
                   )
                   return acc
@@ -371,9 +510,43 @@ export default function BrowseTeam() {
       .finally(() => setProfileLoading(false))
   }, [sofascoreId])
 
+  // For each competition, find the latest season_id and season_year from finished fixtures.
+  // Used to compare competitions against the domestic league's current season.
+  const compSeasons = useMemo(() => {
+    const map = {}
+    for (const f of fixtures) {
+      if (f.status === 'FINISHED' && f.competition?.id && f.season_id != null) {
+        const cid = String(f.competition.id)
+        if (!map[cid] || f.season_id > map[cid].id) {
+          map[cid] = { id: f.season_id, year: f.season_year }
+        }
+      }
+    }
+    return map
+  }, [fixtures])
+
+  // For clubs: the domestic league's current season_year (e.g. "25/26"), used to
+  // filter out previous-season competitions via label comparison.
+  // For national teams: null — they use a date cutoff instead (Jan 1 of current year).
+  const domesticSeasonYear = useMemo(() => {
+    if (!!profile?.profile?.national) return null
+    const compCounts = {}
+    for (const f of fixtures) {
+      if (f.status === 'FINISHED' && f.competition?.id) {
+        const k = String(f.competition.id)
+        compCounts[k] = (compCounts[k] || 0) + 1
+      }
+    }
+    let domesticId = null, maxCount = 0
+    for (const [cid, count] of Object.entries(compCounts)) {
+      if (count > maxCount) { maxCount = count; domesticId = cid }
+    }
+    return domesticId ? (compSeasons[domesticId]?.year ?? null) : null
+  }, [fixtures, profile, compSeasons])
+
   // Determine which competition(s) to show standings for:
   // — Exclude non-competitive fixtures (friendlies, exhibitions)
-  // — Base: always show the most recently played competition(s)
+  // — Base: competitions whose season_year matches the domestic league's current season
   // — Supplement: also show any competition with a match within 7 days (e.g. WC starting soon)
   // — Fallback: if no finished matches at all, show the soonest upcoming competition
   const activeCompetitions = useMemo(() => {
@@ -407,9 +580,21 @@ export default function BrowseTeam() {
     const comps = Object.values(compMap)
     const selected = new Map()
 
-    // Base: all competitions with any finished match — cup games finishing after the league
-    // would otherwise cut the league out with a narrow time window, leaving no standings
-    comps.filter(c => c.lastFinished).forEach(c => selected.set(String(c.id), c))
+    const isNational = !!profile?.profile?.national
+
+    // Base: for clubs, match season_year label against domestic league's current season.
+    // For national teams, include all finished competitive fixtures in the loaded window —
+    // their competitions span multiple season labels so label comparison doesn't apply.
+    const finishedComps = comps.filter(c => c.lastFinished)
+    finishedComps
+      .filter(c => {
+        if (isNational) return true
+        if (!domesticSeasonYear) return true
+        const compYear = compSeasons[String(c.id)]?.year
+        if (!compYear) return true
+        return compYear === domesticSeasonYear
+      })
+      .forEach(c => selected.set(String(c.id), c))
 
     // Supplement: any competition with a match within 7 days not already in the set
     comps.filter(c => c.nextUpcoming && (c.nextUpcoming - now) <= ONE_WEEK)
@@ -430,7 +615,7 @@ export default function BrowseTeam() {
       if (a.lastFinished && b.lastFinished) return b.lastFinished - a.lastFinished
       return 0
     })
-  }, [fixtures])
+  }, [fixtures, compSeasons, domesticSeasonYear, profile])
 
   // Fetch standings for each active competition (once each)
   useEffect(() => {
@@ -455,7 +640,7 @@ export default function BrowseTeam() {
 
       if (!fetchedCupComps.current.has(key)) {
         fetchedCupComps.current.add(key)
-        api.get(`/standings/cups/sofascore/${comp.id}`, { params: { team_id: sofascoreId } })
+        api.get(`/standings/cups/sofascore/${comp.id}`, { params: { team_id: sofascoreId, season_id: compSeasons[key]?.id } })
           .then(({ data }) => setCupMap(prev => ({ ...prev, [key]: data })))
           .catch(() => setCupMap(prev => ({ ...prev, [key]: null })))
       }
@@ -488,16 +673,29 @@ export default function BrowseTeam() {
       const ga = isHome ? f.score_away : f.score_home
       if (gf == null || ga == null) return null
       const result = gf > ga ? 'W' : gf === ga ? 'D' : 'L'
-      return { result, opponent, gf, ga, isHome }
+      const fid = f.source && f.external_id ? `${f.source}:${f.external_id}` : null
+      const penH = isHome ? f.score_pen_home : f.score_pen_away
+      const penA = isHome ? f.score_pen_away : f.score_pen_home
+      return { id: f.id, fid, result, opponent, gf, ga, penH, penA, isHome, utc_date: f.utc_date }
     }).filter(Boolean)
   }, [recent, sofascoreId])
 
   const seasonStats = useMemo(() => {
     const tid = parseInt(sofascoreId)
+    const isNational = !!profile?.profile?.national
+    const calendarYearStart = new Date(`${new Date().getFullYear()}-01-01T00:00:00Z`)
     const activeCompIds = new Set(activeCompetitions.map(c => String(c.id)))
-    const finished = fixtures.filter(f =>
-      f.status === 'FINISHED' && f.score_home != null && activeCompIds.has(String(f.competition?.id))
-    )
+    const finished = fixtures.filter(f => {
+      if (f.status !== 'FINISHED' || f.score_home == null) return false
+      const cid = String(f.competition?.id)
+      if (!activeCompIds.has(cid)) return false
+      // National teams: calendar year
+      if (isNational) return new Date(f.utc_date) >= calendarYearStart
+      // Clubs: filter by per-competition season_id
+      const currentSeason = compSeasons[cid]
+      if (!currentSeason || f.season_id == null) return true
+      return f.season_id === currentSeason.id
+    })
     if (!finished.length) return null
     let gf = 0, ga = 0, w = 0, d = 0, l = 0, cs = 0
     for (const f of finished) {
@@ -509,8 +707,12 @@ export default function BrowseTeam() {
       if (scored > conceded) w++; else if (scored === conceded) d++; else l++
     }
     const competitions = [...new Set(finished.map(f => f.competition.name))].sort()
-    return { played: finished.length, w, d, l, gf, ga, gd: gf - ga, cs, competitions }
-  }, [fixtures, sofascoreId, activeCompetitions])
+    const lastPlayed = finished.reduce((max, f) => {
+      const t = new Date(f.utc_date).getTime()
+      return t > max ? t : max
+    }, 0) || null
+    return { played: finished.length, w, d, l, gf, ga, gd: gf - ga, cs, competitions, lastPlayed }
+  }, [fixtures, sofascoreId, activeCompetitions, compSeasons, profile])
 
   // Competition with the most finished matches = domestic league
   const domesticLeague = useMemo(() => {
@@ -525,44 +727,63 @@ export default function BrowseTeam() {
     return [...activeCompetitions].sort((a, b) => (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0))[0] ?? null
   }, [activeCompetitions, fixtures])
 
-  const domesticStanding = useMemo(() => {
-    if (!domesticLeague) return null
-    const tid = parseInt(sofascoreId)
-    const groups = standingsMap[String(domesticLeague.id)]
-    if (!groups) return null
-    for (const group of groups) {
-      const row = (group.table || []).find(r =>
-        r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
-      )
-      if (row) return { row, competition: group.competition, lastPlayed: domesticLeague.lastFinished, competitionId: domesticLeague.id }
+  // Resolve a competition to { type: 'cup'|'standing', data } or null.
+  // Cup run takes priority over group standing for the same competition.
+  const resolveComp = useCallback((comp, tid) => {
+    const key = String(comp.id)
+    const cupData = cupMap[key]
+    if (cupData?.rounds?.length) {
+      return { type: 'cup', data: { ...cupData, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+    }
+    const groups = standingsMap[key]
+    if (groups?.length) {
+      for (const group of groups) {
+        const row = (group.table || []).find(r =>
+          r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
+        )
+        if (row) return { type: 'standing', data: { row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+      }
     }
     return null
-  }, [domesticLeague, standingsMap, sofascoreId])
+  }, [cupMap, standingsMap])
 
-  // Most recent non-domestic competition — show knockout tree if available, else group standings
-  const recentCompetition = useMemo(() => {
+  // Up to 2 competition cards to display.
+  // Clubs: domestic league standing + most recent non-domestic (cup-first).
+  // National teams: 2 most recent competitions (cup-first for each).
+  const competitionCards = useMemo(() => {
     const tid = parseInt(sofascoreId)
-    const others = activeCompetitions
-      .filter(c => c.id !== domesticLeague?.id)
-      .sort((a, b) => (b.lastFinished ?? 0) - (a.lastFinished ?? 0))
-    for (const comp of others) {
-      const key = String(comp.id)
-      const cupData = cupMap[key]
-      if (cupData?.rounds?.length) {
-        return { type: 'cup', data: { ...cupData, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+    const isNational = !!profile?.profile?.national
+    const sorted = [...activeCompetitions].sort((a, b) => (b.lastFinished ?? 0) - (a.lastFinished ?? 0))
+
+    if (isNational) {
+      const cards = []
+      for (const comp of sorted) {
+        if (cards.length >= 2) break
+        const card = resolveComp(comp, tid)
+        if (card) cards.push(card)
       }
-      const groups = standingsMap[key]
-      if (groups?.length) {
+      return cards
+    }
+
+    // Clubs: domestic league always shown as standing, then one non-domestic
+    const cards = []
+    if (domesticLeague) {
+      const groups = standingsMap[String(domesticLeague.id)]
+      if (groups) {
         for (const group of groups) {
           const row = (group.table || []).find(r =>
             r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
           )
-          if (row) return { type: 'standing', data: { row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+          if (row) { cards.push({ type: 'standing', data: { row, competition: group.competition, lastPlayed: domesticLeague.lastFinished, competitionId: domesticLeague.id } }); break }
         }
       }
     }
-    return null
-  }, [activeCompetitions, domesticLeague, cupMap, standingsMap, sofascoreId])
+    for (const comp of sorted.filter(c => c.id !== domesticLeague?.id)) {
+      const card = resolveComp(comp, tid)
+      if (card) { cards.push(card); break }
+    }
+    return cards
+  }, [activeCompetitions, domesticLeague, cupMap, standingsMap, sofascoreId, profile, resolveComp])
 
   const handleFollow = async () => {
     setFollowing(true)
@@ -619,27 +840,30 @@ export default function BrowseTeam() {
     )
   }
 
-  const fixtureProps = { revealAll: isRevealed('fixtures'), revealedIds, onRevealOne: revealOne, navigate, spoilersMode, autoRevealAge }
+  const fixtureProps = { revealAll: isRevealed('fixtures'), revealedIds, onRevealOne: revealOne, navigate, spoilersMode, autoRevealAge, compact: true }
 
   return (
     <>
+      <div className="h-14 lg:hidden" />
       <BrowseHeader
         canReveal={spoilersMode && hasScores}
         revealed={allRevealed}
         onToggleReveal={() => setRevealedSections(allRevealed ? new Set() : new Set(ALL_SECTIONS))}
       />
-      <div className="p-4 sm:p-6 pb-16">
+      <div className="p-4 sm:p-6 pb-24 lg:pb-6">
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
         {/* ── Header — full width ── */}
         <Card className="lg:col-span-4">
-          <div className="flex items-center gap-4">
+          {/* Mobile: 2-col grid — crest left (spans both rows), name+buttons stacked right */}
+          {/* sm+: single flex row */}
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 sm:flex sm:items-center sm:gap-4">
             {teamCrest
-              ? <img src={imgUrl(teamCrest)} alt="" className="w-14 h-14 object-contain flex-shrink-0" />
-              : <span className="w-14 h-14 flex items-center justify-center text-3xl flex-shrink-0">⚽</span>
+              ? <img src={imgUrl(teamCrest)} alt="" className="row-span-2 self-center w-16 h-16 sm:w-14 sm:h-14 object-contain flex-shrink-0" />
+              : <span className="row-span-2 self-center w-16 h-16 sm:w-14 sm:h-14 flex items-center justify-center text-3xl flex-shrink-0">⚽</span>
             }
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 sm:flex-1">
               <h1 className="text-xl font-bold text-white truncate">{teamName}</h1>
               {profileData.national && profileData.ranking ? (
                 <p className="text-sm text-slate-400">FIFA ranking #{profileData.ranking}</p>
@@ -690,191 +914,170 @@ export default function BrowseTeam() {
           </div>
         </Card>
 
+        {/* ── Right 2 cols — DOM-first so Form/Upcoming/Recent appear at top on mobile ── */}
+        <div className="lg:col-start-3 lg:col-span-2 lg:row-start-2 flex flex-col gap-4">
+          <div className="lg:hidden"><FormCard form={form} spoilersMode={spoilersMode} revealedIds={revealedIds} onRevealOne={revealOne} autoRevealAge={autoRevealAge} /></div>
+          <FixtureSection title="Upcoming" icon={Calendar} fixtures={upcoming} {...fixtureProps} />
+          <FixtureSection title="Recent Results" icon={Clock} fixtures={recent} {...fixtureProps} />
+          {/* Desktop only: Transfers sits naturally below Recent Results in this column */}
+          {hasTransfers && <div className="hidden lg:block"><TransfersCard transfers={transfers} /></div>}
+        </div>
+
         {/* ── Left 2 cols: 2-col sub-grid of stat cards + squad ── */}
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
+        <div className="lg:col-start-1 lg:col-span-2 lg:row-start-2 grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
 
           {/* Club Info */}
           {(profileData.manager || profileData.venue || profileData.founded) && (
-            <Card title="Club Info" icon={User}>
-              <div className="space-y-3">
-                {profileData.manager && (
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Manager</p>
-                    <p className="text-sm text-slate-200 flex items-center gap-1.5">
-                      <User size={12} className="text-slate-600 flex-shrink-0" />{profileData.manager}
-                    </p>
+            <Card title="Club Info" icon={Info} className="h-full">
+              <div>
+                {[
+                  { label: 'Manager',  value: profileData.manager },
+                  { label: 'Stadium',  value: profileData.venue ? [profileData.venue, profileData.venue_city].filter(Boolean).join(', ') : null },
+                  { label: 'Capacity', value: profileData.venue_capacity ? profileData.venue_capacity.toLocaleString() : null },
+                  { label: 'Founded',  value: profileData.founded },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between gap-3 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                    <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
+                    <span className="text-sm font-medium text-slate-200 text-right">{value ?? '—'}</span>
                   </div>
-                )}
-                {profileData.venue && (
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Stadium</p>
-                    <p className="text-sm text-slate-200 flex items-center gap-1.5">
-                      <MapPin size={12} className="text-slate-600 flex-shrink-0" />{profileData.venue}
-                    </p>
-                    {profileData.venue_city && <p className="text-xs text-slate-500 ml-[18px]">{profileData.venue_city}</p>}
+                ))}
+                {profileData.colors ? (
+                  <div className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-xs text-slate-500 flex-shrink-0">Colours</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded border border-white/10 flex-shrink-0" style={{ background: profileData.colors.primary }} />
+                      <span className="w-5 h-5 rounded border border-white/10 flex-shrink-0" style={{ background: profileData.colors.secondary }} />
+                    </div>
                   </div>
-                )}
-                {profileData.founded && (
-                  <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-0.5">Founded</p>
-                    <p className="text-sm text-slate-200">{profileData.founded}</p>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="text-xs text-slate-500 flex-shrink-0">Colours</span>
+                    <span className="text-sm font-medium text-slate-200">—</span>
                   </div>
                 )}
               </div>
             </Card>
           )}
 
-          {/* Domestic league standing */}
-          {domesticStanding && (() => {
-            const s = domesticStanding
-            return (
-              <Card
-                title="Standing"
-                icon={Trophy}
-                subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
-              >
-                <button
-                  onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
-                  className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
-                  style={{ borderColor: 'var(--border)' }}
-                >
-                  {s.competition?.emblem_url && (
-                    <img src={imgUrl(s.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
-                  )}
-                  <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{s.competition?.name}</span>
-                  <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
-                </button>
-                {spoilersMode && !isRevealed('standing') ? (
-                  <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('standing')}>
-                    <Lock size={18} />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-center gap-8 py-2 mb-3">
-                      {[['Position', s.row.position], ['Points', s.row.points]].map(([label, val]) => (
-                        <div key={label} className="text-center">
-                          <p className="text-3xl font-bold text-white leading-none tabular-nums">{val}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-5 text-center gap-1">
-                      {[['P', s.row.played], ['W', s.row.won], ['D', s.row.draw], ['L', s.row.lost], ['GD', (s.row.goal_difference > 0 ? '+' : '') + s.row.goal_difference]].map(([k, v]) => (
-                        <div key={k} className="rounded py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                          <p className="text-sm font-semibold text-slate-200 tabular-nums">{v}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wide">{k}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </Card>
-            )
-          })()}
+          {/* Recent Form — desktop only (mobile instance is in right col above) */}
+          <div className="hidden lg:block">
+            <FormCard form={form} spoilersMode={spoilersMode} revealedIds={revealedIds} onRevealOne={revealOne} autoRevealAge={autoRevealAge} className="h-full" />
+          </div>
 
-          {/* Recent competition — knockout tree or group standings */}
-          {recentCompetition?.type === 'cup' && (() => {
-            const cup = recentCompetition.data
-            return (
-              <Card title="Cup Run" icon={Trophy}>
-                <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                  {cup.competition?.emblem_url && (
-                    <img src={imgUrl(cup.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+          {/* Competition cards: domestic standing + cup/group for clubs; 2 most recent for national teams */}
+          {competitionCards.map((card, ci) =>
+            card.type === 'cup' ? (() => {
+              const cup = card.data
+              return (
+                <Card key={ci} title="Cup Run" icon={Trophy}>
+                  <button
+                    onClick={() => navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: cup.competition?.name, sofascore_id: cup.competitionId } } })}
+                    className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    {cup.competition?.emblem_url && (
+                      <img src={imgUrl(cup.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                    )}
+                    <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{cup.competition?.name}</span>
+                    <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
+                  </button>
+                  {spoilersMode && !isRevealed('cup') && !(cup.lastPlayed && isAutoRevealedByAge(cup.lastPlayed, autoRevealAge)) ? (
+                    <div className="flex items-center justify-center min-h-[10rem] cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('cup')}>
+                      <EyeOff size={18} />
+                    </div>
+                  ) : (
+                    <div>
+                      {cup.rounds.map((r, ri) => {
+                        const isLast = ri === cup.rounds.length - 1
+                        const [hs, as_] = (r.result || '').split(':')
+                        const dateStr = r.utc_date ? new Date(r.utc_date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'Australia/Brisbane' }) : null
+                        return (
+                          <div
+                            key={ri}
+                            className={`flex items-center gap-2 py-2 ${ri < cup.rounds.length - 1 ? 'border-b' : ''}`}
+                            style={{ borderColor: 'var(--border)' }}
+                          >
+                            <div className="w-20 flex-shrink-0">
+                              <div className="text-[10px] text-slate-500 uppercase tracking-wide truncate">{r.round}</div>
+                              {dateStr && <div className="text-[10px] text-slate-600 truncate">{dateStr}</div>}
+                            </div>
+                            {r.opponent_crest
+                              ? <img src={imgUrl(r.opponent_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+                              : <div className="w-4 h-4 flex-shrink-0" />
+                            }
+                            <span className="text-slate-300 truncate flex-1 text-xs">{r.opponent ?? '—'}</span>
+                            {r.finished && r.result && (
+                              <span className="text-xs tabular-nums text-slate-400 flex-shrink-0">{hs}–{as_}</span>
+                            )}
+                            {r.finished && (
+                              <span className={`text-[10px] font-bold flex-shrink-0 w-5 text-right ${
+                                isLast ? (r.won ? 'text-yellow-400' : 'text-red-400') : (r.won ? 'text-green-400' : 'text-red-400')
+                              }`}>
+                                {isLast && r.won ? '🏆' : r.won ? 'W' : 'L'}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
-                  <span className="text-sm font-medium text-slate-200 truncate flex-1">{cup.competition?.name}</span>
-                </div>
-                {spoilersMode && !isRevealed('cup') ? (
-                  <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('cup')}>
-                    <Lock size={18} />
-                  </div>
-                ) : (
-                  <div>
-                    {cup.rounds.map((r, ri) => {
-                      const isLast = ri === cup.rounds.length - 1
-                      const [hs, as_] = (r.result || '').split(':')
-                      return (
-                        <div
-                          key={ri}
-                          className={`flex items-center gap-2 py-2 ${ri < cup.rounds.length - 1 ? 'border-b' : ''}`}
-                          style={{ borderColor: 'var(--border)' }}
-                        >
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wide w-20 flex-shrink-0 truncate">{r.round}</span>
-                          {r.opponent_crest
-                            ? <img src={imgUrl(r.opponent_crest)} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
-                            : <div className="w-4 h-4 flex-shrink-0" />
-                          }
-                          <span className="text-slate-300 truncate flex-1 text-xs">{r.opponent ?? '—'}</span>
-                          {r.finished && r.result && (
-                            <span className="text-xs tabular-nums text-slate-400 flex-shrink-0">{hs}–{as_}</span>
-                          )}
-                          {r.finished && (
-                            <span className={`text-[10px] font-bold flex-shrink-0 w-5 text-right ${
-                              isLast ? (r.won ? 'text-yellow-400' : 'text-red-400') : (r.won ? 'text-green-400' : 'text-red-400')
-                            }`}>
-                              {isLast && r.won ? '🏆' : r.won ? 'W' : 'L'}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </Card>
-            )
-          })()}
-          {recentCompetition?.type === 'standing' && (() => {
-            const s = recentCompetition.data
-            return (
-              <Card
-                title="Standing"
-                icon={Trophy}
-                subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
-              >
-                <button
-                  onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
-                  className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
-                  style={{ borderColor: 'var(--border)' }}
+                </Card>
+              )
+            })() : (() => {
+              const s = card.data
+              return (
+                <Card
+                  key={ci}
+                  title="Standing"
+                  icon={LayoutGrid}
+                  subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
                 >
-                  {s.competition?.emblem_url && (
-                    <img src={imgUrl(s.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                  <button
+                    onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
+                    className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    {s.competition?.emblem_url && (
+                      <img src={imgUrl(s.competition.emblem_url)} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                    )}
+                    <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{s.competition?.name}</span>
+                    <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
+                  </button>
+                  {spoilersMode && !isRevealed('standing') && !(s.lastPlayed && isAutoRevealedByAge(s.lastPlayed, autoRevealAge)) ? (
+                    <div className="flex items-center justify-center min-h-[10rem] cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('standing')}>
+                      <EyeOff size={18} />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-center gap-8 py-2 mb-3">
+                        {[['Position', s.row.position], ['Points', s.row.points]].map(([label, val]) => (
+                          <div key={label} className="text-center">
+                            <p className="text-3xl font-bold text-white leading-none tabular-nums">{val}</p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-5 text-center gap-1">
+                        {[['P', s.row.played], ['W', s.row.won], ['D', s.row.draw], ['L', s.row.lost], ['GD', (s.row.goal_difference > 0 ? '+' : '') + s.row.goal_difference]].map(([k, v]) => (
+                          <div key={k} className="rounded py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                            <p className="text-sm font-semibold text-slate-200 tabular-nums">{v}</p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wide">{k}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
-                  <span className="text-sm font-medium text-slate-200 group-hover:text-green-400 truncate flex-1 transition-colors">{s.competition?.name}</span>
-                  <ArrowUpRight size={12} className="text-slate-600 group-hover:text-green-400 flex-shrink-0 transition-colors" />
-                </button>
-                {spoilersMode && !isRevealed('standing') ? (
-                  <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('standing')}>
-                    <Lock size={18} />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-center gap-8 py-2 mb-3">
-                      {[['Position', s.row.position], ['Points', s.row.points]].map(([label, val]) => (
-                        <div key={label} className="text-center">
-                          <p className="text-3xl font-bold text-white leading-none tabular-nums">{val}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wide mt-1">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-5 text-center gap-1">
-                      {[['P', s.row.played], ['W', s.row.won], ['D', s.row.draw], ['L', s.row.lost], ['GD', (s.row.goal_difference > 0 ? '+' : '') + s.row.goal_difference]].map(([k, v]) => (
-                        <div key={k} className="rounded py-1.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                          <p className="text-sm font-semibold text-slate-200 tabular-nums">{v}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wide">{k}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </Card>
-            )
-          })()}
+                </Card>
+              )
+            })()
+          )}
 
           {/* Injuries & Suspensions */}
           <InjuriesCard injuries={injuries} />
 
           {/* Season Stats */}
           {seasonStats && (
-            <Card title="Season Stats" icon={Trophy}>
+            <Card title={profileData.national ? `${new Date().getFullYear()} Stats` : 'Season Stats'} icon={BarChart2}>
               {seasonStats.competitions.length > 0 && (
                 <div className="relative group mb-3">
                   <p className="text-[10px] text-slate-600 leading-relaxed cursor-default">
@@ -890,9 +1093,9 @@ export default function BrowseTeam() {
                   )}
                 </div>
               )}
-              {spoilersMode && !isRevealed('stats') ? (
-                <div className="flex justify-center py-3 cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('stats')}>
-                  <Lock size={18} />
+              {spoilersMode && !isRevealed('stats') && !(seasonStats.lastPlayed && isAutoRevealedByAge(seasonStats.lastPlayed, autoRevealAge)) ? (
+                <div className="flex items-center justify-center min-h-[10rem] cursor-pointer text-slate-500 hover:text-slate-300 transition-colors" onClick={() => revealSection('stats')}>
+                  <EyeOff size={18} />
                 </div>
               ) : (
                 <table className="w-full">
@@ -927,19 +1130,8 @@ export default function BrowseTeam() {
 
         </div>
 
-        {/* ── Right 2 cols: form + fixtures ── */}
-        <div className="lg:col-span-2 space-y-4">
-          <FormCard form={form} spoilersMode={spoilersMode} revealAll={isRevealed('form')} onReveal={() => revealSection('form')} />
-          <FixtureSection title="Upcoming" icon={Calendar} fixtures={upcoming} {...fixtureProps} />
-          <FixtureSection title="Recent Results" icon={Trophy} fixtures={recent} {...fixtureProps} />
-        </div>
-
-        {/* ── Transfers — full width ── */}
-        {hasTransfers && (
-          <div className="lg:col-span-4">
-            <TransfersCard transfers={transfers} />
-          </div>
-        )}
+        {/* Mobile only: Transfers last in DOM so it appears after Squad */}
+        {hasTransfers && <div className="lg:hidden"><TransfersCard transfers={transfers} /></div>}
 
       </div>
       </div>

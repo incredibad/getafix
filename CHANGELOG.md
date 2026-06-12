@@ -1,5 +1,493 @@
 # Changelog
 
+## [0.21.95] — 2026-06-12
+
+### Changed
+- All outbound HTTP requests now route through a single `http_client.py` module (`get_json` / `get_bytes`). Sofascore requests auto-select curl_cffi + rotating token; everything else uses httpx. Removed dead `football_data.py` API client.
+
+## [0.21.94] — 2026-06-12
+
+### Fixed
+- Team and competition crests now load everywhere. The image proxy was fetching Sofascore images with only a `Referer` header; it now includes the rotating `X-Requested-With` token, matching what the API client sends.
+
+## [0.21.93] — 2026-06-12
+
+### Fixed
+- Sofascore API restored. The `X-Requested-With` header token rotates every 30 minutes using `SHA-256(floor(unix_epoch/1800))[:6]` — reverse-engineered from Sofascore's JS bundle. Token is now computed dynamically per-request so it never expires.
+
+## [0.21.92] — 2026-06-12
+
+### Fixed
+- "FIFA World Cup" filter now correctly shows World Cup fixtures instead of AFC World Cup Qualifying. `_match_espn_competition` now checks for an exact keyword match first before doing substring matching, preventing "fifa world cup" from matching "fifa world cup qualifying - afc" via the substring check.
+
+## [0.21.91] — 2026-06-12
+
+### Fixed
+- Team fixtures page (BrowseTeam) now has full ESPN fallback — it was calling Sofascore directly with no fallback, so Sofascore being blocked returned nothing.
+- National team fixtures are now supplemented with competition scoreboards: ESPN's per-team schedule endpoint omits live international tournaments (e.g. World Cup group stage), so each national team's linked competitions are fetched via scoreboard and merged in.
+- Search returns results again: DB teams are now searched first (instant, no API needed), covering all teams already known to the app. ESPN fallback now covers all competition types, not just leagues, so national teams appear in results.
+
+## [0.21.90] — 2026-06-12
+
+### Fixed
+- World Cup fixtures now appear in the by-competition view. ESPN's team-schedule fallback doesn't include live tournament games; replaced with a scoreboard-based approach that fetches the full fixture list directly from the competition's schedule endpoint, chunked into 30-day windows to work around ESPN's silent truncation of large date ranges.
+
+## [0.21.89] — 2026-06-08
+
+### Fixed
+- My Tables: revealing one table no longer reveals others. Two root causes fixed: (1) index-only React keys caused React to reuse component state when switching between competitions, carrying `revealed=true` across to the newly selected competition; (2) duplicate groups were pushed when multiple followed teams share a competition, causing the same group to render twice.
+
+## [0.21.88] — 2026-06-08
+
+### Fixed
+- Match detail page now shows penalty score (e.g. "7–6 pens") beneath the regulation score for matches decided by shootout.
+
+## [0.21.87] — 2026-06-08
+
+### Fixed
+- Matches decided by penalty shootout now show the regulation score (e.g. 1–1) as the main result, with a "7–6 pens" line below it in both the fixture list and Recent Form. Previously the penalty-inclusive `current` score (8–7) was displayed as the match result.
+
+## [0.21.86] — 2026-06-08
+
+### Fixed
+- Recent Form crest now shows a styled tooltip (matching position badge style) instead of a native browser title attribute.
+
+## [0.21.85] — 2026-06-08
+
+### Fixed
+- Recent Form crest now has a tooltip showing the opponent's name on hover.
+
+## [0.21.84] — 2026-06-08
+
+### Fixed
+- Cup run card now shows the tournament name (e.g. "CONCACAF Gold Cup") instead of the stage name ("Knockout Stage") by reading from `tournament.uniqueTournament.name`.
+
+## [0.21.83] — 2026-06-08
+
+### Fixed
+- Cup tree backend crashed (KeyError) when cache held an old-format single dict instead of a list of trees, causing cup runs to silently fall back to league standing. Backend now normalises dict→list on read. All 32 old-format cache entries cleared.
+
+## [0.21.82] — 2026-06-08
+
+### Fixed
+- Recent Form hidden rows now show EyeOff icons in place of the W/L badge and score (no dashes).
+
+## [0.21.81] — 2026-06-08
+
+### Changed
+- Recent Form card now reveals scores per-fixture rather than all-at-once. Hidden rows show eye-off icons in place of the W/L badge and score; clicking either reveals only that result. Fixtures already auto-revealed by age remain visible as before.
+
+## [0.21.80] — 2026-06-08
+
+### Fixed
+- Cup run now searches all cup trees returned by Sofascore, not just the first one. Tournaments like AFCON put the 3rd-place match in a separate tree entry, so it was previously invisible.
+
+## [0.21.79] — 2026-06-08
+
+### Changed
+- Competition cards (Standing/Cup Run) are now driven by a unified `competitionCards` array. Clubs always show domestic league standing + most recent non-domestic (cup run takes priority over group standing for the same competition). National teams show their 2 most recent competitions, each shown as a cup run if bracket data is available, otherwise as a group standing — no more AFCON showing only the group table when they reached the knockout rounds.
+
+## [0.21.78] — 2026-06-08
+
+### Fixed
+- Recent Form auto-reveal when all scores are visible now correctly treats auto-revealed-by-age fixtures as "not hidden", so you only need to manually reveal the actually-hidden ones for the form card to uncover.
+
+## [0.21.77] — 2026-06-08
+
+### Changed
+- Recent Form card now auto-reveals if every match score in the form list has been individually revealed by the user (all in `revealedIds`), in addition to the existing auto-reveal-by-age and section-reveal conditions.
+
+## [0.21.76] — 2026-06-08
+
+### Fixed
+- Cup run card now fetches the correct season's bracket by passing the team's known `season_id` to the backend, instead of always using the "current" (latest) Sofascore season which may be a future season with no data.
+- National team season stats restored to calendar-year filter with "YYYY Stats" title.
+
+## [0.21.75] — 2026-06-08
+
+### Fixed
+- National team active competitions and season stats no longer apply a calendar-year filter — all competitive fixtures within the loaded window are included. The previous filter was excluding e.g. England's Nations League (June 2025) by requiring matches to be in 2026.
+
+## [0.21.74] — 2026-06-08
+
+### Fixed
+- National team active competitions and season stats now use a calendar-year date cutoff (Jan 1 of current year) instead of season_year label comparison. The label comparison was failing because national team competitions use labels like "24/25" which never matched the current year string "2026", causing all competitions to be excluded.
+
+## [0.21.73] — 2026-06-08
+
+### Fixed
+- Position badges are now right-aligned within their column.
+
+## [0.21.72] — 2026-06-08
+
+### Fixed
+- Multiple position badges now stay on one line instead of wrapping; Pos column widened to fit up to three badges.
+
+## [0.21.71] — 2026-06-08
+
+### Changed
+- Players with multiple positions now show a separate badge for each one, each with its own individual tooltip, instead of concatenated text in a single tooltip.
+
+## [0.21.70] — 2026-06-08
+
+### Fixed
+- Position tooltip now works on first tap on mobile (removed `onBlur` which was firing immediately after `onClick` and hiding the tooltip).
+- Position codes DC, DL, DR, MC (Sofascore's naming) now resolve to full names (Centre-Back, Left Back, Right Back, Central Mid) instead of showing no tooltip.
+- Position tooltip now shows all of a player's positions when Sofascore supplies multiple (e.g. "Central Mid / Defensive Mid" for Kimmich).
+
+## [0.21.69] — 2026-06-08
+
+### Fixed
+- Duplicate jersey numbers (caused by bad source data, e.g. multiple keepers all listed as #1) are now suppressed and shown as — rather than displaying an incorrect repeated number.
+
+## [0.21.68] — 2026-06-08
+
+### Fixed
+- Season stats and active competitions now compare `season_year` labels per competition (e.g. Europa League "24/25" vs Premier League "25/26"), replacing the global date-cutoff approach. Previous-season competitions are excluded when their label doesn't match the domestic league's current season. National team stats filter by current calendar year.
+- Season stats match count now filters to each competition's current `season_id`, not just any finished fixture in that competition.
+- Cleared stale fixture cache so new `season_id`/`season_year` fields are populated on next fetch.
+
+## [0.21.67] — 2026-06-08
+
+### Fixed
+- Season stats and active competitions now use Sofascore's `season_year` field (present on every fixture event) to derive the true season start date, replacing unreliable gap detection. European-format seasons ("25/26") start July 1; calendar-year seasons ("2025") start January 1. This correctly excludes previous-season competitions (e.g. Europa League 24/25) for club teams.
+- National team season stats now use the current calendar year as the boundary, with the card titled "YYYY Stats" instead of "Season Stats".
+
+## [0.21.66] — 2026-06-08
+
+### Fixed
+- Season stats and active competitions now use gap detection (most recent 60-day+ break in fixture history) to find the true season start, rather than a fixed 9-month window. This correctly includes early-season cup fixtures from August while still excluding previous-season data.
+
+## [0.21.65] — 2026-06-08
+
+### Fixed
+- Season stats match count now excludes previous-season fixtures: only matches within 9 months of the most recent finished match are counted, preventing last season's tail-end results from inflating the tally.
+
+## [0.21.64] — 2026-06-08
+
+### Fixed
+- Season stats and active competitions no longer bleed in previous-season data when days_back is set to a long window. Competitions are now only included if their last finished match is within 9 months of the most recently played competition.
+
+## [0.21.63] — 2026-06-08
+
+### Changed
+- Cup Run section now uses the Trophy icon instead of Layers.
+
+## [0.21.62] — 2026-06-08
+
+### Added
+- Recent Form rows now show a relative date ("Yesterday", "3 days ago", "2 weeks ago", etc.) between the opponent name and H/A indicator.
+
+## [0.21.61] — 2026-06-08
+
+### Changed
+- Recent Form redesigned as rows (W/L badge, crest, opponent name, H/A, score) so it fills the card height naturally alongside Club Info.
+
+## [0.21.60] — 2026-06-08
+
+### Fixed
+- Team page right column (Upcoming/Recent Results) now sits flush with the top of the left column on desktop — space-y-4 was adding a phantom gap from the lg:hidden FormCard wrapper; switched to flex flex-col gap-4 which skips display:none elements.
+
+## [0.21.59] — 2026-06-08
+
+### Changed
+- Recent Form card on desktop now matches the height of the adjacent Club Info card.
+
+## [0.21.58] — 2026-06-08
+
+### Changed
+- Recent Form card on desktop now occupies a single sub-column rather than spanning the full left column width.
+
+## [0.21.57] — 2026-06-08
+
+### Changed
+- Team page: Recent Form moves to the left column on desktop (after Club Info, before standings/cup), helping balance the two-column layout. On mobile it stays at the top as before.
+
+## [0.21.56] — 2026-06-08
+
+### Changed
+- Recent Form section now respects the "Reveal Scores After" setting: auto-reveals if the most recent finished match is older than the threshold.
+
+## [0.21.55] — 2026-06-08
+
+### Changed
+- Season Stats section now respects the "Reveal Scores After" setting: auto-reveals if the team's most recent finished match is older than the threshold, stays hidden otherwise.
+
+## [0.21.54] — 2026-06-08
+
+### Fixed
+- Standing/Cup Run sections with no last-played date (team hasn't played yet) no longer incorrectly auto-reveal — null dates were being treated as Unix epoch (1970), which appeared older than any threshold.
+
+## [0.21.53] — 2026-06-08
+
+### Changed
+- Team page Standing and Cup Run sections now respect the "Reveal Scores After" setting: if the last played match is older than the threshold, the section is shown automatically instead of hidden.
+
+## [0.21.52] — 2026-06-08
+
+### Fixed
+- Hidden section icons are now properly vertically centered across all pages: team page sections use min-h-[10rem], match detail uses min-h-[12rem], and standings tables move the icon into a tbody row (colSpan) so it centers within the full bordered table, not just the sub-div below the header.
+
+## [0.21.51] — 2026-06-08
+
+### Fixed
+- Hidden section placeholders on the team page now properly center the EyeOff icon both vertically and horizontally.
+
+## [0.21.50] — 2026-06-08
+
+### Changed
+- Consistent spoiler iconography across the app: all hidden states now use EyeOff (fixture scores, match detail, team page sections, tables). Lock icon removed entirely from spoiler contexts.
+
+## [0.21.49] — 2026-06-08
+
+### Changed
+- Hidden tables now show the column headers above the reveal area, and use the EyeOff icon instead of Eye.
+
+## [0.21.48] — 2026-06-08
+
+### Added
+- Spoilers setting "Hide tables": when spoilers mode is on, league tables can be hidden (Off / Followed teams only / All). Hidden tables show an opaque panel with a reveal icon; clicking reveals that table for the current view only.
+
+## [0.21.47] — 2026-06-08
+
+### Fixed
+- BrowseLeague: "Today" floating button now centers correctly in the content area on desktop (was centering in the full viewport, appearing left of centre due to the nav sidebar).
+
+## [0.21.46] — 2026-06-08
+
+### Fixed
+- BrowseLeague fixtures tab: fixture history now respects the "Fixture History" setting (was hardcoded to 90 days).
+
+## [0.21.45] — 2026-06-08
+
+### Fixed
+- BrowseLeague fixtures tab: standalone "Today" green divider now appears between past and future fixtures when there are no matches today (matching Fixtures screen behaviour).
+
+## [0.21.44] — 2026-06-08
+
+### Added
+- BrowseLeague fixtures tab: "Today" floating jump button (auto-scrolls to today's fixtures on load; floating pill appears when today is out of view, with up/down chevron indicating direction).
+
+## [0.21.43] — 2026-06-08
+
+### Fixed
+- BrowseLeague fixtures tab: round/stage label (e.g. "Quarter-Final", "Final") now shown in the date header, matching the main Fixtures screen.
+
+## [0.21.42] — 2026-06-08
+
+### Fixed
+- BrowseLeague: silenced "Failed to load standings" toast on the table tab for cups/competitions that have no standings data.
+
+## [0.21.41] — 2026-06-08
+
+### Fixed
+- Re-added `ArrowDownLeft` to imports — it was removed when swapping the Transfers card icon but is still used inline in `TransferRow` for arrival/departure direction indicators.
+
+## [0.21.40] — 2026-06-08
+
+### Changed
+- Team page section icons: each section now has a distinct icon — Recent Form→TrendingUp, Recent Results→Clock, Club Info→Info, Standing→LayoutGrid, Cup Run→Layers, Season Stats→BarChart2, Transfers→ArrowLeftRight; Upcoming/Squad/Injuries unchanged.
+- Cup Run competition name is now a link to the Fixtures page filtered by that competition.
+
+## [0.21.39] — 2026-06-08
+
+### Fixed
+- Club Info card: replaced `divide-y` (which doesn't pick up `var(--border)`) with `border-b` + `style={{ borderColor: 'var(--border)' }}` per row, matching the style used in squad, injuries, and transfer rows.
+
+## [0.21.38] — 2026-06-08
+
+### Changed
+- Club Info card: taller rows with dividers, larger value text; added Capacity and Colours (primary/secondary swatches) rows; card stretches to fill column height.
+
+### Added
+- Backend now extracts `venue_capacity` and `colors` (primary/secondary hex) from the Sofascore team profile; `sofascore_samples/README.md` updated with `team_info` field reference.
+
+## [0.21.37] — 2026-06-08
+
+### Changed
+- Club Info card: redesigned as a compact inline table (label left, value right); removed icons; all three rows (Manager, Stadium, Founded) always shown — empty fields display "—".
+
+### Fixed
+- Search dropdown in BrowseHeader: selecting a team result now closes the dropdown before navigating (was left open over the new page).
+
+## [0.21.36] — 2026-06-08
+
+### Changed
+- Recent Form card: W/L badge enlarged (w-6→w-7), opponent crest enlarged (w-7→w-8), H/A and score tightened into a closer group.
+
+## [0.21.35] — 2026-06-08
+
+### Changed
+- Recent Form card: switched from row-per-game list to a horizontal column-per-game layout showing W/L/D badge, opponent crest, H/A, and score — no team name.
+
+## [0.21.34] — 2026-06-08
+
+### Changed
+- Team page header (mobile): crest now occupies its own column spanning both rows, with team name and action buttons stacked in the second column. Crest size increased to w-16/h-16 on mobile (was w-14/h-14).
+
+## [0.21.33] — 2026-06-08
+
+### Fixed
+- Team page header (mobile): action buttons now left-align with the team name text rather than the crest edge.
+
+## [0.21.32] — 2026-06-08
+
+### Changed
+- Team page header: on mobile, action buttons (Sofascore link, My Fixtures, Follow) now appear on a separate row below the crest and team name instead of being squished inline.
+
+## [0.21.31] — 2026-06-08
+
+### Fixed
+- Transfers card on desktop now sits directly below Recent Results in the right column with no gap. On mobile it remains last on the page. Achieved by rendering two instances toggled with `hidden lg:block` / `lg:hidden` — CSS Grid cannot thread a separate grid item between two tall columns without a gap.
+
+## [0.21.30] — 2026-06-08
+
+### Fixed
+- Team page desktop layout: both columns now anchored to the same row (`lg:row-start-2`) so left column no longer sits below right column with a gap.
+- Mobile single-column order: Form → Upcoming → Recent Results → Club Info / Standings / Squad → Transfers (Transfers is now last).
+
+## [0.21.29] — 2026-06-08
+
+### Changed
+- Team page layout: Transfers moved under Recent Results in the right column (was a standalone full-width row).
+- On mobile (single column), Form / Upcoming / Recent Results / Transfers now appear at the top, before Club Info, Standings, and Squad.
+
+## [0.21.28] — 2026-06-08
+
+### Fixed
+- Transfer departures now correctly labelled as "Loan": Sofascore uses `type=1` for loans in both directions; added `1: "loan"` to the type map (previously only `type=2` was treated as loan).
+
+## [0.21.27] — 2026-06-08
+
+### Fixed
+- Transfers endpoint: updated backend to use `/team/{id}/transfers` (was `/team/{id}/transfers/last/0` which 404'd). Parses `transfersIn`/`transfersOut` arrays with `transferFrom`/`transferTo` field names. Fee description now displayed in transfer rows.
+
+### Added
+- `sofascore_samples/team/team_transfers.json` sample file; refresh script updated to use correct endpoint.
+
+## [0.21.26] — 2026-06-08
+
+### Fixed
+- Squad position tooltip: `positions_detailed` from Sofascore contains abbreviations (ST, LW, AM…), not full names. Badge now shows the abbreviation directly; tooltip expands it via a `POS_FULL` lookup map. Grouping also updated to handle abbreviations via `POS_GROUP` map.
+
+## [0.21.25] — 2026-06-08
+
+### Fixed
+- Position tooltip now works on both desktop (hover) and mobile (tap): replaced CSS group-hover approach with a JS-driven `PosTooltip` component using `onMouseEnter`/`onMouseLeave` and `onClick` toggle.
+
+## [0.21.24] — 2026-06-08
+
+### Fixed
+- Page now scrolls to top on every route change via a `ScrollToTop` component mounted inside the `<main>` scroll container.
+
+## [0.21.23] — 2026-06-08
+
+### Fixed
+- Squad (mobile): club/nationality sub-line is now a tappable button that navigates to the team page, matching the desktop column behaviour.
+
+## [0.21.22] — 2026-06-08
+
+### Fixed
+- Squad position tooltip now appears on tap/focus (mobile) as well as hover (desktop), by converting the badge to a focusable button and adding `group-focus-within` to the tooltip visibility rule.
+
+## [0.21.21] — 2026-06-08
+
+### Fixed
+- Squad: backend now deduplicates players by `player_id` before returning, preventing duplicate jersey numbers caused by Sofascore returning the same player across multiple squad categories (main squad, U23, etc.).
+
+## [0.21.20] — 2026-06-08
+
+### Fixed
+- Squad: deduplicate players by id before grouping, eliminating repeated jersey numbers.
+- Squad: group players using `positions_detailed[0]` instead of raw `position`, reducing cross-group duplication.
+
+### Changed
+- Squad: position chip now shows short abbreviation (GK, CB, CM, ST…); hovering reveals the full position name in a tooltip.
+- Squad: club/nationality, height, and age are now visible on mobile as a compact sub-line under the player name.
+
+## [0.21.19] — 2026-06-08
+
+### Changed
+- Search boxes and filter/picker buttons (Fixtures, Tables, Teams, Browse) now use `var(--surface-hover)` background so they stand out from the `var(--surface)` sticky header bars behind them.
+
+## [0.21.18] — 2026-06-08
+
+### Fixed
+- Fixtures filter sheet and Tables "All Tables" picker now render via React Portal (attached to `document.body`) to escape the `overflow-y-auto` main container that was causing `position: fixed` to misbehave on iOS Safari — hiding the close button and "All My Fixtures" option.
+- Removed auto-focus on the Tables "All Tables" search input (same keyboard-displacement issue as Fixtures).
+
+## [0.21.17] — 2026-06-08
+
+### Fixed
+- Mobile fixtures filter sheet: removed auto-focus on the search input (keyboard was immediately displacing the sheet and hiding the close button). Fixed `h-0.54` typo → `h-14` on the sheet header.
+
+## [0.21.16] — 2026-06-08
+
+### Changed
+- Sticky header bars (Fixtures filter, Tables tab/picker, Teams search, Browse header) now use `var(--surface)` background instead of `var(--bg)`, visually lifting them off the page content.
+
+## [0.21.15] — 2026-06-08
+
+### Changed
+- Replaced mobile side-drawer with a compact dropdown menu that falls directly below the top bar when the hamburger is tapped. No more slide-out panel or backdrop overlay.
+
+## [0.21.14] — 2026-06-08
+
+### Changed
+- Hamburger drawer no longer duplicates Fixtures/Tables/Browse links (those remain in the bottom tab bar). Drawer now contains only My Teams, Settings, and Sign out/in.
+
+## [0.21.13] — 2026-06-08
+
+### Fixed
+- Mobile drawer z-index reverted to 30 (below the top bar at 40) so the header is always rendered above the drawer and logged-in nav items are not obscured.
+- Drawer panel now ends 4.5rem above the viewport bottom so all content (Settings, Sign out, Log in) is accessible above the fixed bottom nav bar.
+
+## [0.21.12] — 2026-06-08
+
+### Fixed
+- Reverted global Layout padding approach (caused regressions on Tables, Settings, etc.). Top/bottom spacers are now handled per-page.
+- Added missing `h-14` mobile top spacer to BrowseTeam, BrowseLeague, Browse, and Teams pages so content is no longer hidden under the fixed mobile header.
+- BrowseTeam and BrowseLeague bottom padding increased (`pb-24` mobile) so content clears the fixed mobile bottom nav.
+- Mobile drawer z-index raised to 50 (above the bottom nav at 40) so Log In and other drawer items are always tappable.
+- Removed duplicate app logo from mobile drawer (top bar already shows it).
+- Mobile drawer for logged-out users now shows the public nav links (Fixtures, Tables, Browse) so there is something to tap.
+
+## [0.21.11] — 2026-06-08
+
+### Fixed
+- Mobile header and footer bars no longer overlap page content. Layout now applies `pt-14 pb-20` on mobile globally, and individual per-page `h-14` top spacers and the Settings `pt-16` have been removed to avoid doubling up.
+
+## [0.21.10] — 2026-06-08
+
+### Changed
+- Compact fixture cards: team abbreviations now visible again above 1200px (desktop wide columns).
+
+## [0.21.9] — 2026-06-08
+
+### Changed
+- Compact fixture cards (team detail page): team names hidden at ≥1024px (desktop narrow columns) and ≤420px (very small mobile), visible in between. Competition logo enlarged to 24px. Compact side columns widened to 3.5rem to accommodate.
+
+## [0.21.8] — 2026-06-08
+
+### Changed
+- Fixture cards on the team detail page now show only the competition logo (no text) in the left column, keeping the full 9rem side columns on the fixtures page unchanged.
+- Added hover tooltip showing the full competition name on both the fixtures page and team detail page.
+
+## [0.21.7] — 2026-06-08
+
+### Fixed
+- Fixture card side columns now graduate from 4.5rem at `lg` (1024px) to 9rem at `2xl` (1536px), preventing crest/content overlap on the team detail page at ~1300px wide.
+
+## [0.21.6] — 2026-06-08
+
+### Fixed
+- Cup Run card now shows correct aggregate scores (e.g. `2–4`) instead of `"away won–"`. Sofascore's `result` field is a text outcome label; actual scores are in `homeTeamScore`/`awayTeamScore`.
+
+## [0.21.5] — 2026-06-08
+
+### Fixed
+- Clicking a league/competition emblem in a fixture card now navigates to the Fixtures screen filtered to that competition with the All tab active. Previously it silently failed due to `navigate` not being defined in `FixtureCard`.
+
 ## [0.21.4] — 2026-06-06
 
 ### Changed

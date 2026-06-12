@@ -1,6 +1,6 @@
 services:
   getafix:
-    image: incredibad/getafix:latest
+    image: getafix:latest
     container_name: getafix
     ports:
       - "4220:4220"

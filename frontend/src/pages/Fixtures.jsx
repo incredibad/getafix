@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Users, Eye, EyeOff, ChevronUp, ChevronDown, Star, Search, X, Trophy } from 'lucide-react'
 import BrowseHeader from '../components/BrowseHeader'
@@ -34,9 +35,6 @@ function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClea
 
   const close = () => { setOpen(false); setQuery('') }
 
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 50)
-  }, [open])
 
   const activeLabel = activeFilter
     ? activeFilter.value
@@ -57,7 +55,7 @@ function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClea
       <button
         onClick={() => setOpen(true)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left"
-        style={{ background: 'var(--surface)', borderColor: activeFilter ? 'rgba(34,197,94,0.4)' : 'var(--border)' }}
+        style={{ background: 'var(--surface-hover)', borderColor: activeFilter ? 'rgba(34,197,94,0.4)' : 'var(--border)' }}
       >
         <div className="flex items-center gap-2 min-w-0">
           {activeCrest}
@@ -79,10 +77,10 @@ function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClea
         </div>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg)' }}>
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 h-0.54 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3 px-4 h-14 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
             <Search size={16} className="text-slate-500 flex-shrink-0" />
             <input
               ref={inputRef}
@@ -157,7 +155,8 @@ function MobileFilterSheet({ teams, competitions, activeFilter, onSelect, onClea
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
@@ -200,6 +199,17 @@ export default function Fixtures() {
     if (location.state?.initialFilter) return location.state.initialFilter
     try { return JSON.parse(localStorage.getItem(FILTER_KEY)) ?? null } catch { return null }
   })
+
+  useEffect(() => {
+    if (!location.state?.initialFilter) return
+    setActiveFilter(location.state.initialFilter)
+    localStorage.setItem(FILTER_KEY, JSON.stringify(location.state.initialFilter))
+    if (location.state?.showAll) {
+      setShowAllForComp(true)
+      localStorage.setItem(SHOW_ALL_KEY, 'true')
+    }
+    navigate(location.pathname, { replace: true, state: {} })
+  }, [location.state?.initialFilter])
   const { width: sidebarWidth, nearEdge: sidebarNearEdge, onMouseMove: sidebarMouseMove, onMouseLeave: sidebarMouseLeave, onMouseDown: sidebarMouseDown } = useSidebarResize()
   const spoilersMode = getSpoilersMode()
   const autoRevealAge = getAutoRevealAge()
@@ -283,7 +293,7 @@ const toggleDayReveal = (date) => {
   })
 }
 
-  const [showAllForComp, setShowAllForComp] = useState(() => localStorage.getItem(SHOW_ALL_KEY) === 'true')
+  const [showAllForComp, setShowAllForComp] = useState(() => location.state?.showAll || localStorage.getItem(SHOW_ALL_KEY) === 'true')
   const [compAllFixtures, setCompAllFixtures] = useState([])
   const [loadingCompAll, setLoadingCompAll] = useState(false)
 
@@ -555,7 +565,7 @@ const toggleDayReveal = (date) => {
         {/* Spacer for fixed mobile top bar */}
         {/* Mobile sticky filter bar */}
         {!loading && fixtures.length > 0 && (
-          <div className="lg:hidden sticky top-28 z-10 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+          <div className="lg:hidden sticky top-28 z-10 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2 px-4 py-2">
               <div className="flex-1 min-w-0">
                 <MobileFilterSheet

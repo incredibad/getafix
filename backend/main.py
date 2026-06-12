@@ -4,8 +4,6 @@ import logging
 import logging.handlers
 from datetime import datetime
 from pathlib import Path
-import httpx
-from curl_cffi.requests import AsyncSession as _CurlSession
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -101,23 +99,12 @@ async def proxy_img(url: str = Query(...)):
             headers={"Cache-Control": "public, max-age=31536000, immutable"},
         )
     try:
-        is_sofascore = "sofascore.com" in url
-        if is_sofascore:
-            async with _CurlSession(impersonate="chrome120", timeout=10) as session:
-                resp = await session.get(url, headers={"Referer": "https://www.sofascore.com/"})
-                status = resp.status_code
-                content = resp.content
-                ct_header = resp.headers.get("content-type", "image/png")
-        else:
-            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-                r = await client.get(url, headers={"User-Agent": "GetAFix/1.0"})
-                status = r.status_code
-                content = r.content
-                ct_header = r.headers.get("content-type", "image/png")
+        from http_client import get_bytes, HTTPError
+        content, ct_header = await get_bytes(url)
+    except HTTPError as exc:
+        raise HTTPException(status_code=exc.status_code, detail="Upstream error") from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Failed to fetch image") from exc
-    if status != 200:
-        raise HTTPException(status_code=status, detail="Upstream error")
     ct = ct_header.split(";")[0].strip()
     ext = _IMG_EXT.get(ct, ".bin")
     (_IMG_CACHE_DIR / f"{key}{ext}").write_bytes(content)

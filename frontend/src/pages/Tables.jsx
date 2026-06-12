@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, ChevronDown, Calendar, Search, X } from 'lucide-react'
+import { Trophy, ChevronDown, Calendar, Search, X, EyeOff } from 'lucide-react'
 import BrowseHeader from '../components/BrowseHeader'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 import { useSidebarResize } from '../utils/useSidebarResize'
+import { getSpoilersMode, getHideTables } from './Settings'
 
 const STORAGE_KEY    = 'getafix:tables:competition'
 const ALL_TAB_KEY    = 'getafix:tables:tab'
@@ -48,6 +50,7 @@ function RoundStatus({ startDate, endDate }) {
 
 function StandingsTable({ table, group, stage, startDate, endDate, followed = [] }) {
   const [hoveredRow, setHoveredRow] = useState(null)
+  const [revealed, setRevealed] = useState(false)
   const navigate = useNavigate()
   const label = group || stage || null
 
@@ -79,6 +82,10 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
   }
   const headColBg = (colIdx) => colIdx % 2 === 0 ? { background: 'rgba(255,255,255,0.03)' } : {}
 
+  const hideMode = getHideTables()
+  const hasAnyFollowed = table.some(row => !!findFollowedTeam(row.team_name))
+  const shouldHide = !revealed && getSpoilersMode() && (hideMode === 'all' || (hideMode === 'followed' && hasAnyFollowed))
+
   return (
     <div className="mb-4">
       {label && (
@@ -89,6 +96,36 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
           </p>
         </div>
       )}
+      {shouldHide ? (
+        <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-slate-500 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <th className="text-left px-3 py-2 w-8" style={headColBg(0)}>#</th>
+                <th className="text-left px-2 py-2" style={headColBg(1)}>Team</th>
+                <th className="text-center px-2 py-2 w-8" style={headColBg(2)}>P</th>
+                <th className="text-center px-2 py-2 w-8" style={headColBg(3)}>W</th>
+                <th className="text-center px-2 py-2 w-8" style={headColBg(4)}>D</th>
+                <th className="text-center px-2 py-2 w-8" style={headColBg(5)}>L</th>
+                <th className="text-center px-2 py-2 w-10 hidden sm:table-cell" style={headColBg(6)}>GD</th>
+                <th className="text-center px-3 py-2 w-10 font-bold text-slate-300" style={headColBg(7)}>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colSpan={8} style={{ background: 'var(--surface)' }}>
+                  <div
+                    className="flex items-center justify-center min-h-[10rem] cursor-pointer text-slate-500 hover:text-slate-300 transition-colors"
+                    onClick={() => setRevealed(true)}
+                  >
+                    <EyeOff size={18} />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
           <thead>
@@ -137,6 +174,7 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )
 }
@@ -330,13 +368,13 @@ function MobileMyPicker({ competitions, selectedName, onSelect, onFixtures }) {
   const selected = competitions.find(c => c.name === selectedName)
 
   return (
-    <div className="lg:hidden sticky top-[152px] z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+    <div className="lg:hidden sticky top-[152px] z-20 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       {open && <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />}
       <div className="flex items-center gap-2 px-4 py-2">
         <button
           onClick={() => setOpen(o => !o)}
           className="flex-1 flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-left z-20 relative"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <CompLogo url={selected?.emblem_url} size="md" />
@@ -378,10 +416,6 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
 
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 50)
-  }, [open])
-
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
     if (!q) return allComps
@@ -404,12 +438,12 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
   const close = () => { setOpen(false); setQuery('') }
 
   return (
-    <div className="lg:hidden sticky top-[152px] z-20 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+    <div className="lg:hidden sticky top-[152px] z-20 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="px-4 py-2">
         <button
           onClick={() => setOpen(true)}
           className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl border text-left"
-          style={{ background: 'var(--surface)', borderColor: selectedComp ? 'rgba(34,197,94,0.4)' : 'var(--border)' }}
+          style={{ background: 'var(--surface-hover)', borderColor: selectedComp ? 'rgba(34,197,94,0.4)' : 'var(--border)' }}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <CompLogo url={selectedComp?.emblem_url} size="md" />
@@ -422,7 +456,7 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
         </button>
       </div>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg)' }}>
           <div className="flex items-center gap-3 px-4 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
             <Search size={16} className="text-slate-500 flex-shrink-0" />
@@ -463,7 +497,8 @@ function MobileAllPicker({ allComps, loadingAll, selectedComp, onSelect }) {
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -557,7 +592,15 @@ export default function Tables() {
       const groups = s.tables?.length > 0
         ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
         : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
-      map[key].groups.push(...groups.filter(g => g.table?.length > 0))
+      // Deduplicate by group+stage label to avoid pushing the same group twice when
+      // multiple followed teams belong to the same competition
+      const existing = new Set(map[key].groups.map(g => `${g.group}|${g.stage}`))
+      for (const g of groups.filter(g => g.table?.length > 0)) {
+        if (!existing.has(`${g.group}|${g.stage}`)) {
+          map[key].groups.push(g)
+          existing.add(`${g.group}|${g.stage}`)
+        }
+      }
     }
     return Object.values(map)
   }, [standings])
@@ -644,7 +687,7 @@ export default function Tables() {
       <div className="flex-1 min-w-0 lg:overflow-y-auto">
 
         {/* Mobile tab bar */}
-        <div className="lg:hidden sticky top-28 z-30 border-b" style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}>
+        <div className="lg:hidden sticky top-28 z-30 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <TabBar active={activeTab} onChange={handleTabChange} />
         </div>
 
@@ -691,7 +734,7 @@ export default function Tables() {
                   </button>
                 </div>
                 {selectedMyComp.groups.map((g, i) => (
-                  <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
+                  <StandingsTable key={`${selectedMyComp.name}:${g.group ?? g.stage ?? i}`} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
                 ))}
               </>
             ) : null
@@ -734,7 +777,7 @@ export default function Tables() {
                 </div>
                 {allStandingsGroups.map(comp =>
                   comp.groups.map((g, i) => (
-                    <StandingsTable key={i} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
+                    <StandingsTable key={`${comp.name}:${g.group ?? g.stage ?? i}`} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
                   ))
                 )}
               </>

@@ -214,22 +214,42 @@ async def search_teams(
 
 
 async def _do_search(q: str, db: Session):
+    # Local DB first — instant, covers all teams already known to the app
+    q_lower = q.lower().strip()
+    db_teams = db.query(models.Team).filter(
+        models.Team.name.ilike(f"%{q_lower}%")
+    ).limit(10).all()
+    db_results = [
+        {
+            "name": t.name,
+            "short_name": t.short_name,
+            "country": t.country,
+            "crest_url": t.crest_url,
+            "team_type": t.team_type or "club",
+            "sofascore_id": t.sofascore_id,
+            "espn_id": t.espn_id,
+            "football_data_id": t.football_data_id,
+            "api_football_id": t.api_football_id,
+            "source": "db",
+        }
+        for t in db_teams
+    ]
+
     try:
         ss_results = await sofascore.search_teams(q, db)
     except Exception as e:
         logger.warning(f"Sofascore search failed: {e}")
         ss_results = []
 
-    # ESPN only if Sofascore returned nothing
     if ss_results:
-        return ss_results, []
+        return ss_results, db_results
 
     try:
         espn_results = await espn.search_teams(q, db)
     except Exception as e:
         logger.warning(f"ESPN search failed: {e}")
         espn_results = []
-    return [], espn_results
+    return db_results, espn_results
 
 
 def _link_competitions_from_cache(team: models.Team, db: Session) -> list[str]:
