@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.21.96] — 2026-06-13
+
+### Fixed
+- ESPN fixture parsing: scheduled games no longer show 0–0 (ESPN returns '0' for pre-game scores; scores are now null until a match is underway)
+- ESPN live minute now populated from `status.clock` (seconds ÷ 60)
+- ESPN logos now prefer dark variants where available (better match for dark UI)
+- ESPN competition emblem now pulled from league logos in scoreboard response instead of always null
+
 ## [0.21.95] — 2026-06-12
 
 ### Changed

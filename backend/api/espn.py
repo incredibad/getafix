@@ -67,9 +67,15 @@ def _parse_score(s) -> int | None:
         return None
 
 
+def _prefer_dark(logos: list) -> str | None:
+    if not logos:
+        return None
+    dark = next((l for l in logos if "dark" in (l.get("rel") or [])), None)
+    return (dark or logos[0]).get("href")
+
+
 def _team_logo(team_data: dict) -> str | None:
-    logos = team_data.get("logos", [])
-    return logos[0].get("href") if logos else None
+    return _prefer_dark(team_data.get("logos", []))
 
 
 def _parse_fixture(event: dict) -> dict | None:
@@ -83,25 +89,39 @@ def _parse_fixture(event: dict) -> dict | None:
     if not home or not away:
         return None
 
-    status_type = comp.get("status", {}).get("type", {})
+    comp_status = comp.get("status", {})
+    status_type = comp_status.get("type", {})
     status = _norm_status(status_type.get("name", ""))
 
     home_team = home.get("team", {})
     away_team = away.get("team", {})
     venue_data = comp.get("venue") or {}
     date = comp.get("date") or event.get("date", "")
+    league = event.get("league", {})
 
     try:
         external_id = int(event.get("id", 0))
     except (ValueError, TypeError):
         external_id = 0
 
+    # Scores are meaningless (ESPN returns '0') until a game is underway
+    playing = status in ("LIVE", "FINISHED")
+    score_home = _parse_score(home.get("score")) if playing else None
+    score_away = _parse_score(away.get("score")) if playing else None
+
+    # Live minute from status clock (seconds → minutes)
+    minute = None
+    if status == "LIVE":
+        clock = comp_status.get("clock")
+        if clock is not None:
+            minute = int(clock // 60)
+
     return {
         "external_id": external_id,
         "source": "espn",
         "utc_date": date,
         "status": status,
-        "minute": None,
+        "minute": minute,
         "home_team": {
             "id": home_team.get("id"),
             "name": home_team.get("displayName", ""),
@@ -116,16 +136,16 @@ def _parse_fixture(event: dict) -> dict | None:
         },
         "competition": {
             "id": None,
-            "name": event.get("league", {}).get("name", ""),
-            "emblem_url": None,
+            "name": league.get("name", ""),
+            "emblem_url": _prefer_dark(league.get("logos", [])),
         },
-        "score_home": _parse_score(home.get("score")),
-        "score_away": _parse_score(away.get("score")),
+        "score_home": score_home,
+        "score_away": score_away,
         "score_ht_home": None,
         "score_ht_away": None,
         "matchday": None,
         "venue": venue_data.get("fullName"),
-        "league_slug": event.get("league", {}).get("slug"),
+        "league_slug": league.get("slug"),
     }
 
 
