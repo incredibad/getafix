@@ -18,7 +18,11 @@ class HTTPError(Exception):
 
 
 def sofascore_headers() -> dict:
-    """Build Sofascore request headers with the current rotating token."""
+    # X-Requested-With is a 30-min rotating token: SHA-256(floor(epoch/1800))[:6]
+    # Reverse-engineered from _app-<hash>.js (webpack module 39190, function c())
+    # Added by Sofascore ~June 2026. If you're getting 403s, verify the algorithm
+    # still matches: open DevTools on sofascore.com, find any api/v1 XHR, check
+    # the X-Requested-With header value against what this function produces.
     epoch_30min = int(time.time() // 1800)
     token = hashlib.sha256(str(epoch_30min).encode()).hexdigest()[:6]
     return {
