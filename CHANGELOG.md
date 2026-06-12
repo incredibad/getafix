@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.22.0] — 2026-06-13
+
+### Added
+- Developer setting to disable Sofascore and force ESPN fallback for all fixture and standings requests. Toggle is in Settings → System → Developer. Useful for verifying ESPN data quality without needing code changes.
+
 ## [0.21.96] — 2026-06-13
 
 ### Fixed

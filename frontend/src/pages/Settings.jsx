@@ -12,6 +12,7 @@ const REVEAL_PERSIST_KEY      = 'getafix:settings:reveal_persist'
 const REVEAL_PERSIST_PREV_KEY = 'getafix:settings:reveal_persist_prev'
 const AUTO_REVEAL_AGE_KEY     = 'getafix:settings:auto_reveal_age'
 const HIDE_TABLES_KEY         = 'getafix:settings:hide_tables'
+const DISABLE_SOFASCORE_KEY   = 'getafix:settings:disable_sofascore'
 export const REVEALED_IDS_KEY = 'getafix:revealed_fixtures'
 
 export function getSpoilersMode() {
@@ -29,6 +30,10 @@ export function getAutoRevealAge() {
 
 export function getHideTables() {
   return localStorage.getItem(HIDE_TABLES_KEY) ?? 'off'
+}
+
+export function getDisableSofascore() {
+  return localStorage.getItem(DISABLE_SOFASCORE_KEY) === 'true'
 }
 
 const AUTO_REVEAL_AGE_MS = {
@@ -132,6 +137,7 @@ export default function Settings() {
   const [revealPersist, setRevealPersistState] = useState(getRevealPersist)
   const [autoRevealAge, setAutoRevealAgeState] = useState(getAutoRevealAge)
   const [hideTables, setHideTablesState] = useState(() => localStorage.getItem(HIDE_TABLES_KEY) ?? 'off')
+  const [disableSofascore, setDisableSofascoreState] = useState(getDisableSofascore)
   const [showSpoilerOffWarning, setShowSpoilerOffWarning] = useState(false)
 
   const changePassword = async (e) => {
@@ -207,6 +213,11 @@ export default function Settings() {
   const handleHideTables = (val) => {
     localStorage.setItem(HIDE_TABLES_KEY, val)
     setHideTablesState(val)
+  }
+
+  const handleDisableSofascore = (val) => {
+    localStorage.setItem(DISABLE_SOFASCORE_KEY, val ? 'true' : 'false')
+    setDisableSofascoreState(val)
   }
 
   return (
@@ -368,6 +379,15 @@ export default function Settings() {
                   <Trash2 size={14} />
                   {clearingCache ? 'Clearing…' : 'Clear Cache'}
                 </button>
+              </Card></Col>
+
+              <Col><Card title="Developer">
+                <SettingRow
+                  label="Disable Sofascore"
+                  description="Force ESPN fallback for all fixture and standings requests. Use to verify ESPN data quality."
+                  checked={disableSofascore}
+                  onChange={handleDisableSofascore}
+                />
               </Card></Col>
 
               <Col><Card title="About">

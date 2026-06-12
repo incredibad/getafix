@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -14,6 +14,10 @@ from api import espn
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+def _disable_sofascore(request: Request) -> bool:
+    return request.headers.get("X-Disable-Sofascore", "").lower() == "true"
+
 AEST = timezone(timedelta(hours=10))
 
 
@@ -25,6 +29,7 @@ async def get_fixtures_by_competition(
     days_ahead: int = Query(365, ge=0, le=365),
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     # Look up the DB competition — try sofascore_id first (exact), then name
     comp = None
@@ -41,7 +46,7 @@ async def get_fixtures_by_competition(
     raw: list[dict] = []
 
     # Sofascore primary — works even if competition isn't in DB
-    if ss_id:
+    if ss_id and not disable_sofascore:
         raw = await sofascore.get_competition_fixtures(ss_id, db)
 
     # ESPN fallback (needs a DB row with espn_slug)
@@ -96,12 +101,15 @@ async def get_fixtures_for_team(
     days_ahead: int = Query(365, ge=0, le=365),
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     team = db.query(models.Team).filter(models.Team.sofascore_id == sofascore_id).first()
     if team:
-        raw = await _fetch_team_fixtures(team, db)
-    else:
+        raw = await _fetch_team_fixtures(team, db, disable_sofascore)
+    elif not disable_sofascore:
         raw = await sofascore.get_team_schedule(sofascore_id, db)
+    else:
+        raw = []
     now_utc = datetime.now(timezone.utc)
     cutoff_past = now_utc - timedelta(days=days_back)
     cutoff_future = now_utc + timedelta(days=days_ahead)
@@ -117,6 +125,7 @@ async def get_fixtures(
     days_ahead: int = Query(90, ge=0, le=365),
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     followed = db.query(models.FollowedTeam).all()
     if not followed:
@@ -128,7 +137,7 @@ async def get_fixtures(
 
     all_fixtures: list[dict] = []
     for ft in followed:
-        all_fixtures.extend(await _fetch_team_fixtures(ft.team, db))
+        all_fixtures.extend(await _fetch_team_fixtures(ft.team, db, disable_sofascore))
 
     seen: set[str] = set()
     deduped = []
@@ -144,26 +153,27 @@ async def get_fixtures(
     return [_to_schema(f) for f in filtered]
 
 
-async def _fetch_team_fixtures(team: models.Team, db: Session) -> list[dict]:
+async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore: bool = False) -> list[dict]:
     is_national = team.team_type == "national"
 
     ss_id = getattr(team, "sofascore_id", None)
 
-    # Dynamically resolve Sofascore ID if missing
-    if not ss_id:
-        ss_id = await sofascore.resolve_sofascore_id(team.name, db)
-        if ss_id:
-            team.sofascore_id = ss_id
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
+    if not disable_sofascore:
+        # Dynamically resolve Sofascore ID if missing
+        if not ss_id:
+            ss_id = await sofascore.resolve_sofascore_id(team.name, db)
+            if ss_id:
+                team.sofascore_id = ss_id
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
 
-    if ss_id:
-        fixtures = await sofascore.get_team_schedule(ss_id, db)
-        if fixtures:
-            _auto_link_competitions(team, fixtures, db)
-            return fixtures
+        if ss_id:
+            fixtures = await sofascore.get_team_schedule(ss_id, db)
+            if fixtures:
+                _auto_link_competitions(team, fixtures, db)
+                return fixtures
 
     # ESPN fallback
     espn_id = getattr(team, "espn_id", None)

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -13,6 +13,10 @@ import cache as _cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _disable_sofascore(request: Request) -> bool:
+    return request.headers.get("X-Disable-Sofascore", "").lower() == "true"
 
 
 def _is_matchday(db: Session) -> bool:
@@ -43,11 +47,12 @@ async def get_standings_by_competition(
     competition_id: int,
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     comp = db.query(models.Competition).filter(models.Competition.id == competition_id).first()
     if not comp:
         raise HTTPException(status_code=404, detail="Competition not found.")
-    return await _fetch_standings(comp, db)
+    return await _fetch_standings(comp, db, disable_sofascore)
 
 
 @router.get("/sofascore/{tournament_id}", response_model=list[dict])
@@ -84,6 +89,7 @@ async def get_cup_tree(
 async def get_standings_for_followed_teams(
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     followed = db.query(models.FollowedTeam).all()
     if not followed:
@@ -98,18 +104,18 @@ async def get_standings_for_followed_teams(
     for comp_id in comp_ids:
         comp = db.query(models.Competition).filter(models.Competition.id == comp_id).first()
         if comp:
-            data = await _fetch_standings(comp, db)
+            data = await _fetch_standings(comp, db, disable_sofascore)
             if data:
                 results.extend(data)
     return results
 
 
-async def _fetch_standings(comp: models.Competition, db: Session) -> list[dict]:
+async def _fetch_standings(comp: models.Competition, db: Session, disable_sofascore: bool = False) -> list[dict]:
     ttl = _standings_ttl(db)
 
     # Sofascore primary
     ss_tid = getattr(comp, "sofascore_tournament_id", None)
-    if ss_tid:
+    if ss_tid and not disable_sofascore:
         result = await sofascore.get_competition_standings(ss_tid, db, ttl)
         if result:
             result["competition"]["name"] = comp.name
