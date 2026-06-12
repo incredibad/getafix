@@ -28,6 +28,9 @@ build/
 *.swo
 Thumbs.db
 
+# Claude Code local config
+.claude/
+
 # Handover / scratch docs
 HANDOVER.md
 CLAUDE.md
