@@ -67,6 +67,7 @@ async def get_standings_by_sofascore_id(
     result = await sofascore.get_competition_standings(tournament_id, db, ttl, season_id=season_id)
     if not result:
         raise HTTPException(status_code=404, detail="No standings available for this competition.")
+    result["source"] = "sofascore"
     result["cached_at"] = _cache.cached_at_str(db, f"sofascore:standings:{tournament_id}:{result.get('season', '')}")
     return _expand_tables(result)
 
@@ -119,6 +120,7 @@ async def _fetch_standings(comp: models.Competition, db: Session, disable_sofasc
     if ss_tid and not disable_sofascore:
         result = await sofascore.get_competition_standings(ss_tid, db, ttl)
         if result:
+            result["source"] = "sofascore"
             result["competition"]["name"] = comp.name
             result["competition"]["emblem_url"] = result["competition"].get("emblem_url") or comp.emblem_url
             result["cached_at"] = _cache.cached_at_str(db, f"sofascore:standings:{ss_tid}:{result.get('season', '')}")
@@ -129,6 +131,7 @@ async def _fetch_standings(comp: models.Competition, db: Session, disable_sofasc
     if espn_slug:
         result = await espn.get_competition_standings(espn_slug, db, ttl)
         if result:
+            result["source"] = "espn"
             result["competition"]["name"] = comp.name
             emblem = result["competition"].get("emblem_url") or comp.emblem_url
             if not emblem and ss_tid:

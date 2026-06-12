@@ -168,6 +168,7 @@ async def get_team_browse_profile(
     if isinstance(ranking, int) and profile_data.get("national"):
         profile_data = {**profile_data, "ranking": ranking}
     return {
+        "source": "sofascore",
         "profile": profile_data,
         "players": players if isinstance(players, list) else [],
         "transfers": transfers if isinstance(transfers, dict) else {"in": [], "out": []},

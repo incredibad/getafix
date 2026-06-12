@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.0] — 2026-06-13
+
+### Added
+- Source indicator LED on all data cards: blue glow = Sofascore, red glow = ESPN. Appears in card headers on the Browse Team page (Upcoming, Recent Results, Form, Standing, Cup Run, Season Stats, Club Info, Squad, Injuries, Transfers), in competition headers on the Tables page, next to the competition name on the Match Detail score card, and per-fixture in the Fixtures list.
+- Backend: standings and profile endpoints now include a `source` field so the frontend can identify where each dataset came from.
+
 ## [0.23.4] — 2026-06-13
 
 ### Changed

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronDown, Calendar, Search, X, EyeOff } from 'lucide-react'
 import BrowseHeader from '../components/BrowseHeader'
+import { SourceLED } from '../components/FixtureCard'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
@@ -588,7 +589,7 @@ export default function Tables() {
     const map = {}
     for (const s of standings) {
       const key = s.competition.name
-      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, groups: [] }
+      if (!map[key]) map[key] = { name: key, emblem_url: s.competition.emblem_url, season: s.season, source: s.source, groups: [] }
       const groups = s.tables?.length > 0
         ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
         : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
@@ -642,7 +643,7 @@ export default function Tables() {
     const map = {}
     for (const s of allStandings) {
       const key = s.competition?.name ?? allSelected?.name ?? ''
-      if (!map[key]) map[key] = { name: key, emblem_url: s.competition?.emblem_url ?? allSelected?.emblem_url, season: s.season, groups: [] }
+      if (!map[key]) map[key] = { name: key, emblem_url: s.competition?.emblem_url ?? allSelected?.emblem_url, season: s.season, source: s.source, groups: [] }
       const groups = s.tables?.length > 0
         ? s.tables.map(t => ({ ...t, start_date: t.start_date ?? s.start_date, end_date: t.end_date ?? s.end_date }))
         : [{ table: s.table || [], group: s.group, stage: s.stage, start_date: s.start_date, end_date: s.end_date }]
@@ -729,6 +730,7 @@ export default function Tables() {
                   <CompLogo url={selectedMyComp.emblem_url} size="lg" />
                   <h2 className="text-base font-semibold text-white">{selectedMyComp.name}</h2>
                   {selectedMyComp.season && <span className="text-xs text-slate-500 ml-1">Season {selectedMyComp.season}</span>}
+                  <SourceLED source={selectedMyComp.source} />
                   <button onClick={goToFixtures} className="ml-auto p-1 text-slate-500 hover:text-slate-300 transition-colors" title="View fixtures">
                     <Calendar size={20} />
                   </button>
@@ -771,6 +773,7 @@ export default function Tables() {
                   <CompLogo url={allSelected.emblem_url} size="lg" />
                   <h2 className="text-base font-semibold text-white">{allSelected.name}</h2>
                   <span className="text-xs text-slate-500 ml-1">{allSelected.country}</span>
+                  <SourceLED source={allStandingsGroups[0]?.source} />
                   <button onClick={goToFixturesAll} className="ml-auto p-1 text-slate-500 hover:text-slate-300 transition-colors" title="View fixtures">
                     <Calendar size={20} />
                   </button>

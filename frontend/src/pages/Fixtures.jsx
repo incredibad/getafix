@@ -645,6 +645,7 @@ const toggleDayReveal = (date) => {
                                 onRevealScore={() => revealOne(fid)}
                                 onViewDetail={() => navigate(`/fixtures/${f.external_id}`, { state: { source: f.source, leagueSlug: f.league_slug, revealed: isRevealed(fid, date, f.utc_date) } })}
                                 dateCategory={category}
+                                showSource
                               />
                             )
                             return acc

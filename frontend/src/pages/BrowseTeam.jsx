@@ -4,7 +4,7 @@ import { Star, Eye, EyeOff, TrendingUp, Clock, Info, LayoutGrid, BarChart2, Trop
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
-import { FixtureCard, RoundSeparator } from '../components/FixtureCard'
+import { FixtureCard, RoundSeparator, SourceLED } from '../components/FixtureCard'
 import { getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
 import BrowseHeader from '../components/BrowseHeader'
 import toast from 'react-hot-toast'
@@ -18,7 +18,7 @@ function getDateCategory(utcDate) {
   return matchISO < todayISO ? 'past' : 'future'
 }
 
-function Card({ title, icon: Icon, subtitle, children, className = '' }) {
+function Card({ title, icon: Icon, subtitle, source, children, className = '' }) {
   return (
     <div className={`rounded-xl border p-4 ${className}`} style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       {title && (
@@ -27,7 +27,10 @@ function Card({ title, icon: Icon, subtitle, children, className = '' }) {
             {Icon && <Icon size={13} className="text-green-400 flex-shrink-0 mt-px" />}
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{title}</h3>
           </div>
-          {subtitle && <span className="text-[10px] text-slate-600 text-right leading-tight">{subtitle}</span>}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {subtitle && <span className="text-[10px] text-slate-600 text-right leading-tight">{subtitle}</span>}
+            <SourceLED source={source} />
+          </div>
         </div>
       )}
       {children}
@@ -59,11 +62,11 @@ function timeAgo(utcDate) {
   return 'Today'
 }
 
-function FormCard({ form, spoilersMode, revealedIds, onRevealOne, autoRevealAge, className = '' }) {
+function FormCard({ form, source, spoilersMode, revealedIds, onRevealOne, autoRevealAge, className = '' }) {
   const navigate = useNavigate()
   if (!form.length) return null
   return (
-    <Card title="Recent Form" icon={TrendingUp} className={className}>
+    <Card title="Recent Form" icon={TrendingUp} source={source} className={className}>
       <div>
         {form.map((item, i) => {
           const fid = item.fid
@@ -116,9 +119,9 @@ function FormCard({ form, spoilersMode, revealedIds, onRevealOne, autoRevealAge,
   )
 }
 
-function InjuriesCard({ injuries }) {
+function InjuriesCard({ injuries, source }) {
   return (
-    <Card title="Injuries & Suspensions" icon={AlertTriangle}>
+    <Card title="Injuries & Suspensions" icon={AlertTriangle} source={source}>
       {!injuries.length ? (
         <p className="text-xs text-slate-500 py-1">No injuries or suspensions reported.</p>
       ) : (
@@ -203,7 +206,7 @@ function posLabel(raw) {
 const POS_ORDER = ['G', 'D', 'M', 'F']
 const POS_SECTION = { G: 'Goalkeepers', D: 'Defenders', M: 'Midfielders', F: 'Forwards' }
 
-function SquadCard({ players, isNational }) {
+function SquadCard({ players, isNational, source }) {
   const navigate = useNavigate()
 
   const unique = useMemo(() => {
@@ -238,7 +241,7 @@ function SquadCard({ players, isNational }) {
   if (!keys.length) return null
 
   return (
-    <Card title="Squad" icon={Users}>
+    <Card title="Squad" icon={Users} source={source}>
       <div className="-mx-1">
         <table className="w-full">
           <thead>
@@ -369,12 +372,12 @@ function TransferRow({ t, direction }) {
   )
 }
 
-function TransfersCard({ transfers }) {
+function TransfersCard({ transfers, source }) {
   const hasIn = transfers.in?.length > 0
   const hasOut = transfers.out?.length > 0
   if (!hasIn && !hasOut) return null
   return (
-    <Card title="Transfers" icon={ArrowLeftRight}>
+    <Card title="Transfers" icon={ArrowLeftRight} source={source}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
         {hasIn && (
           <div>
@@ -395,7 +398,7 @@ function TransfersCard({ transfers }) {
 
 const INITIAL_SHOW = 3
 
-function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevealOne, navigate, spoilersMode, autoRevealAge, compact = false }) {
+function FixtureSection({ title, icon, fixtures, source, revealAll, revealedIds, onRevealOne, navigate, spoilersMode, autoRevealAge, compact = false }) {
   const [expanded, setExpanded] = useState(false)
   const canExpand = fixtures.length > INITIAL_SHOW
   const displayed = canExpand && !expanded ? fixtures.slice(0, INITIAL_SHOW) : fixtures
@@ -404,7 +407,7 @@ function FixtureSection({ title, icon, fixtures, revealAll, revealedIds, onRevea
   if (!fixtures.length) return null
 
   return (
-    <Card title={title} icon={icon}>
+    <Card title={title} icon={icon} source={source}>
       <div className="space-y-1">
         {dateKeys.map(date => {
           const category = getDateCategory(grouped[date][0].utc_date)
@@ -744,7 +747,7 @@ export default function BrowseTeam() {
         const row = (group.table || []).find(r =>
           r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
         )
-        if (row) return { type: 'standing', data: { row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id } }
+        if (row) return { type: 'standing', data: { row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id, source: group.source } }
       }
     }
     return null
@@ -777,7 +780,7 @@ export default function BrowseTeam() {
           const row = (group.table || []).find(r =>
             r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
           )
-          if (row) { cards.push({ type: 'standing', data: { row, competition: group.competition, lastPlayed: domesticLeague.lastFinished, competitionId: domesticLeague.id } }); break }
+          if (row) { cards.push({ type: 'standing', data: { row, competition: group.competition, lastPlayed: domesticLeague.lastFinished, competitionId: domesticLeague.id, source: group.source } }); break }
         }
       }
     }
@@ -829,6 +832,8 @@ export default function BrowseTeam() {
     }
   }
   const hasScores = spoilersMode && fixtures.some(f => f.status !== 'SCHEDULED')
+  const fixtureSource = fixtures.find(f => f.source)?.source
+  const profileSource = profile?.source
   const players = profile?.players ?? []
   const transfers = profile?.transfers ?? { in: [], out: [] }
   const injuries = profile?.injuries ?? []
@@ -919,11 +924,11 @@ export default function BrowseTeam() {
 
         {/* ── Right 2 cols — DOM-first so Form/Upcoming/Recent appear at top on mobile ── */}
         <div className="lg:col-start-3 lg:col-span-2 lg:row-start-2 flex flex-col gap-4">
-          <div className="lg:hidden"><FormCard form={form} spoilersMode={spoilersMode} revealedIds={revealedIds} onRevealOne={revealOne} autoRevealAge={autoRevealAge} /></div>
-          <FixtureSection title="Upcoming" icon={Calendar} fixtures={upcoming} {...fixtureProps} />
-          <FixtureSection title="Recent Results" icon={Clock} fixtures={recent} {...fixtureProps} />
+          <div className="lg:hidden"><FormCard form={form} source={recent[0]?.source} spoilersMode={spoilersMode} revealedIds={revealedIds} onRevealOne={revealOne} autoRevealAge={autoRevealAge} /></div>
+          <FixtureSection title="Upcoming" icon={Calendar} fixtures={upcoming} source={upcoming[0]?.source} {...fixtureProps} />
+          <FixtureSection title="Recent Results" icon={Clock} fixtures={recent} source={recent[0]?.source} {...fixtureProps} />
           {/* Desktop only: Transfers sits naturally below Recent Results in this column */}
-          {hasTransfers && <div className="hidden lg:block"><TransfersCard transfers={transfers} /></div>}
+          {hasTransfers && <div className="hidden lg:block"><TransfersCard transfers={transfers} source={profileSource} /></div>}
         </div>
 
         {/* ── Left 2 cols: 2-col sub-grid of stat cards + squad ── */}
@@ -931,7 +936,7 @@ export default function BrowseTeam() {
 
           {/* Club Info */}
           {(profileData.manager || profileData.venue || profileData.founded) && (
-            <Card title="Club Info" icon={Info} className="h-full">
+            <Card title="Club Info" icon={Info} source={profileSource} className="h-full">
               <div>
                 {[
                   { label: 'Manager',  value: profileData.manager },
@@ -964,7 +969,7 @@ export default function BrowseTeam() {
 
           {/* Recent Form — desktop only (mobile instance is in right col above) */}
           <div className="hidden lg:block">
-            <FormCard form={form} spoilersMode={spoilersMode} revealedIds={revealedIds} onRevealOne={revealOne} autoRevealAge={autoRevealAge} className="h-full" />
+            <FormCard form={form} source={recent[0]?.source} spoilersMode={spoilersMode} revealedIds={revealedIds} onRevealOne={revealOne} autoRevealAge={autoRevealAge} className="h-full" />
           </div>
 
           {/* Competition cards: domestic standing + cup/group for clubs; 2 most recent for national teams */}
@@ -972,7 +977,7 @@ export default function BrowseTeam() {
             card.type === 'cup' ? (() => {
               const cup = card.data
               return (
-                <Card key={ci} title="Cup Run" icon={Trophy}>
+                <Card key={ci} title="Cup Run" icon={Trophy} source="sofascore">
                   <button
                     onClick={() => navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: cup.competition?.name, sofascore_id: cup.competitionId } } })}
                     className="flex items-center gap-2 mb-3 pb-3 w-full text-left border-b group transition-colors"
@@ -1034,6 +1039,7 @@ export default function BrowseTeam() {
                   title="Standing"
                   icon={LayoutGrid}
                   subtitle={s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
+                  source={s.source}
                 >
                   <button
                     onClick={() => navigate('/tables', { state: { tab: 'all', competition: { id: s.competitionId, name: s.competition?.name, emblem_url: s.competition?.emblem_url } } })}
@@ -1076,11 +1082,11 @@ export default function BrowseTeam() {
           )}
 
           {/* Injuries & Suspensions */}
-          <InjuriesCard injuries={injuries} />
+          <InjuriesCard injuries={injuries} source={profileSource} />
 
           {/* Season Stats */}
           {seasonStats && (
-            <Card title={profileData.national ? `${new Date().getFullYear()} Stats` : 'Season Stats'} icon={BarChart2}>
+            <Card title={profileData.national ? `${new Date().getFullYear()} Stats` : 'Season Stats'} icon={BarChart2} source={fixtureSource}>
               {seasonStats.competitions.length > 0 && (
                 <div className="relative group mb-3">
                   <p className="text-[10px] text-slate-600 leading-relaxed cursor-default">
@@ -1127,14 +1133,14 @@ export default function BrowseTeam() {
           {/* Squad — spans both sub-columns */}
           {players.length > 0 && (
             <div className="sm:col-span-2">
-              <SquadCard players={players} isNational={!!profileData.national} />
+              <SquadCard players={players} isNational={!!profileData.national} source={profileSource} />
             </div>
           )}
 
         </div>
 
         {/* Mobile only: Transfers last in DOM so it appears after Squad */}
-        {hasTransfers && <div className="lg:hidden"><TransfersCard transfers={transfers} /></div>}
+        {hasTransfers && <div className="lg:hidden"><TransfersCard transfers={transfers} source={profileSource} /></div>}
 
       </div>
       </div>

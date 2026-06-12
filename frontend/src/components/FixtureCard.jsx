@@ -3,6 +3,18 @@ import { EyeOff, Circle, ChevronRight, Trophy } from 'lucide-react'
 import { formatMatchTime } from '../utils/date'
 import { imgUrl } from '../utils/img'
 
+export function SourceLED({ source }) {
+  if (!source) return null
+  const isSS = source === 'sofascore'
+  return (
+    <span
+      title={isSS ? 'Sofascore' : 'ESPN'}
+      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isSS ? 'bg-blue-500' : 'bg-red-500'}`}
+      style={{ boxShadow: isSS ? '0 0 5px 2px rgba(59,130,246,0.55)' : '0 0 5px 2px rgba(239,68,68,0.55)' }}
+    />
+  )
+}
+
 export const DATE_CAT_STYLE = {
   past:   { background: 'rgba(239,68,68,0.13)',  borderColor: 'rgba(239,68,68,0.32)' },
   today:  { background: 'rgba(34,197,94,0.13)',  borderColor: 'rgb(74,222,128)' },
@@ -49,7 +61,7 @@ export function RoundSeparator({ label }) {
   )
 }
 
-export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory, compact = false }) {
+export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, dateCategory, compact = false, showSource = false }) {
   const navigate = useNavigate()
   const { home_team, away_team, competition, utc_date, status, score_home, score_away, score_pen_home, score_pen_away } = fixture
   const isLive = status === 'LIVE'
@@ -84,6 +96,7 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
           {!compact && <span className="hidden lg:inline text-xs text-slate-400 truncate">{competition.name}</span>}
           {compTooltip}
         </div>
+        {showSource && !compact && <SourceLED source={fixture.source} />}
       </div>
 
       {/* Cell 2 — home team */}

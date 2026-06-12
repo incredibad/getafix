@@ -6,6 +6,7 @@ import { imgUrl } from '../utils/img'
 import { formatMatchDateTime } from '../utils/date'
 import toast from 'react-hot-toast'
 import BrowseHeader from '../components/BrowseHeader'
+import { SourceLED } from '../components/FixtureCard'
 
 function Spoiler({ revealed, onReveal, children }) {
   if (revealed) return <>{children}</>
@@ -196,15 +197,18 @@ export default function MatchDetail() {
               style={{ background: 'var(--surface)', borderColor: isLive ? 'rgba(248,113,113,0.3)' : 'var(--border)' }}
             >
               {/* Competition row */}
-              <div
-                className={`flex items-center justify-center gap-1.5 mb-4${fixture.competition.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
-                onClick={fixture.competition.id ? () => navigate(`/browse/league/${fixture.competition.id}`, { state: { name: fixture.competition.name, emblem_url: fixture.competition.emblem_url } }) : undefined}
-              >
-                {fixture.competition.emblem_url && (
-                  <img src={imgUrl(fixture.competition.emblem_url)} alt="" className="w-4 h-4 object-contain opacity-70" />
-                )}
-                <span className="text-xs text-slate-500">{fixture.competition.name}</span>
-                {fixture.matchday && <span className="text-xs text-slate-600"> · {fixture.matchday}</span>}
+              <div className="flex items-center justify-center gap-1.5 mb-4">
+                <div
+                  className={`flex items-center gap-1.5${fixture.competition.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
+                  onClick={fixture.competition.id ? () => navigate(`/browse/league/${fixture.competition.id}`, { state: { name: fixture.competition.name, emblem_url: fixture.competition.emblem_url } }) : undefined}
+                >
+                  {fixture.competition.emblem_url && (
+                    <img src={imgUrl(fixture.competition.emblem_url)} alt="" className="w-4 h-4 object-contain opacity-70" />
+                  )}
+                  <span className="text-xs text-slate-500">{fixture.competition.name}</span>
+                  {fixture.matchday && <span className="text-xs text-slate-600"> · {fixture.matchday}</span>}
+                </div>
+                <SourceLED source={location.state?.source} />
               </div>
 
               {/* Teams + score */}
