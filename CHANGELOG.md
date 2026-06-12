@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.22.4] — 2026-06-13
+
+### Fixed
+- ESPN team schedule now validates the resolved ID by comparing ESPN's top-level `team.displayName` against the expected team name. A mismatch returns `None` (distinct from an empty schedule), causing `_fetch_team_fixtures` to clear the bad ESPN ID so it self-heals on the next request.
+
 ## [0.22.3] — 2026-06-13
 
 ### Fixed

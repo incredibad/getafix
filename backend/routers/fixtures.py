@@ -62,7 +62,7 @@ async def get_fixtures_by_competition(
                     espn_id = t.get("espn_id")
                     if not espn_id:
                         continue
-                    for f in await espn.get_team_schedule(espn_id, db):
+                    for f in (await espn.get_team_schedule(espn_id, db) or []):
                         key = _dedup_key(f)
                         if key and key not in seen:
                             seen.add(key)
@@ -195,7 +195,16 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
                 if comp.competition_type == "league" and comp.espn_slug:
                     league_slug = comp.espn_slug
                     break
-        fixtures = await espn.get_team_schedule(espn_id, db, league_slug=league_slug)
+        result = await espn.get_team_schedule(espn_id, db, league_slug=league_slug, expected_name=team.name)
+        if result is None:
+            # ESPN says this ID belongs to a different team — clear it so it re-resolves
+            logger.warning(f"Clearing bad ESPN ID {espn_id} for team '{team.name}'")
+            team.espn_id = None
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+        fixtures = result or []
         if fixtures:
             _auto_link_competitions(team, fixtures, db)
 

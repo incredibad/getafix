@@ -153,7 +153,19 @@ def _parse_fixture(event: dict) -> dict | None:
     }
 
 
-async def get_team_schedule(espn_id: int, db: Session, ttl_hours: float = 24, league_slug: str | None = None) -> list[dict]:
+async def get_team_schedule(
+    espn_id: int,
+    db: Session,
+    ttl_hours: float = 24,
+    league_slug: str | None = None,
+    expected_name: str | None = None,
+) -> list[dict] | None:
+    """Fetch a team's schedule from ESPN.
+
+    Returns a list of fixtures, an empty list if the ID is valid but has no
+    fixtures, or None if ESPN's response identifies a different team than
+    expected (signals a bad ID to the caller).
+    """
     cache_key = f"espn:team_schedule:{espn_id}"
     live_cache_key = f"espn:team_schedule_live:{espn_id}"
 
@@ -185,8 +197,18 @@ async def get_team_schedule(espn_id: int, db: Session, ttl_hours: float = 24, le
             except Exception:
                 continue
 
-        # Top-level team object has full logo data; inject for fixtures where it's missing
         top_team = data.get("team", {})
+        actual_name = top_team.get("displayName", "")
+
+        # Validate ESPN ID against the name ESPN says belongs to it
+        if expected_name and actual_name:
+            if not _names_match(expected_name.lower(), actual_name.lower()):
+                logger.warning(
+                    f"ESPN ID {espn_id} belongs to '{actual_name}', not '{expected_name}' "
+                    f"— discarding (will re-resolve on next request)"
+                )
+                return None  # Caller should clear this espn_id
+
         top_crest = _team_logo(top_team)
         espn_id_str = str(espn_id)
 
