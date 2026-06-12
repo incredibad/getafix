@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.23.4] — 2026-06-13
+
+### Changed
+- "Disable Sofascore" developer toggle now also suppresses team profile data (squad, injuries, transfers). When the toggle is on, the profile endpoint returns empty data immediately without calling Sofascore, accurately simulating a Sofascore outage.
+
 ## [0.23.3] — 2026-06-13
 
 ### Fixed

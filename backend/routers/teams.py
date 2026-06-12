@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -142,12 +142,20 @@ def unfollow_team(
     return {"message": "Unfollowed."}
 
 
+def _disable_sofascore(request: Request) -> bool:
+    return request.headers.get("X-Disable-Sofascore", "").lower() == "true"
+
+
 @router.get("/sofascore/{sofascore_id}/profile", response_model=dict)
 async def get_team_browse_profile(
     sofascore_id: int,
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
+    if disable_sofascore:
+        return {"profile": {}, "players": [], "transfers": {"in": [], "out": []}, "injuries": []}
+
     profile, players, transfers, injuries, ranking = await asyncio.gather(
         sofascore.get_team_profile(sofascore_id, db),
         sofascore.get_team_players(sofascore_id, db),
