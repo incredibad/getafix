@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.2] — 2026-06-13
+
+### Fixed
+- ESPN team schedule now tries the league-specific endpoint (e.g. `/eng.1/teams/{id}/schedule`) before `/all/` — fixes club teams (e.g. Man United) returning zero historical fixtures, as the generic endpoint only returns upcoming games
+- Team crests now populated from ESPN's top-level team object in schedule responses, and enriched from DB for any still-null crests (ESPN schedule endpoints omit `logos` arrays on competitor objects)
+- `_team_logo` now falls back to the `logo` string field for ESPN endpoints that return a single URL instead of a logos array
+- My Tables competition emblems now fall back to the Sofascore tournament image URL constructed from the DB's `sofascore_tournament_id`, fixing blank emblems in the filter sidebar when ESPN is the standings source
+
 ## [0.22.1] — 2026-06-13
 
 ### Fixed

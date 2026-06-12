@@ -75,7 +75,11 @@ def _prefer_dark(logos: list) -> str | None:
 
 
 def _team_logo(team_data: dict) -> str | None:
-    return _prefer_dark(team_data.get("logos", []))
+    logos = team_data.get("logos", [])
+    if logos:
+        return _prefer_dark(logos)
+    # Team schedule endpoints return a single `logo` URL string instead of a logos array
+    return team_data.get("logo") or None
 
 
 def _parse_fixture(event: dict) -> dict | None:
@@ -149,7 +153,7 @@ def _parse_fixture(event: dict) -> dict | None:
     }
 
 
-async def get_team_schedule(espn_id: int, db: Session, ttl_hours: float = 24) -> list[dict]:
+async def get_team_schedule(espn_id: int, db: Session, ttl_hours: float = 24, league_slug: str | None = None) -> list[dict]:
     cache_key = f"espn:team_schedule:{espn_id}"
     live_cache_key = f"espn:team_schedule_live:{espn_id}"
 
@@ -163,8 +167,37 @@ async def get_team_schedule(espn_id: int, db: Session, ttl_hours: float = 24) ->
         return fixtures
 
     try:
-        data = await _get(f"/all/teams/{espn_id}/schedule")
+        # League-specific endpoint returns full-season history; /all/ may return upcoming only
+        paths = []
+        if league_slug:
+            paths.append(f"/{league_slug}/teams/{espn_id}/schedule")
+        paths.append(f"/all/teams/{espn_id}/schedule")
+
+        data: dict = {}
+        for path in paths:
+            try:
+                candidate = await _get(path)
+                if candidate.get("events"):
+                    data = candidate
+                    break
+                if not data:
+                    data = candidate
+            except Exception:
+                continue
+
+        # Top-level team object has full logo data; inject for fixtures where it's missing
+        top_team = data.get("team", {})
+        top_crest = _team_logo(top_team)
+        espn_id_str = str(espn_id)
+
         fixtures = [f for event in data.get("events", []) if (f := _parse_fixture(event))]
+        if top_crest:
+            for f in fixtures:
+                for side in ("home_team", "away_team"):
+                    td = f[side]
+                    if not td.get("crest_url") and str(td.get("id")) == espn_id_str:
+                        td["crest_url"] = top_crest
+
         _cache.set_cached(db, cache_key, {"fixtures": fixtures})
         if any(f["status"] == "LIVE" for f in fixtures):
             _cache.set_cached(db, live_cache_key, {"fixtures": fixtures})

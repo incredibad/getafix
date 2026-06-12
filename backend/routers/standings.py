@@ -129,7 +129,10 @@ async def _fetch_standings(comp: models.Competition, db: Session, disable_sofasc
         result = await espn.get_competition_standings(espn_slug, db, ttl)
         if result:
             result["competition"]["name"] = comp.name
-            result["competition"]["emblem_url"] = result["competition"].get("emblem_url") or comp.emblem_url
+            emblem = result["competition"].get("emblem_url") or comp.emblem_url
+            if not emblem and ss_tid:
+                emblem = sofascore._tournament_emblem(ss_tid)
+            result["competition"]["emblem_url"] = emblem
             result["cached_at"] = _cache.cached_at_str(db, f"espn:standings:{espn_slug}") or result.get("cached_at", "")
             return _expand_tables(result)
 

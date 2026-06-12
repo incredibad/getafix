@@ -187,7 +187,15 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
                 db.rollback()
 
     if espn_id:
-        fixtures = await espn.get_team_schedule(espn_id, db)
+        # For club teams, prefer the league-specific ESPN endpoint — it returns full season history
+        league_slug = None
+        if not is_national:
+            for tc in getattr(team, "competitions", []):
+                comp = tc.competition
+                if comp.competition_type == "league" and comp.espn_slug:
+                    league_slug = comp.espn_slug
+                    break
+        fixtures = await espn.get_team_schedule(espn_id, db, league_slug=league_slug)
         if fixtures:
             _auto_link_competitions(team, fixtures, db)
 
@@ -438,6 +446,23 @@ async def _enrich_home_leagues(fixtures: list[dict], db: Session) -> None:
             if td:
                 k = (source, td.get("id"), td.get("name", ""), bool(td.get("national")))
                 td["home_league"] = lookup.get(k)
+
+        # Fill null crests from DB (ESPN schedule endpoints omit logos on competitor objects)
+        for team_key in ("home_team", "away_team"):
+            td = f.get(team_key)
+            if not td or td.get("crest_url"):
+                continue
+            db_team = None
+            tid = td.get("id")
+            if tid is not None and source == "espn":
+                try:
+                    db_team = db.query(models.Team).filter(models.Team.espn_id == int(tid)).first()
+                except (ValueError, TypeError):
+                    pass
+            if not db_team and td.get("name"):
+                db_team = db.query(models.Team).filter(models.Team.name == td["name"]).first()
+            if db_team and db_team.crest_url:
+                td["crest_url"] = db_team.crest_url
 
         # Enrich ESPN fixtures: inject Sofascore tournament ID + emblem from DB
         comp = f.get("competition", {})
