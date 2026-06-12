@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.23.1] — 2026-06-13
+
+### Fixed
+- Browse team page (Sofascore disabled): non-followed teams now fall back to ESPN via name resolution instead of returning empty fixtures, form, and standings.
+- Browse team standings card now passes the `season_id` from the team's own fixtures to the standings endpoint, preventing a blank card during season transitions when Sofascore's "current season" is the upcoming season with no data yet.
+
 ## [0.23.0] — 2026-06-13
 
 ### Added

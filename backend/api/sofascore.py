@@ -637,8 +637,9 @@ async def get_competition_fixtures(tournament_id: int, db: Session, ttl_hours: f
 
 # ── Standings ─────────────────────────────────────────────────────────────────
 
-async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: float = 24) -> dict | None:
-    season_id = await get_current_season(tournament_id, db)
+async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: float = 24, season_id: int | None = None) -> dict | None:
+    if season_id is None:
+        season_id = await get_current_season(tournament_id, db)
     if not season_id:
         return None
 

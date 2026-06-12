@@ -495,8 +495,10 @@ export default function BrowseTeam() {
   const teamCountry = navState.country ?? profile?.profile?.country ?? null
 
   useEffect(() => {
+    const fixtureParams = { days_back: 400, days_ahead: 365 }
+    if (navState.name) fixtureParams.name = navState.name
     Promise.all([
-      api.get(`/fixtures/team/sofascore/${sofascoreId}`, { params: { days_back: 400, days_ahead: 365 } }),
+      api.get(`/fixtures/team/sofascore/${sofascoreId}`, { params: fixtureParams }),
       api.get('/teams/followed'),
     ]).then(([fixturesRes, followedRes]) => {
       setFixtures(fixturesRes.data)
@@ -624,7 +626,8 @@ export default function BrowseTeam() {
       const key = String(comp.id)
       if (fetchedComps.current.has(key)) return
       fetchedComps.current.add(key)
-      api.get(`/standings/sofascore/${comp.id}`).then(({ data }) => {
+      const standingParams = compSeasons[key]?.id ? { season_id: compSeasons[key].id } : {}
+      api.get(`/standings/sofascore/${comp.id}`, { params: standingParams }).then(({ data }) => {
         setStandingsMap(prev => ({
           ...prev,
           [key]: data.map(group => ({

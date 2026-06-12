@@ -99,6 +99,7 @@ async def get_fixtures_for_team(
     sofascore_id: int,
     days_back: int = Query(90, ge=0, le=730),
     days_ahead: int = Query(365, ge=0, le=365),
+    name: str | None = Query(None),
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
     disable_sofascore: bool = Depends(_disable_sofascore),
@@ -109,7 +110,15 @@ async def get_fixtures_for_team(
     elif not disable_sofascore:
         raw = await sofascore.get_team_schedule(sofascore_id, db)
     else:
+        # ESPN fallback for non-DB browse teams when Sofascore is disabled
         raw = []
+        if name:
+            espn_id = await espn.resolve_espn_id(name, db)
+            if espn_id:
+                sched = await espn.get_team_schedule(espn_id, db, expected_name=name)
+                if sched:
+                    raw = sched
+                    logger.info(f"Browse ESPN fallback: resolved '{name}' → ESPN {espn_id}, {len(raw)} fixtures")
     now_utc = datetime.now(timezone.utc)
     cutoff_past = now_utc - timedelta(days=days_back)
     cutoff_future = now_utc + timedelta(days=days_ahead)
