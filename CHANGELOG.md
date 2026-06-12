@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.22.3] — 2026-06-13
+
+### Fixed
+- Manchester United (and any club team) ESPN ID was wrongly resolved to a national team sharing the word "united". Fixed `_names_match` word-overlap threshold from 4+ to 7+ characters, excluding common words like "united", "city", "town" that appear in unrelated team names. Corrected Man United's ESPN ID in DB from 4397 (UAE) to 360 and removed incorrectly linked AFC competitions.
+
 ## [0.22.2] — 2026-06-13
 
 ### Fixed

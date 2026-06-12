@@ -548,11 +548,15 @@ _KNOWN_SLUGS = ["fifa.worldq.afc", "afc.asian.cup", "fifa.world.2026", "fifa.fri
 
 
 def _names_match(a: str, b: str) -> bool:
-    """Fuzzy team name match: substring containment or shared significant word."""
+    """Fuzzy team name match: substring containment or shared distinctive word.
+
+    Word-overlap threshold is 7+ chars to exclude common words like 'united',
+    'city', 'town' that are shared across unrelated teams and nations.
+    """
     if a in b or b in a:
         return True
-    a_words = {w for w in a.split() if len(w) > 3}
-    b_words = {w for w in b.split() if len(w) > 3}
+    a_words = {w for w in a.split() if len(w) >= 7}
+    b_words = {w for w in b.split() if len(w) >= 7}
     return bool(a_words & b_words)
 
 
