@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.22.1] — 2026-06-13
+
+### Fixed
+- ESPN standings now inject competition name and emblem from the DB row, matching what the Sofascore path already did. Competition crests were blank when ESPN was the standings source.
+
 ## [0.22.0] — 2026-06-13
 
 ### Added

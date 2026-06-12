@@ -128,6 +128,8 @@ async def _fetch_standings(comp: models.Competition, db: Session, disable_sofasc
     if espn_slug:
         result = await espn.get_competition_standings(espn_slug, db, ttl)
         if result:
+            result["competition"]["name"] = comp.name
+            result["competition"]["emblem_url"] = result["competition"].get("emblem_url") or comp.emblem_url
             result["cached_at"] = _cache.cached_at_str(db, f"espn:standings:{espn_slug}") or result.get("cached_at", "")
             return _expand_tables(result)
 
