@@ -202,7 +202,7 @@ async def get_team_schedule(
 
         # Validate ESPN ID against the name ESPN says belongs to it
         if expected_name and actual_name:
-            if not _names_match(expected_name.lower(), actual_name.lower()):
+            if not _names_match_strict(expected_name.lower(), actual_name.lower()):
                 logger.warning(
                     f"ESPN ID {espn_id} belongs to '{actual_name}', not '{expected_name}' "
                     f"— discarding (will re-resolve on next request)"
@@ -343,7 +343,7 @@ async def resolve_espn_id(name: str, db: Session) -> int | None:
         cached = _cache.get_cached(db, f"espn:comp_teams:{comp.espn_slug}", 24 * 7)
         if cached:
             for team in cached.get("teams", []):
-                if _names_match(name_lower, team.get("name", "").lower()):
+                if _names_match_strict(name_lower, team.get("name", "").lower()):
                     return team["espn_id"]
 
     # Pass 2: fetch any still-uncached competition team lists in parallel
@@ -360,7 +360,7 @@ async def resolve_espn_id(name: str, db: Session) -> int | None:
             if isinstance(teams, Exception):
                 continue
             for team in teams:
-                if _names_match(name_lower, team.get("name", "").lower()):
+                if _names_match_strict(name_lower, team.get("name", "").lower()):
                     return team["espn_id"]
 
     return None
@@ -574,12 +574,31 @@ def _names_match(a: str, b: str) -> bool:
 
     Word-overlap threshold is 7+ chars to exclude common words like 'united',
     'city', 'town' that are shared across unrelated teams and nations.
+    Used for cross-source fixture matching where abbreviated names may appear.
     """
     if a in b or b in a:
         return True
     a_words = {w for w in a.split() if len(w) >= 7}
     b_words = {w for w in b.split() if len(w) >= 7}
     return bool(a_words & b_words)
+
+
+def _names_match_strict(search: str, candidate: str) -> bool:
+    """Strict name match for ID resolution — prevents same-city teams cross-matching.
+
+    Requires all significant words (>=4 chars) from the search name to appear
+    in the candidate. 'Manchester United' will not match 'Manchester City'
+    because 'united' (6 chars) is absent from the candidate's word set.
+    """
+    if search == candidate:
+        return True
+    if search in candidate or candidate in search:
+        return True
+    search_words = {w for w in search.split() if len(w) >= 4}
+    cand_words = {w for w in candidate.split() if len(w) >= 4}
+    if not search_words:
+        return False
+    return search_words.issubset(cand_words)
 
 
 async def get_match_events_by_teams(

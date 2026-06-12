@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.3] — 2026-06-13
+
+### Fixed
+- ESPN ID resolution now uses strict name matching (`_names_match_strict`): all significant words (≥4 chars) from the search name must appear in the candidate, preventing same-city teams like Manchester United and Manchester City from cross-matching.
+- Corrected Manchester United's ESPN ID from 382 (Manchester City) back to 360 and marked it confirmed so auto-resolution won't overwrite it.
+- Added EFL League One (eng.3, Sofascore 24) and League Two (eng.4, Sofascore 25) to seeded competitions so ESPN ID resolution can find lower-division English clubs like Stockport County.
+
 ## [0.23.2] — 2026-06-13
 
 ### Added
