@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.23.2] — 2026-06-13
+
+### Added
+- Version number displayed below the Sign out link in the sidebar nav.
+
 ## [0.23.1] — 2026-06-13
 
 ### Fixed

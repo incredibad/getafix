@@ -3,6 +3,7 @@ import { Calendar, Trophy, Users, Settings, LogOut, LogIn, Menu, X, Compass } fr
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import AppLogo from './AppLogo'
+import { version } from '../../package.json'
 
 const NAV_PUBLIC = [
   { to: '/fixtures', icon: Calendar, label: 'Fixtures' },
@@ -53,6 +54,7 @@ export default function Sidebar() {
           Log in
         </button>
       )}
+      <p className="px-3 pt-1 pb-0.5 text-[10px] text-slate-700">v{version}</p>
     </div>
   )
 
