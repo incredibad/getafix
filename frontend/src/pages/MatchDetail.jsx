@@ -21,12 +21,13 @@ function Spoiler({ revealed, onReveal, children }) {
   )
 }
 
-function Section({ title, icon: Icon, children }) {
+function Section({ title, icon: Icon, source, children }) {
   return (
     <div className="rounded-xl border p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-2 mb-4">
-        <Icon size={16} className="text-green-400" />
-        <h2 className="text-sm font-semibold text-slate-300">{title}</h2>
+        <Icon size={16} className="text-green-400 flex-shrink-0" />
+        <h2 className="text-sm font-semibold text-slate-300 flex-1">{title}</h2>
+        <SourceLED source={source} />
       </div>
       {children}
     </div>
@@ -277,7 +278,7 @@ export default function MatchDetail() {
 
             {/* Events */}
             {events.length > 0 && (
-              <Section title="Match Events" icon={Zap}>
+              <Section title="Match Events" icon={Zap} source={location.state?.source}>
                 <Spoiler revealed={revealed} onReveal={() => setRevealed(true)}>
                   <div className="space-y-0.5">
                     {homeEvents.map((e, i) => <EventRow key={i} event={e} />)}
@@ -290,7 +291,7 @@ export default function MatchDetail() {
           {/* ── Right column: stats + lineups ── */}
           <div className="space-y-4">
             {stats.length >= 2 && (
-              <Section title="Statistics" icon={BarChart2}>
+              <Section title="Statistics" icon={BarChart2} source={location.state?.source}>
                 <div className="flex justify-between text-xs text-slate-400 mb-3">
                   <span className="font-medium text-slate-200">{stats[0]?.team}</span>
                   <span className="font-medium text-slate-200">{stats[1]?.team}</span>
@@ -312,7 +313,7 @@ export default function MatchDetail() {
             )}
 
             {lineups.length > 0 && (
-              <Section title="Lineups" icon={Shirt}>
+              <Section title="Lineups" icon={Shirt} source={location.state?.source}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {lineups.map((l, i) => <LineupGrid key={i} lineup={l} />)}
                 </div>

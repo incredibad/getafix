@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.4] — 2026-06-13
+
+### Added
+- Match detail cards (Match Events, Statistics, Lineups) now show a source LED in their header row, matching the style used on the team browse page.
+
 ## [0.24.3] — 2026-06-13
 
 ### Changed
