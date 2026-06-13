@@ -3,6 +3,7 @@ import { ArrowLeft, Search, X, Eye, EyeOff, Users, Trophy, UserPlus, UserMinus, 
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
+import { SourceLED } from './FixtureCard'
 import toast from 'react-hot-toast'
 
 function TeamResult({ team, followed, onFollow, onUnfollow, onNavigate }) {
@@ -28,6 +29,7 @@ function TeamResult({ team, followed, onFollow, onUnfollow, onNavigate }) {
         <p className="text-sm text-slate-200 truncate">{team.name}</p>
         {team.country && <p className="text-xs text-slate-500">{team.country}</p>}
       </div>
+      {team.source && team.source !== 'db' && <SourceLED source={team.source} />}
       <button
         onClick={handleFollow}
         disabled={loading}

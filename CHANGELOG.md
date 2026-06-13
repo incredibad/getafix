@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.5] — 2026-06-13
+
+### Added
+- Source LED on team search result rows in the browse search dropdown. Shown for Sofascore and ESPN results; hidden for locally-cached DB results.
+
 ## [0.24.4] — 2026-06-13
 
 ### Added
