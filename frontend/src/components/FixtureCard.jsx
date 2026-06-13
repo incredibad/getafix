@@ -162,21 +162,22 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
           </span>
         )}
         {isLive && (() => {
-          const min = fixture.minute ?? 0
-          const pct = min > 0 ? Math.min(100, Math.round((min / 90) * 100)) : 0
+          const reportedMin = fixture.minute ?? 0
+          // Fall back to elapsed time since kickoff when the source doesn't report a minute
+          const elapsedMin = Math.floor((Date.now() - new Date(utc_date).getTime()) / 60000)
+          const min = reportedMin > 0 ? reportedMin : Math.max(0, elapsedMin)
+          const pct = Math.min(100, Math.round((min / 90) * 100))
           return (
             <span
               className="relative flex items-center justify-center gap-1 text-xs font-bold text-red-400 px-1.5 py-0.5 rounded overflow-hidden"
               style={{ minWidth: '3rem' }}
             >
-              {pct > 0 && (
-                <span
-                  className="absolute inset-0 rounded"
-                  style={{ width: `${pct}%`, background: 'rgba(248,113,113,0.18)' }}
-                />
-              )}
+              <span
+                className="absolute inset-0 rounded"
+                style={{ width: `${pct}%`, background: 'rgba(248,113,113,0.18)' }}
+              />
               <Circle size={6} fill="currentColor" className="animate-pulse relative z-10" />
-              <span className="relative z-10">{min > 0 ? `${min}'` : 'LIVE'}</span>
+              <span className="relative z-10">{reportedMin > 0 ? `${reportedMin}'` : 'LIVE'}</span>
             </span>
           )
         })()}

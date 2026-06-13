@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.6] — 2026-06-13
+
+### Fixed
+- Live progress bar now shows even when the source doesn't report a minute value — falls back to elapsed time since kickoff so the fill is always visible for live matches.
+
 ## [0.25.5] — 2026-06-13
 
 ### Fixed
