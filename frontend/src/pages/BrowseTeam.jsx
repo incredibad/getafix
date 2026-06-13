@@ -733,6 +733,15 @@ export default function BrowseTeam() {
     return [...activeCompetitions].sort((a, b) => (counts[String(b.id)] || 0) - (counts[String(a.id)] || 0))[0] ?? null
   }, [activeCompetitions, fixtures])
 
+  const _findTeamRow = useCallback((table, tid) => {
+    const nameLower = teamName?.toLowerCase()
+    return (table || []).find(r =>
+      r.sofascore_id === tid ||
+      (r.team_crest || '').includes(`/team/${tid}/image`) ||
+      (nameLower && r.team_name?.toLowerCase() === nameLower)
+    )
+  }, [teamName])
+
   // Resolve a competition to { type: 'cup'|'standing', data } or null.
   // Cup run takes priority over group standing for the same competition.
   const resolveComp = useCallback((comp, tid) => {
@@ -744,14 +753,12 @@ export default function BrowseTeam() {
     const groups = standingsMap[key]
     if (groups?.length) {
       for (const group of groups) {
-        const row = (group.table || []).find(r =>
-          r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
-        )
+        const row = _findTeamRow(group.table, tid)
         if (row) return { type: 'standing', data: { row, competition: group.competition, lastPlayed: comp.lastFinished, competitionId: comp.id, source: group.source } }
       }
     }
     return null
-  }, [cupMap, standingsMap])
+  }, [cupMap, standingsMap, _findTeamRow])
 
   // Up to 2 competition cards to display.
   // Clubs: domestic league standing + most recent non-domestic (cup-first).
@@ -777,9 +784,7 @@ export default function BrowseTeam() {
       const groups = standingsMap[String(domesticLeague.id)]
       if (groups) {
         for (const group of groups) {
-          const row = (group.table || []).find(r =>
-            r.sofascore_id === tid || (r.team_crest || '').includes(`/team/${tid}/image`)
-          )
+          const row = _findTeamRow(group.table, tid)
           if (row) { cards.push({ type: 'standing', data: { row, competition: group.competition, lastPlayed: domesticLeague.lastFinished, competitionId: domesticLeague.id, source: group.source } }); break }
         }
       }
@@ -789,7 +794,7 @@ export default function BrowseTeam() {
       if (card) { cards.push(card); break }
     }
     return cards
-  }, [activeCompetitions, domesticLeague, cupMap, standingsMap, sofascoreId, profile, resolveComp])
+  }, [activeCompetitions, domesticLeague, cupMap, standingsMap, sofascoreId, profile, resolveComp, _findTeamRow])
 
   const handleFollow = async () => {
     setFollowing(true)

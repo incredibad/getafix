@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.2] — 2026-06-13
+
+### Fixed
+- Standing card now visible when data comes from ESPN. Row-matching previously relied solely on Sofascore team ID and Sofascore crest URL, both absent on ESPN standings rows. Added team name as a fallback match so the correct row is found regardless of source.
+
 ## [0.24.1] — 2026-06-13
 
 ### Fixed
