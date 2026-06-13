@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.2] — 2026-06-13
+
+### Fixed
+- All My Fixtures no longer shows duplicate cross-source fixtures (e.g. USA vs Australia appearing once from Sofascore and once from ESPN). The fresh-data merge now deduplicates by date + team names in addition to source:id, with Sofascore taking priority over ESPN on collision.
+
 ## [0.25.1] — 2026-06-13
 
 ### Fixed

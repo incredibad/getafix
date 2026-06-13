@@ -160,14 +160,25 @@ async def get_fixtures(
     for ft in followed:
         _persist_fixtures(ft.team_id, fresh_by_team.get(ft.team_id, []), grace, db)
 
-    # Merge: fresh data wins; stored fills in history the API no longer returns
+    # Merge: fresh data wins; stored fills in history the API no longer returns.
+    # Deduplicate by both source:id AND date+teams to collapse cross-source dupes
+    # (e.g. same match from Sofascore for one followed team + ESPN for another).
+    # Sofascore wins over ESPN when both are present.
     fresh_keys: set[str] = set()
+    fresh_dedup: set[str] = set()
     all_fresh: list[dict] = []
-    for fixtures in fresh_by_team.values():
-        for f in fixtures:
-            key = f"{f['source']}:{f['external_id']}"
-            if key not in fresh_keys:
+    for source_pref in ("sofascore", "espn"):
+        for fixtures in fresh_by_team.values():
+            for f in fixtures:
+                if f.get("source") != source_pref:
+                    continue
+                key = f"{f['source']}:{f['external_id']}"
+                dk = _dedup_key(f)
+                if key in fresh_keys or (dk and dk in fresh_dedup):
+                    continue
                 fresh_keys.add(key)
+                if dk:
+                    fresh_dedup.add(dk)
                 all_fresh.append(f)
 
     combined = all_fresh + [f for f in stored if f"{f['source']}:{f['external_id']}" not in fresh_keys]
