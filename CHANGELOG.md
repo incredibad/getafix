@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.3] — 2026-06-13
+
+### Fixed
+- Cross-source fixture duplicates now caught correctly in two additional cases: (1) stored historical fixtures that were persisted before the earlier dedup fix (ESPN stored + Sofascore fresh for the same game) are now filtered using the dedup key, not just source:id; (2) team name variants like "United States" vs "USA" are normalised before generating dedup keys so upcoming cross-source matches collapse correctly.
+
 ## [0.25.2] — 2026-06-13
 
 ### Fixed

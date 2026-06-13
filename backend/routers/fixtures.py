@@ -181,7 +181,11 @@ async def get_fixtures(
                     fresh_dedup.add(dk)
                 all_fresh.append(f)
 
-    combined = all_fresh + [f for f in stored if f"{f['source']}:{f['external_id']}" not in fresh_keys]
+    combined = all_fresh + [
+        f for f in stored
+        if f"{f['source']}:{f['external_id']}" not in fresh_keys
+        and (_dedup_key(f) or "") not in fresh_dedup
+    ]
 
     filtered = [f for f in combined if _in_window(f, cutoff_past, cutoff_future)]
     filtered.sort(key=lambda f: f["utc_date"])
@@ -484,10 +488,29 @@ def _comp_name_matches(espn_name: str, db_name: str) -> bool:
     return mapped == db_name
 
 
+# Common cross-source name variants for the same team
+_NAME_NORM: dict[str, str] = {
+    "united states": "usa",
+    "united states of america": "usa",
+    "korea republic": "south korea",
+    "republic of korea": "south korea",
+    "türkiye": "turkey",
+    "ir iran": "iran",
+    "côte d'ivoire": "ivory coast",
+    "cote d'ivoire": "ivory coast",
+    "czechia": "czech republic",
+}
+
+
+def _norm_name(name: str) -> str:
+    n = name.lower().strip()
+    return _NAME_NORM.get(n, n)
+
+
 def _dedup_key(f: dict) -> str | None:
     date = f.get("utc_date", "")[:10]
-    home = f.get("home_team", {}).get("name", "").lower().strip()
-    away = f.get("away_team", {}).get("name", "").lower().strip()
+    home = _norm_name(f.get("home_team", {}).get("name", ""))
+    away = _norm_name(f.get("away_team", {}).get("name", ""))
     if not date or not home or not away:
         return None
     return f"{date}:{min(home, away)}:{max(home, away)}"
