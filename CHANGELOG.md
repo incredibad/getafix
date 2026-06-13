@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.1] — 2026-06-13
+
+### Fixed
+- National team pages (e.g. Australia) no longer show duplicate fixtures with mismatched crests. `_supplement_national_team_fixtures` now deduplicates by date + team names in addition to source:id, so the same match appearing in both Sofascore and an ESPN competition schedule is collapsed to one entry.
+
 ## [0.25.0] — 2026-06-13
 
 ### Added

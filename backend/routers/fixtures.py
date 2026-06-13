@@ -336,6 +336,8 @@ async def _supplement_national_team_fixtures(
     )
 
     existing_ids: set[str] = {f"{f['source']}:{f['external_id']}" for f in fixtures}
+    # Track by date+teams too so the same match from Sofascore + ESPN doesn't appear twice
+    existing_dedup: set[str] = {k for f in fixtures if (k := _dedup_key(f)) is not None}
     name_lower = team.name.lower()
 
     for comp_fixtures in comp_schedules:
@@ -345,10 +347,15 @@ async def _supplement_national_team_fixtures(
             fid = f"{f['source']}:{f['external_id']}"
             if fid in existing_ids:
                 continue
+            dk = _dedup_key(f)
+            if dk and dk in existing_dedup:
+                continue
             home = f.get("home_team", {}).get("name", "").lower()
             away = f.get("away_team", {}).get("name", "").lower()
             if espn._names_match(name_lower, home) or espn._names_match(name_lower, away):
                 existing_ids.add(fid)
+                if dk:
+                    existing_dedup.add(dk)
                 fixtures.append(f)
 
     return fixtures
