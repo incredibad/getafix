@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.3] — 2026-06-13
+
+### Changed
+- Fixture card source LED repositioned: instead of appearing below the competition name, it now sits as a half-circle on the left border of each card (absolutely positioned, clipped at the midpoint via clip-path so the glow bleeds inward).
+
 ## [0.24.2] — 2026-06-13
 
 ### Fixed

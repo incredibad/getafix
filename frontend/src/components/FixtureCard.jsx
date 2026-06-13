@@ -81,10 +81,25 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
   )
 
   return (
-    <div className={`fixture-card w-full rounded-xl border${compact ? ' compact' : ''}`} style={cardStyle}>
+    <div className={`relative fixture-card w-full rounded-xl border${compact ? ' compact' : ''}`} style={cardStyle}>
+
+      {/* Source LED — half-circle on left border */}
+      {showSource && fixture.source && (() => {
+        const isSS = fixture.source === 'sofascore'
+        return (
+          <span
+            title={isSS ? 'Sofascore' : 'ESPN'}
+            className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none ${isSS ? 'bg-blue-500' : 'bg-red-500'}`}
+            style={{
+              boxShadow: isSS ? '0 0 5px 2px rgba(59,130,246,0.55)' : '0 0 5px 2px rgba(239,68,68,0.55)',
+              clipPath: 'inset(-20px -20px -20px 50%)',
+            }}
+          />
+        )
+      })()}
 
       {/* Cell 1 — competition */}
-      <div className={`flex items-center justify-center py-3 border-r rounded-l-xl${compact ? ' px-2' : ' gap-1 px-2 lg:px-3 lg:flex-col lg:items-start lg:justify-center'}`} style={sep}>
+      <div className={`flex items-center justify-center py-3 border-r rounded-l-xl${compact ? ' px-2' : ' px-2 lg:px-3'}`} style={sep}>
         <div
           className={`relative group flex items-center gap-1.5 min-w-0${compact ? '' : ' lg:w-full'}${competition.id ? ' cursor-pointer hover:opacity-70 transition-opacity' : ''}`}
           onClick={competition.id ? (e) => { e.stopPropagation(); navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: competition.name, sofascore_id: competition.id }, showAll: true } }) } : undefined}
@@ -96,7 +111,6 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
           {!compact && <span className="hidden lg:inline text-xs text-slate-400 truncate">{competition.name}</span>}
           {compTooltip}
         </div>
-        {showSource && !compact && <SourceLED source={fixture.source} />}
       </div>
 
       {/* Cell 2 — home team */}
