@@ -1,7 +1,9 @@
 import { Search } from 'lucide-react'
 import BrowseHeader from '../components/BrowseHeader'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export default function Browse() {
+  usePageTitle('Browse')
   return (
     <>
       <div className="h-14 lg:hidden" />

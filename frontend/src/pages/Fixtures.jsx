@@ -8,6 +8,7 @@ import { getDaysBack, getSpoilersMode, getRevealPersist, getAutoRevealAge, isAut
 import { useSidebarResize } from '../utils/useSidebarResize'
 import { groupByDate } from '../utils/date'
 import { imgUrl } from '../utils/img'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { FixtureCard, TeamCrest, RoundSeparator, DATE_CAT_STYLE } from '../components/FixtureCard'
 import toast from 'react-hot-toast'
 
@@ -199,6 +200,8 @@ export default function Fixtures() {
     if (location.state?.initialFilter) return location.state.initialFilter
     try { return JSON.parse(localStorage.getItem(FILTER_KEY)) ?? null } catch { return null }
   })
+
+  usePageTitle('Fixtures', activeFilter?.value)
 
   useEffect(() => {
     if (!location.state?.initialFilter) return

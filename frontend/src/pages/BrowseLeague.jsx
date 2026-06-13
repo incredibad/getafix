@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { Trophy, ChevronUp, ChevronDown, EyeOff } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
@@ -183,6 +184,8 @@ export default function BrowseLeague() {
 
   const leagueName = navState.name ?? ''
   const leagueEmblem = navState.emblem_url ?? null
+
+  usePageTitle(leagueName || null)
 
   useEffect(() => {
     api.get('/teams/followed').then(({ data }) => setFollowedTeams(data)).catch(() => {})

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { Star, Eye, EyeOff, TrendingUp, Clock, Info, LayoutGrid, BarChart2, Trophy, ArrowLeftRight, ArrowDownLeft, Calendar, Users, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import api from '../api/client'
 import { imgUrl } from '../utils/img'
@@ -495,6 +496,8 @@ export default function BrowseTeam() {
     ?? fixtures.find(f => f.away_team.id === parseInt(sofascoreId))?.away_team.name
     ?? profile?.profile?.name ?? ''
   const teamCrest = navState.crest_url ?? `https://api.sofascore.com/api/v1/team/${sofascoreId}/image`
+
+  usePageTitle(teamName || null)
   const teamCountry = navState.country ?? profile?.profile?.country ?? null
 
   useEffect(() => {

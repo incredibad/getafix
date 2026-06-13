@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 import { version } from '../../package.json'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const DAYS_BACK_KEY           = 'getafix:settings:days_back'
 const SPOILERS_KEY            = 'getafix:settings:spoilers_mode'
@@ -117,6 +118,7 @@ function Col({ children }) {
 const TABS = ['General', 'System', 'Account']
 
 export default function Settings() {
+  usePageTitle('Settings')
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('General')

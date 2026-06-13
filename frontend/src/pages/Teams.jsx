@@ -4,6 +4,7 @@ import api from '../api/client'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 const VIEW_MODE_KEY = 'getafix:teams:view_mode'
 
@@ -150,6 +151,7 @@ function DropdownRow({ team, followed, onFollow, onUnfollow }) {
 }
 
 export default function Teams() {
+  usePageTitle('My Teams')
   const [followed, setFollowed]           = useState([])
   const [searchQuery, setSearchQuery]     = useState('')
   const [searchResults, setSearchResults] = useState([])

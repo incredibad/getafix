@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Trophy, ChevronDown, Calendar, Search, X, EyeOff } from 'lucide-react'
@@ -626,6 +627,9 @@ export default function Tables() {
   }
 
   const selectedMyComp = myCompetitions.find(c => c.name === selectedName)
+
+  const activeCompName = activeTab === 'my' ? selectedMyComp?.name : allSelected?.name
+  usePageTitle('Tables', activeCompName)
 
   const goToFixtures = () => {
     if (!selectedMyComp) return

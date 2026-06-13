@@ -7,6 +7,7 @@ import { formatMatchDateTime } from '../utils/date'
 import toast from 'react-hot-toast'
 import BrowseHeader from '../components/BrowseHeader'
 import { SourceLED } from '../components/FixtureCard'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 function Spoiler({ revealed, onReveal, children }) {
   if (revealed) return <>{children}</>
@@ -124,6 +125,12 @@ export default function MatchDetail() {
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
   const [revealed, setRevealed] = useState(location.state?.revealed ?? false)
+
+  const _fix = detail?.fixture
+  usePageTitle(
+    _fix ? `${_fix.home_team.name} v ${_fix.away_team.name}` : null,
+    _fix?.competition?.name
+  )
 
   useEffect(() => {
     const load = async () => {

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.4] — 2026-06-13
+
+### Added
+- Dynamic browser tab titles for every view: "Fixtures · Premier League · Getafix", "Tables · La Liga · Getafix", "Manchester United · Getafix", "Arsenal v Chelsea · FA Cup · Getafix", etc. Active filter/competition/team name updates the title as selections change.
+
 ## [0.25.3] — 2026-06-13
 
 ### Fixed
