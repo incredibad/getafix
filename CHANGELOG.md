@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.25.0] — 2026-06-13
+
+### Added
+- Persistent fixture storage: FINISHED, POSTPONED, and CANCELLED fixtures older than 6 hours are now stored permanently in the database (`stored_fixtures` + `team_stored_fixtures` tables). On each load the stored history is merged with fresh API data, so historical fixtures survive cache clears and container restarts. Fresh API data always wins on overlap; stored data fills in history the API no longer returns.
+
 ## [0.24.8] — 2026-06-13
 
 ### Changed

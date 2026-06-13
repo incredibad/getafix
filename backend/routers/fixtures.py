@@ -1,4 +1,5 @@
 import asyncio
+import json as _json
 import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Query, Request
@@ -143,20 +144,35 @@ async def get_fixtures(
     now_utc = datetime.now(timezone.utc)
     cutoff_past = now_utc - timedelta(days=days_back)
     cutoff_future = now_utc + timedelta(days=days_ahead)
+    grace = now_utc - timedelta(hours=_GRACE_HOURS)
 
-    all_fixtures: list[dict] = []
+    team_ids = [ft.team_id for ft in followed]
+
+    # Load permanently stored historical fixtures from DB (instant — no API calls)
+    stored = _load_stored_fixtures(team_ids, db)
+
+    # Fetch fresh fixtures from API (live + upcoming + recent cache window)
+    fresh_by_team: dict[int, list[dict]] = {}
     for ft in followed:
-        all_fixtures.extend(await _fetch_team_fixtures(ft.team, db, disable_sofascore))
+        fresh_by_team[ft.team_id] = await _fetch_team_fixtures(ft.team, db, disable_sofascore)
 
-    seen: set[str] = set()
-    deduped = []
-    for f in all_fixtures:
-        key = f"{f['source']}:{f['external_id']}"
-        if key not in seen:
-            seen.add(key)
-            deduped.append(f)
+    # Persist any newly terminal fixtures into the permanent store
+    for ft in followed:
+        _persist_fixtures(ft.team_id, fresh_by_team.get(ft.team_id, []), grace, db)
 
-    filtered = [f for f in deduped if _in_window(f, cutoff_past, cutoff_future)]
+    # Merge: fresh data wins; stored fills in history the API no longer returns
+    fresh_keys: set[str] = set()
+    all_fresh: list[dict] = []
+    for fixtures in fresh_by_team.values():
+        for f in fixtures:
+            key = f"{f['source']}:{f['external_id']}"
+            if key not in fresh_keys:
+                fresh_keys.add(key)
+                all_fresh.append(f)
+
+    combined = all_fresh + [f for f in stored if f"{f['source']}:{f['external_id']}" not in fresh_keys]
+
+    filtered = [f for f in combined if _in_window(f, cutoff_past, cutoff_future)]
     filtered.sort(key=lambda f: f["utc_date"])
     await _enrich_home_leagues(filtered, db)
     return [_to_schema(f) for f in filtered]
@@ -571,6 +587,85 @@ async def _enrich_home_leagues(fixtures: list[dict], db: Session) -> None:
                     comp["id"] = ss_tid
                     comp["emblem_url"] = comp.get("emblem_url") or sofascore._tournament_emblem(ss_tid)
                     f["league_slug"] = str(ss_tid)
+
+
+_TERMINAL_STATUSES = frozenset({"FINISHED", "POSTPONED", "CANCELLED"})
+_GRACE_HOURS = 6
+
+
+def _load_stored_fixtures(team_ids: list[int], db: Session) -> list[dict]:
+    """Return all permanently stored fixtures linked to any of the given team IDs."""
+    if not team_ids:
+        return []
+    rows = (
+        db.query(models.StoredFixture)
+        .join(
+            models.TeamStoredFixture,
+            models.TeamStoredFixture.fixture_id == models.StoredFixture.id,
+        )
+        .filter(models.TeamStoredFixture.team_id.in_(team_ids))
+        .all()
+    )
+    seen: set[int] = set()
+    result: list[dict] = []
+    for sf in rows:
+        if sf.id in seen:
+            continue
+        seen.add(sf.id)
+        try:
+            result.append(_json.loads(sf.payload_json))
+        except Exception:
+            pass
+    return result
+
+
+def _persist_fixtures(
+    team_id: int, fixtures: list[dict], grace: datetime, db: Session
+) -> None:
+    """Store terminal fixtures older than the grace cutoff into the permanent store."""
+    candidates = []
+    for f in fixtures:
+        if f.get("status") not in _TERMINAL_STATUSES:
+            continue
+        try:
+            if _parse_date(f["utc_date"]) > grace:
+                continue
+        except Exception:
+            continue
+        candidates.append(f)
+
+    if not candidates:
+        return
+
+    try:
+        for f in candidates:
+            source = f["source"]
+            external_id = str(f["external_id"])
+
+            sf = db.query(models.StoredFixture).filter_by(
+                source=source, external_id=external_id
+            ).first()
+            if sf is None:
+                sf = models.StoredFixture(
+                    source=source,
+                    external_id=external_id,
+                    utc_date=f["utc_date"],
+                    status=f["status"],
+                    payload_json=_json.dumps(f),
+                )
+                db.add(sf)
+                db.flush()
+
+            link = db.query(models.TeamStoredFixture).filter_by(
+                team_id=team_id, fixture_id=sf.id
+            ).first()
+            if link is None:
+                db.add(models.TeamStoredFixture(team_id=team_id, fixture_id=sf.id))
+
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.warning(f"Failed to persist fixtures for team {team_id}: {exc}")
 
 
 def _to_schema(f: dict) -> schemas.FixtureOut:

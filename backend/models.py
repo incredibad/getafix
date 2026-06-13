@@ -94,3 +94,35 @@ class ApiUsage(Base):
     request_count = Column(Integer, default=0)
 
     __table_args__ = (UniqueConstraint("date", "source"),)
+
+
+class StoredFixture(Base):
+    __tablename__ = "stored_fixtures"
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String, nullable=False)
+    external_id = Column(String, nullable=False, index=True)
+    utc_date = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False)
+    payload_json = Column(Text, nullable=False)
+    stored_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("source", "external_id"),)
+
+    team_links = relationship(
+        "TeamStoredFixture", back_populates="fixture", cascade="all, delete-orphan"
+    )
+
+
+class TeamStoredFixture(Base):
+    __tablename__ = "team_stored_fixtures"
+
+    team_id = Column(
+        Integer, ForeignKey("teams.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    fixture_id = Column(
+        Integer, ForeignKey("stored_fixtures.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    team = relationship("Team")
+    fixture = relationship("StoredFixture", back_populates="team_links")
