@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.8] — 2026-06-13
+
+### Changed
+- Competition catalogue background refresh simplified: unconditionally re-fetches every 69 hours. The 30-day cache TTL is now purely a fallback for when a refresh fails.
+
 ## [0.24.7] — 2026-06-13
 
 ### Added

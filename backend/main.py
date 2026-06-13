@@ -59,8 +59,7 @@ seed_competitions()
 logger = logging.getLogger(__name__)
 
 _COMP_CACHE_KEY = "sofascore:all_competitions:v2"
-_COMP_REFRESH_DAYS = 25   # refresh before the 30-day TTL expires
-_COMP_CHECK_HOURS = 6     # how often the loop wakes up to check
+_COMP_REFRESH_INTERVAL = 69 * 3600  # ~3 days; 30-day cache is the fallback if this fails
 
 
 async def _competitions_refresh_loop():
@@ -69,28 +68,20 @@ async def _competitions_refresh_loop():
     import models
 
     while True:
+        await asyncio.sleep(_COMP_REFRESH_INTERVAL)
         try:
             db = SessionLocal()
             try:
-                entry = db.query(models.ApiCache).filter(
+                db.query(models.ApiCache).filter(
                     models.ApiCache.cache_key == _COMP_CACHE_KEY
-                ).first()
-                needs_refresh = (
-                    entry is None or
-                    (datetime.utcnow() - entry.cached_at).total_seconds() > _COMP_REFRESH_DAYS * 86400
-                )
-                if needs_refresh:
-                    if entry:
-                        db.delete(entry)
-                        db.commit()
-                    await sofascore.get_all_competitions(db)
-                    logger.info("Competition catalogue refreshed in background")
+                ).delete()
+                db.commit()
+                await sofascore.get_all_competitions(db)
+                logger.info("Competition catalogue refreshed in background")
             finally:
                 db.close()
         except Exception as exc:
             logger.error(f"Background competition refresh failed: {exc}")
-
-        await asyncio.sleep(_COMP_CHECK_HOURS * 3600)
 
 
 @asynccontextmanager
