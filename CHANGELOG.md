@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.25.5] — 2026-06-13
+
+### Fixed
+- Fixture cards whose kickoff time is still in the future now always show the kickoff time, never the EyeOff icon — even if the match somehow has a non-SCHEDULED status or a 0-0 score at the exact moment it ticks over to LIVE.
+
+### Changed
+- Live fixture cards now show a red progress-bar background behind the minute indicator, filling left-to-right proportionally to minutes elapsed out of 90.
+
 ## [0.25.4] — 2026-06-13
 
 ### Added

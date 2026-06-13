@@ -65,7 +65,8 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
   const navigate = useNavigate()
   const { home_team, away_team, competition, utc_date, status, score_home, score_away, score_pen_home, score_pen_away } = fixture
   const isLive = status === 'LIVE'
-  const hasScore = status !== 'SCHEDULED' && (score_home != null || score_away != null)
+  const kickoffFuture = new Date(utc_date) > new Date()
+  const hasScore = !kickoffFuture && status !== 'SCHEDULED' && (score_home != null || score_away != null)
   const hasDetail = status === 'FINISHED' || status === 'LIVE'
   const catStyle = DATE_CAT_STYLE[dateCategory] ?? DATE_CAT_STYLE.future
   const cardStyle = isLive ? { ...catStyle, borderColor: 'rgba(248,113,113,0.35)' } : catStyle
@@ -160,12 +161,25 @@ export function FixtureCard({ fixture, revealed, onRevealScore, onViewDetail, da
             {formatMatchTime(utc_date)}
           </span>
         )}
-        {isLive && (
-          <span className="flex items-center gap-1 text-xs font-bold text-red-400">
-            <Circle size={6} fill="currentColor" className="animate-pulse" />
-            {fixture.minute ? `${fixture.minute}'` : 'LIVE'}
-          </span>
-        )}
+        {isLive && (() => {
+          const min = fixture.minute ?? 0
+          const pct = min > 0 ? Math.min(100, Math.round((min / 90) * 100)) : 0
+          return (
+            <span
+              className="relative flex items-center justify-center gap-1 text-xs font-bold text-red-400 px-1.5 py-0.5 rounded overflow-hidden"
+              style={{ minWidth: '3rem' }}
+            >
+              {pct > 0 && (
+                <span
+                  className="absolute inset-0 rounded"
+                  style={{ width: `${pct}%`, background: 'rgba(248,113,113,0.18)' }}
+                />
+              )}
+              <Circle size={6} fill="currentColor" className="animate-pulse relative z-10" />
+              <span className="relative z-10">{min > 0 ? `${min}'` : 'LIVE'}</span>
+            </span>
+          )
+        })()}
       </div>
 
       {/* Cell 4 — away team */}
