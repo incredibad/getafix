@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.26.0] — 2026-06-13
+
+### Added
+- PWA support: app can be installed to home screen on mobile and desktop, with offline app-shell caching via Workbox service worker and network-first strategy for API calls.
+
+## [0.25.10] — 2026-06-13
+
+### Fixed
+- Sofascore competition fixture cache now re-fetches every minute when any fixture is LIVE, preventing finished matches from staying stuck as LIVE for up to 6 hours.
+
+## [0.25.9] — 2026-06-13
+
+### Changed
+- Live progress bar has a few extra pixels of gap above it, separating it more from the score/time above.
+
+## [0.25.8] — 2026-06-13
+
+### Changed
+- Live progress bar now has a subtle red border around the container.
+
+## [0.25.7] — 2026-06-13
+
+### Fixed
+- ESPN competition schedule cache now invalidates when any SCHEDULED fixture has a past kickoff time, preventing stale SCHEDULED status from being served for matches that have already started (safety net for when Sofascore is unavailable).
+
 ## [0.25.6] — 2026-06-13
 
 ### Fixed
