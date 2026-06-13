@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.7] — 2026-06-13
+
+### Added
+- Background task that keeps the Sofascore competition catalogue warm. Wakes every 6 hours, refreshes the cache if the entry is older than 25 days (5-day buffer before the 30-day TTL). Also pre-warms on startup if the cache is cold.
+
 ## [0.24.6] — 2026-06-13
 
 ### Fixed
