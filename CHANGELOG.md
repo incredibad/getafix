@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.1] — 2026-06-13
+
+### Fixed
+- `/standings/sofascore/{tournament_id}` endpoint now respects the `X-Disable-Sofascore` header. When Sofascore is disabled, it falls back to ESPN standings (via the competition's `espn_slug`) instead of always hitting Sofascore regardless of the toggle.
+
 ## [0.24.0] — 2026-06-13
 
 ### Added

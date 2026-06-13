@@ -61,15 +61,34 @@ async def get_standings_by_sofascore_id(
     season_id: int | None = None,
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     """Fetch standings for any Sofascore tournament by ID."""
     ttl = _standings_ttl(db)
-    result = await sofascore.get_competition_standings(tournament_id, db, ttl, season_id=season_id)
-    if not result:
+
+    if not disable_sofascore:
+        result = await sofascore.get_competition_standings(tournament_id, db, ttl, season_id=season_id)
+        if result:
+            result["source"] = "sofascore"
+            result["cached_at"] = _cache.cached_at_str(db, f"sofascore:standings:{tournament_id}:{result.get('season', '')}")
+            return _expand_tables(result)
         raise HTTPException(status_code=404, detail="No standings available for this competition.")
-    result["source"] = "sofascore"
-    result["cached_at"] = _cache.cached_at_str(db, f"sofascore:standings:{tournament_id}:{result.get('season', '')}")
-    return _expand_tables(result)
+
+    # Sofascore disabled — try ESPN fallback via the competition's espn_slug
+    comp = db.query(models.Competition).filter(
+        models.Competition.sofascore_tournament_id == tournament_id
+    ).first()
+    if comp and comp.espn_slug:
+        result = await espn.get_competition_standings(comp.espn_slug, db, ttl)
+        if result:
+            result["source"] = "espn"
+            result["competition"]["name"] = comp.name
+            emblem = result["competition"].get("emblem_url") or comp.emblem_url or sofascore._tournament_emblem(tournament_id)
+            result["competition"]["emblem_url"] = emblem
+            result["cached_at"] = _cache.cached_at_str(db, f"espn:standings:{comp.espn_slug}") or result.get("cached_at", "")
+            return _expand_tables(result)
+
+    raise HTTPException(status_code=404, detail="No standings available for this competition.")
 
 
 @router.get("/cups/sofascore/{tournament_id}", response_model=dict)
