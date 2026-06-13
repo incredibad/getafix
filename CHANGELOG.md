@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.24.6] — 2026-06-13
+
+### Fixed
+- Team search now respects the X-Disable-Sofascore header: skips Sofascore entirely and routes directly to ESPN. Also bypasses the search cache when disabled so stale Sofascore results are not returned.
+
 ## [0.24.5] — 2026-06-13
 
 ### Added

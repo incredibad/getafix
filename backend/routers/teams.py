@@ -181,11 +181,13 @@ async def search_teams(
     q: str = Query(..., min_length=2),
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    disable_sofascore: bool = Depends(_disable_sofascore),
 ):
     cache_key = f"team_search:{q.lower().strip()}"
-    raw = _cache.get_cached(db, cache_key, SEARCH_CACHE_TTL_HOURS)
+    # Bypass cache when Sofascore is disabled — cached results may be Sofascore data
+    raw = None if disable_sofascore else _cache.get_cached(db, cache_key, SEARCH_CACHE_TTL_HOURS)
     if raw is None:
-        ss_results, espn_results = await _do_search(q, db)
+        ss_results, espn_results = await _do_search(q, db, disable_sofascore=disable_sofascore)
         combined = ss_results + espn_results
         seen_names: set[str] = set()
         deduped: list[dict] = []
@@ -194,7 +196,8 @@ async def search_teams(
             if key not in seen_names:
                 seen_names.add(key)
                 deduped.append(r)
-        _cache.set_cached(db, cache_key, {"results": deduped})
+        if not disable_sofascore:
+            _cache.set_cached(db, cache_key, {"results": deduped})
         raw = deduped
     else:
         raw = raw.get("results", [])
@@ -229,7 +232,7 @@ async def search_teams(
     return [enrich(r) for r in raw]
 
 
-async def _do_search(q: str, db: Session):
+async def _do_search(q: str, db: Session, disable_sofascore: bool = False):
     # Local DB first — instant, covers all teams already known to the app
     q_lower = q.lower().strip()
     db_teams = db.query(models.Team).filter(
@@ -251,14 +254,15 @@ async def _do_search(q: str, db: Session):
         for t in db_teams
     ]
 
-    try:
-        ss_results = await sofascore.search_teams(q, db)
-    except Exception as e:
-        logger.warning(f"Sofascore search failed: {e}")
-        ss_results = []
+    if not disable_sofascore:
+        try:
+            ss_results = await sofascore.search_teams(q, db)
+        except Exception as e:
+            logger.warning(f"Sofascore search failed: {e}")
+            ss_results = []
 
-    if ss_results:
-        return ss_results, db_results
+        if ss_results:
+            return ss_results, db_results
 
     try:
         espn_results = await espn.search_teams(q, db)
