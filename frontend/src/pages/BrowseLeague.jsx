@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Trophy, ChevronUp, ChevronDown, EyeOff } from 'lucide-react'
-import api from '../api/client'
+import api, { streamCompFixtures } from '../api/client'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
 import { FixtureCard, RoundSeparator } from '../components/FixtureCard'
@@ -145,9 +145,10 @@ export default function BrowseLeague() {
   const [fixtures, setFixtures] = useState([])
   const [standings, setStandings] = useState([])
   const [followedTeams, setFollowedTeams] = useState([])
-  const [loadingFixtures, setLoadingFixtures] = useState(false)
+  const [streamingFixtures, setStreamingFixtures] = useState(false)
   const [loadingStandings, setLoadingStandings] = useState(false)
   const [fixturesFetched, setFixturesFetched] = useState(false)
+  const loadingFixtures = streamingFixtures && fixtures.length === 0
   const [standingsFetched, setStandingsFetched] = useState(false)
   const [revealAll, setRevealAll] = useState(false)
   const todayRef = useRef(null)
@@ -194,11 +195,26 @@ export default function BrowseLeague() {
   // Fetch fixtures when tab becomes 'fixtures'
   useEffect(() => {
     if (tab !== 'fixtures' || fixturesFetched) return
-    setLoadingFixtures(true)
-    api.get('/fixtures/by-competition', { params: { name: leagueName, sofascore_id: parseInt(tournamentId), days_back: getDaysBack(), days_ahead: 365 } })
-      .then(({ data }) => { setFixtures(data); setFixturesFetched(true) })
-      .catch(() => toast.error('Failed to load fixtures.'))
-      .finally(() => setLoadingFixtures(false))
+    setFixturesFetched(true)
+    setStreamingFixtures(true)
+    const ctrl = new AbortController()
+    streamCompFixtures(
+      { name: leagueName, sofascore_id: parseInt(tournamentId), days_back: getDaysBack(), days_ahead: 365 },
+      {
+        signal: ctrl.signal,
+        onBatch: (batch) => setFixtures(prev => {
+          const merged = [...prev, ...batch]
+          merged.sort((a, b) => a.utc_date.localeCompare(b.utc_date))
+          return merged
+        }),
+        onDone: () => setStreamingFixtures(false),
+        onError: () => {
+          toast.error('Failed to load fixtures.')
+          setStreamingFixtures(false)
+        },
+      }
+    )
+    return () => ctrl.abort()
   }, [tab, fixturesFetched, tournamentId, leagueName])
 
   // Fetch standings when tab becomes 'table'
@@ -295,6 +311,12 @@ export default function BrowseLeague() {
           if (!hasTodayFixtures && !dividerInserted) items.push({ type: 'divider' })
           return (
             <div className="space-y-1">
+              {streamingFixtures && fixtures.length > 0 && (
+                <div className="flex items-center justify-center gap-2 py-1 pb-2 text-slate-500 text-xs">
+                  <div className="w-3 h-3 border border-slate-600 border-t-transparent rounded-full animate-spin" />
+                  Loading more…
+                </div>
+              )}
               {items.map((item, i) => {
                 if (item.type === 'divider') {
                   return (

@@ -604,7 +604,16 @@ async def get_competition_fixtures(tournament_id: int, db: Session, ttl_hours: f
     cache_key = f"sofascore:comp_fixtures:{tournament_id}:{season_id}"
     cached = _cache.get_cached(db, cache_key, ttl_hours)
     if cached is not None:
-        return cached.get("fixtures", [])
+        fixtures = cached.get("fixtures", [])
+        # If any fixture is LIVE, re-check every minute so status stays current
+        if any(f.get("status") == "LIVE" for f in fixtures):
+            fresh = _cache.get_cached(db, cache_key, 1 / 60)
+            if fresh is None:
+                cached = None  # force re-fetch below
+            else:
+                return fresh.get("fixtures", fixtures)
+        if cached is not None:
+            return fixtures
 
     fixtures: list[dict] = []
     seen_ids: set = set()
@@ -633,6 +642,72 @@ async def get_competition_fixtures(tournament_id: int, db: Session, ttl_hours: f
 
     _cache.set_cached(db, cache_key, {"fixtures": fixtures})
     return fixtures
+
+
+async def stream_competition_fixtures(tournament_id: int, db: Session):
+    """Async generator yielding fixture batches nearest-first for SSE streaming.
+
+    Phase 1 (yielded immediately): next/0 and last/0 fetched in parallel —
+    these contain the fixtures closest to today on each side of the timeline.
+    Phase 2 (yielded once complete): all remaining pages fetched in parallel.
+    On a cache hit the full list is yielded in a single batch.
+    """
+    season_id = await get_current_season(tournament_id, db)
+    if not season_id:
+        return
+
+    cache_key = f"sofascore:comp_fixtures:{tournament_id}:{season_id}"
+    cached = _cache.get_cached(db, cache_key, 6)
+    if cached is not None:
+        fixtures = cached.get("fixtures", [])
+        if fixtures:
+            yield fixtures
+        return
+
+    seen_ids: set = set()
+    all_fixtures: list[dict] = []
+
+    def _extract(data) -> list[dict]:
+        if isinstance(data, Exception):
+            return []
+        result = []
+        for event in data.get("events", []):
+            eid = event.get("id")
+            if eid and eid not in seen_ids:
+                seen_ids.add(eid)
+                f = _parse_fixture(event)
+                if f:
+                    result.append(f)
+        return result
+
+    # Phase 1: page 0 of both directions in parallel — nearest upcoming first
+    phase1 = await asyncio.gather(
+        _get(f"/unique-tournament/{tournament_id}/season/{season_id}/events/next/0"),
+        _get(f"/unique-tournament/{tournament_id}/season/{season_id}/events/last/0"),
+        return_exceptions=True,
+    )
+    batch1 = _extract(phase1[0]) + _extract(phase1[1])
+    if batch1:
+        all_fixtures.extend(batch1)
+        yield batch1
+
+    # Phase 2: all remaining pages (1–9) for both directions in parallel
+    phase2 = await asyncio.gather(
+        *[
+            _get(f"/unique-tournament/{tournament_id}/season/{season_id}/events/{d}/{p}")
+            for d in ("next", "last")
+            for p in range(1, 10)
+        ],
+        return_exceptions=True,
+    )
+    batch2 = []
+    for result in phase2:
+        batch2.extend(_extract(result))
+    if batch2:
+        all_fixtures.extend(batch2)
+        yield batch2
+
+    _cache.set_cached(db, cache_key, {"fixtures": all_fixtures})
 
 
 # ── Standings ─────────────────────────────────────────────────────────────────

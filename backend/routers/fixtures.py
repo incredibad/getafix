@@ -3,9 +3,10 @@ import json as _json
 import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, SessionLocal
 import models
 import schemas
 from auth import get_optional_user
@@ -93,6 +94,57 @@ async def get_fixtures_by_competition(
     filtered.sort(key=lambda f: f["utc_date"])
     await _enrich_home_leagues(filtered, db)
     return [_to_schema(f) for f in filtered]
+
+
+@router.get("/by-competition/stream")
+async def stream_fixtures_by_competition(
+    name: str = Query(...),
+    sofascore_id: int | None = Query(None),
+    days_back: int = Query(90, ge=0, le=730),
+    days_ahead: int = Query(365, ge=0, le=365),
+    _: models.User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    comp = None
+    if sofascore_id:
+        comp = db.query(models.Competition).filter(
+            models.Competition.sofascore_tournament_id == sofascore_id
+        ).first()
+    if not comp:
+        comp = db.query(models.Competition).filter(models.Competition.name == name).first()
+
+    ss_id = sofascore_id or (getattr(comp, "sofascore_tournament_id", None) if comp else None)
+
+    if not ss_id:
+        async def _empty():
+            yield "event: done\ndata: {}\n\n"
+        return StreamingResponse(_empty(), media_type="text/event-stream")
+
+    now_utc = datetime.now(timezone.utc)
+    cutoff_past = now_utc - timedelta(days=days_back)
+    cutoff_future = now_utc + timedelta(days=days_ahead)
+
+    async def event_generator():
+        db_gen = SessionLocal()
+        try:
+            async for batch in sofascore.stream_competition_fixtures(ss_id, db_gen):
+                filtered = [f for f in batch if _in_window(f, cutoff_past, cutoff_future)]
+                if not filtered:
+                    continue
+                await _enrich_home_leagues(filtered, db_gen)
+                payload = [_to_schema(f).model_dump(mode="json") for f in filtered]
+                yield f"data: {_json.dumps(payload)}\n\n"
+        except Exception as exc:
+            logger.error(f"SSE comp stream error (ss_id={ss_id}): {exc}")
+        finally:
+            db_gen.close()
+        yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/team/sofascore/{sofascore_id}", response_model=list[schemas.FixtureOut])

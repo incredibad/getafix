@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Users, Eye, EyeOff, ChevronUp, ChevronDown, Star, Search, X, Trophy } from 'lucide-react'
 import BrowseHeader from '../components/BrowseHeader'
-import api from '../api/client'
+import api, { streamCompFixtures } from '../api/client'
 import { getDaysBack, getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
 import { useSidebarResize } from '../utils/useSidebarResize'
 import { groupByDate } from '../utils/date'
@@ -298,7 +298,8 @@ const toggleDayReveal = (date) => {
 
   const [showAllForComp, setShowAllForComp] = useState(() => location.state?.showAll || localStorage.getItem(SHOW_ALL_KEY) === 'true')
   const [compAllFixtures, setCompAllFixtures] = useState([])
-  const [loadingCompAll, setLoadingCompAll] = useState(false)
+  const [streamingComp, setStreamingComp] = useState(false)
+  const loadingCompAll = streamingComp && compAllFixtures.length === 0
 
   const activeFilterRef = useRef(null)
   useEffect(() => {
@@ -350,16 +351,29 @@ const toggleDayReveal = (date) => {
   useEffect(() => {
     if (!showAllForComp || activeFilter?.type !== 'comp') {
       setCompAllFixtures([])
+      setStreamingComp(false)
       return
     }
-    let cancelled = false
-    setLoadingCompAll(true)
+    const ctrl = new AbortController()
+    setStreamingComp(true)
     setCompAllFixtures([])
-    api.get('/fixtures/by-competition', { params: { name: activeFilter.value, days_back: getDaysBack(), ...(activeFilter.sofascore_id ? { sofascore_id: activeFilter.sofascore_id } : {}) } })
-      .then(({ data }) => { if (!cancelled) setCompAllFixtures(data) })
-      .catch(() => { if (!cancelled) toast.error('Failed to load all competition fixtures.') })
-      .finally(() => { if (!cancelled) setLoadingCompAll(false) })
-    return () => { cancelled = true }
+    streamCompFixtures(
+      { name: activeFilter.value, days_back: getDaysBack(), days_ahead: 365, sofascore_id: activeFilter.sofascore_id },
+      {
+        signal: ctrl.signal,
+        onBatch: (batch) => setCompAllFixtures(prev => {
+          const merged = [...prev, ...batch]
+          merged.sort((a, b) => a.utc_date.localeCompare(b.utc_date))
+          return merged
+        }),
+        onDone: () => setStreamingComp(false),
+        onError: () => {
+          toast.error('Failed to load all competition fixtures.')
+          setStreamingComp(false)
+        },
+      }
+    )
+    return () => ctrl.abort()
   }, [showAllForComp, activeFilter])
 
   const sortedTeams = useMemo(() =>
@@ -612,6 +626,12 @@ const toggleDayReveal = (date) => {
                 <div className="py-12 text-center text-slate-500 text-sm">No fixtures match this filter.</div>
               ) : (
                 <div className="space-y-1">
+                  {streamingComp && showAllForComp && activeFilter?.type === 'comp' && compAllFixtures.length > 0 && (
+                    <div className="flex items-center justify-center gap-2 py-1 pb-2 text-slate-500 text-xs">
+                      <div className="w-3 h-3 border border-slate-600 border-t-transparent rounded-full animate-spin" />
+                      Loading more…
+                    </div>
+                  )}
                   {renderItems.map((item, i) => {
                     if (item.type === 'divider') {
                       return (

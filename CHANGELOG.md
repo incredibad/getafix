@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.27.0] — 2026-06-20
+
+### Added
+- Competition fixture pages now stream results progressively via SSE: the fixtures nearest to today appear almost instantly (one parallel round-trip for the two closest pages), while older history and further future matches fill in behind. Previously all pages were fetched sequentially before anything rendered, causing multi-second delays for large tournaments like the FIFA World Cup.
+
 ## [0.26.0] — 2026-06-13
 
 ### Added
