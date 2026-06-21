@@ -6,6 +6,7 @@ import BrowseHeader from '../components/BrowseHeader'
 import api, { streamCompFixtures } from '../api/client'
 import { getDaysBack, getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
 import { useSidebarResize } from '../utils/useSidebarResize'
+import { getCachedTeams, setCachedTeams, getCachedCompetitions, setCachedCompetitions } from '../utils/sidebarCache'
 import { groupByDate } from '../utils/date'
 import { imgUrl } from '../utils/img'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -193,8 +194,10 @@ const REVEALED_DAYS_KEY = 'getafix:fixtures:revealed_days'
 
 export default function Fixtures() {
   const [fixtures, setFixtures] = useState([])
-  const [teams, setTeams] = useState([])
+  const [teams, setTeams] = useState(() => getCachedTeams() ?? [])
+  const [competitions, setCompetitions] = useState(() => getCachedCompetitions() ?? [])
   const [loading, setLoading] = useState(true)
+  const [loadingSidebar, setLoadingSidebar] = useState(() => !getCachedTeams()?.length)
   const location = useLocation()
   const [activeFilter, setActiveFilter] = useState(() => {
     if (location.state?.initialFilter) return location.state.initialFilter
@@ -244,13 +247,20 @@ export default function Fixtures() {
   const navigate = useNavigate()
 
   const load = useCallback(async (showToast = false) => {
+    // Teams and competitions: fire and forget — stale-while-revalidate
+    api.get('/teams/followed').then(({ data }) => {
+      setTeams(data)
+      setCachedTeams(data)
+      setLoadingSidebar(false)
+    }).catch(() => setLoadingSidebar(false))
+    api.get('/competitions/followed').then(({ data }) => {
+      setCompetitions(data)
+      setCachedCompetitions(data)
+    }).catch(() => {})
+    // Fixtures: await (drives content area loading state)
     try {
-      const [fixturesRes, teamsRes] = await Promise.all([
-        api.get('/fixtures', { params: { days_back: getDaysBack(), days_ahead: 365 } }),
-        api.get('/teams/followed'),
-      ])
-      setFixtures(fixturesRes.data)
-      setTeams(teamsRes.data)
+      const { data } = await api.get('/fixtures', { params: { days_back: getDaysBack(), days_ahead: 365 } })
+      setFixtures(data)
       if (showToast) toast.success('Fixtures refreshed.')
     } catch {
       toast.error('Failed to load fixtures.')
@@ -304,10 +314,10 @@ const toggleDayReveal = (date) => {
 
   const activeFilterRef = useRef(null)
   useEffect(() => {
-    if (!loading && activeFilterRef.current) {
+    if (!loadingSidebar && activeFilterRef.current) {
       activeFilterRef.current.scrollIntoView({ behavior: 'instant', block: 'center' })
     }
-  }, [loading])
+  }, [loadingSidebar])
 
   const todayRef = useRef(null)
   const [todayVisible, setTodayVisible] = useState(null)
@@ -329,7 +339,7 @@ const toggleDayReveal = (date) => {
   }, [updateTodayVisibility])
 
   // Re-check after renders triggered by filter/load changes
-  useEffect(() => { updateTodayVisibility() }, [activeFilter, loading, loadingCompAll, showAllForComp, updateTodayVisibility])
+  useEffect(() => { updateTodayVisibility() }, [activeFilter, loading, loadingCompAll, loadingSidebar, showAllForComp, updateTodayVisibility])
 
   useEffect(() => {
     if ((loading && !showingAll) || loadingCompAll || !todayRef.current) return
@@ -381,13 +391,6 @@ const toggleDayReveal = (date) => {
     [...teams].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
   [teams])
 
-  const competitions = useMemo(() => {
-    const seen = new Set()
-    return fixtures
-      .map(f => ({ name: f.competition.name, emblem_url: f.competition.emblem_url, sofascore_id: f.competition.id }))
-      .filter(c => { if (!c.name || seen.has(c.name)) return false; seen.add(c.name); return true })
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [fixtures])
 
   const visibleFixtures = useMemo(() => {
     if (!activeFilter) return fixtures
@@ -500,7 +503,7 @@ const toggleDayReveal = (date) => {
 
         <div className="flex-1 relative">
         <div className="absolute inset-0 overflow-y-auto">
-          {loading ? (
+          {loadingSidebar ? (
             <div className="flex justify-center py-8">
               <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
@@ -580,7 +583,7 @@ const toggleDayReveal = (date) => {
 
         {/* Spacer for fixed mobile top bar */}
         {/* Mobile sticky filter bar */}
-        {!loading && fixtures.length > 0 && (
+        {(teams.length > 0 || competitions.length > 0) && (
           <div className="lg:hidden sticky top-28 z-10 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2 px-4 py-2">
               <div className="flex-1 min-w-0">

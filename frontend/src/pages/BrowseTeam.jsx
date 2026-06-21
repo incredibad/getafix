@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Star, Eye, EyeOff, TrendingUp, Clock, Info, LayoutGrid, BarChart2, Trophy, ArrowLeftRight, ArrowDownLeft, Calendar, Users, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import api from '../api/client'
+import { bustTeamsCache } from '../utils/sidebarCache'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
 import { FixtureCard, RoundSeparator, SourceLED } from '../components/FixtureCard'
@@ -810,6 +811,7 @@ export default function BrowseTeam() {
         team_type: navState.team_type ?? (profile?.profile?.national ? 'national' : 'club'),
         sofascore_id: parseInt(sofascoreId),
       })
+      bustTeamsCache()
       const { data } = await api.get('/teams/followed')
       setFollowedTeams(data)
       toast.success(`Now following ${teamName}`)
@@ -822,6 +824,7 @@ export default function BrowseTeam() {
     setFollowing(true)
     try {
       await api.delete(`/teams/${followedEntry.id}/unfollow`)
+      bustTeamsCache()
       setFollowedTeams(prev => prev.filter(t => t.id !== followedEntry.id))
       toast.success(`Unfollowed ${teamName}`)
     } catch { toast.error('Failed to unfollow team.') }

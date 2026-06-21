@@ -43,12 +43,12 @@ async def list_competition_teams(
     return results
 
 
-@router.get("/followed", response_model=list[schemas.CompetitionResponse])
+@router.get("/followed", response_model=list[schemas.FollowedCompetitionOut])
 def list_followed_competitions(
     _: models.User | None = Depends(get_optional_user),
     db: Session = Depends(get_db),
 ):
-    """Competitions that have at least one followed team registered."""
+    """Competitions linked to any followed team. Pure DB query — no external API calls."""
     followed = db.query(models.FollowedTeam).all()
     comp_ids: set[int] = set()
     for ft in followed:
@@ -56,7 +56,14 @@ def list_followed_competitions(
             comp_ids.add(tc.competition_id)
     if not comp_ids:
         return []
-    return db.query(models.Competition).filter(models.Competition.id.in_(comp_ids)).all()
+    comps = db.query(models.Competition).filter(models.Competition.id.in_(comp_ids)).order_by(models.Competition.name).all()
+    result = []
+    for c in comps:
+        emblem = c.emblem_url
+        if not emblem and c.sofascore_tournament_id:
+            emblem = f"https://www.sofascore.com/api/v1/unique-tournament/{c.sofascore_tournament_id}/image/dark"
+        result.append(schemas.FollowedCompetitionOut(name=c.name, emblem_url=emblem, sofascore_id=c.sofascore_tournament_id))
+    return result
 
 
 @router.get("/sofascore/all", response_model=list[dict])

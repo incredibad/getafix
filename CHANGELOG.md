@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.28.0] — 2026-06-21
+
+### Added
+- Sidebar teams and leagues lists now load instantly from localStorage cache on repeat visits; a background refresh always runs to keep data current (stale-while-revalidate).
+- New `/api/competitions/followed` endpoint returns a slim `{ name, emblem_url, sofascore_id }` list for the sidebar, sourced directly from the DB with emblem URLs computed from the Sofascore tournament ID when not stored.
+- Follow/unfollow actions (Teams page and team browse page) bust the teams cache so the sidebar reflects the change immediately on next load.
+
+### Changed
+- Sidebar leagues list now comes from the DB-backed `/competitions/followed` endpoint instead of being derived from the current fixture window, giving a stable, complete list regardless of the selected date range.
+- Team and competition sidebar data now fetch independently and in parallel with (not blocking) the main fixture fetch.
+
 ## [0.27.2] — 2026-06-21
 
 ### Fixed

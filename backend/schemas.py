@@ -115,6 +115,12 @@ class CompetitionRef(BaseModel):
     emblem_url: Optional[str]
 
 
+class FollowedCompetitionOut(BaseModel):
+    name: str
+    emblem_url: Optional[str]
+    sofascore_id: Optional[int]
+
+
 class FixtureOut(BaseModel):
     id: str  # "{source}:{external_id}"
     external_id: int

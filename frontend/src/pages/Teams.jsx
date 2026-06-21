@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, UserMinus, UserPlus, Loader2, Globe, Building2, X, LayoutGrid, List } from 'lucide-react'
 import api from '../api/client'
+import { bustTeamsCache } from '../utils/sidebarCache'
 import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
@@ -220,6 +221,7 @@ export default function Teams() {
         team_type: team.team_type, football_data_id: team.football_data_id,
         api_football_id: team.api_football_id, espn_id: team.espn_id, sofascore_id: team.sofascore_id,
       })
+      bustTeamsCache()
       const comps = data.linked_competitions ?? []
       const msg = comps.length ? `Following ${team.name} · added to ${comps.join(', ')}` : `Following ${team.name}`
       toast.success(msg, { duration: 6000 })
@@ -234,6 +236,7 @@ export default function Teams() {
     if (!id) { toast.error('Cannot unfollow: missing ID.'); return }
     try {
       await api.delete(`/teams/${id}/unfollow`)
+      bustTeamsCache()
       toast.success(`Unfollowed ${team.name}`)
       await loadFollowed()
       setSearchResults(prev => prev.map(r => r.name === team.name ? { ...r, already_followed: false } : r))
