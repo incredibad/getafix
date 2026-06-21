@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.27.2] — 2026-06-21
+
+### Fixed
+- Blank page on force-refresh caused by a temporal dead zone crash: `showingAll` was referenced in a `useEffect` dependency array before its `const` declaration was reached in the component body. Moved the declaration above all hooks that use it.
+
 ## [0.27.1] — 2026-06-21
 
 ### Fixed

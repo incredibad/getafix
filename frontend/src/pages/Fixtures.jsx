@@ -300,6 +300,7 @@ const toggleDayReveal = (date) => {
   const [compAllFixtures, setCompAllFixtures] = useState([])
   const [streamingComp, setStreamingComp] = useState(false)
   const loadingCompAll = streamingComp && compAllFixtures.length === 0
+  const showingAll = showAllForComp && activeFilter?.type === 'comp'
 
   const activeFilterRef = useRef(null)
   useEffect(() => {
@@ -405,7 +406,6 @@ const toggleDayReveal = (date) => {
     return fixtures
   }, [fixtures, activeFilter])
 
-  const showingAll = showAllForComp && activeFilter?.type === 'comp'
   const displayFixtures = showingAll ? compAllFixtures : visibleFixtures
 
   const grouped = groupByDate(displayFixtures)
