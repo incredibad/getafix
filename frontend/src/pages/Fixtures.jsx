@@ -320,6 +320,7 @@ const toggleDayReveal = (date) => {
   }, [loadingSidebar])
 
   const todayRef = useRef(null)
+  const scrolledForKey = useRef(null)
   const [todayVisible, setTodayVisible] = useState(null)
   const [todayDirection, setTodayDirection] = useState('down')
 
@@ -343,6 +344,9 @@ const toggleDayReveal = (date) => {
 
   useEffect(() => {
     if ((loading && !showingAll) || loadingCompAll || !todayRef.current) return
+    const key = `${activeFilter?.type}:${activeFilter?.value}:${showAllForComp}`
+    if (scrolledForKey.current === key) return
+    scrolledForKey.current = key
     todayRef.current.scrollIntoView({ behavior: 'instant', block: 'start' })
   }, [loading, showingAll, loadingCompAll, activeFilter, showAllForComp])
 

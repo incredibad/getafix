@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.1] — 2026-06-21
+
+### Fixed
+- Page no longer snaps back to today after the user has scrolled away. Scroll-to-today now fires at most once per unique filter/view state (tracked via a ref key); subsequent re-renders from streaming batches, background refreshes, or sidebar updates no longer override the user's scroll position.
+
 ## [0.28.0] — 2026-06-21
 
 ### Added
