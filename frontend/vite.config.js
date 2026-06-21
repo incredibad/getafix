@@ -41,6 +41,23 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
+            // Images are disk-cached by the backend and served immutable — cache
+            // them in the SW indefinitely (30 days) so crests and emblems load
+            // instantly on every subsequent visit without a network round-trip.
+            urlPattern: /^\/api\/img(\?|$)/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'img-cache',
+              expiration: {
+                maxEntries: 500,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
             urlPattern: /^\/api\//,
             handler: 'NetworkFirst',
             options: {

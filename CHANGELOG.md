@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.2] — 2026-06-21
+
+### Fixed
+- Team crests and competition emblems now load instantly on repeat visits. Added a dedicated `CacheFirst` service worker rule for `/api/img` (30-day TTL, up to 500 entries), so the SW no longer bypasses the backend's `immutable` cache headers and re-fetches images every session. The backend disk-cache at `/data/img_cache` was already working correctly.
+
 ## [0.28.1] — 2026-06-21
 
 ### Fixed
