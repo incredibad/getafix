@@ -310,13 +310,8 @@ export default function BrowseLeague() {
           }
           if (!hasTodayFixtures && !dividerInserted) items.push({ type: 'divider' })
           return (
+            <>
             <div className="space-y-1">
-              {streamingFixtures && fixtures.length > 0 && (
-                <div className="flex items-center justify-center gap-2 py-1 pb-2 text-slate-500 text-xs">
-                  <div className="w-3 h-3 border border-slate-600 border-t-transparent rounded-full animate-spin" />
-                  Loading more…
-                </div>
-              )}
               {items.map((item, i) => {
                 if (item.type === 'divider') {
                   return (
@@ -361,6 +356,13 @@ export default function BrowseLeague() {
                 )
               })}
             </div>
+            {streamingFixtures && fixtures.length > 0 && (
+              <div className="flex items-center justify-center gap-2 py-6 text-slate-500 text-xs">
+                <div className="w-3 h-3 border border-slate-600 border-t-transparent rounded-full animate-spin" />
+                Loading more…
+              </div>
+            )}
+            </>
           )
         })()
       )}

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.27.1] — 2026-06-21
+
+### Fixed
+- Streaming competition fixtures now appear immediately instead of waiting for the full page load. The `loading` state from the team-fixture fetch was blocking the content area even in "All" mode where team fixtures aren't displayed; the two loads are now independent. The "Loading more…" indicator is also moved to the bottom of the fixture list so it stays visible after the page scrolls to today.
+
 ## [0.27.0] — 2026-06-20
 
 ### Added

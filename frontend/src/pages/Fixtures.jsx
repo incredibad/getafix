@@ -331,9 +331,9 @@ const toggleDayReveal = (date) => {
   useEffect(() => { updateTodayVisibility() }, [activeFilter, loading, loadingCompAll, showAllForComp, updateTodayVisibility])
 
   useEffect(() => {
-    if (loading || loadingCompAll || !todayRef.current) return
+    if ((loading && !showingAll) || loadingCompAll || !todayRef.current) return
     todayRef.current.scrollIntoView({ behavior: 'instant', block: 'start' })
-  }, [loading, loadingCompAll, activeFilter, showAllForComp])
+  }, [loading, showingAll, loadingCompAll, activeFilter, showAllForComp])
 
   const revealOne = (id) => {
     setRevealedIds(prev => new Set([...prev, id]))
@@ -405,9 +405,8 @@ const toggleDayReveal = (date) => {
     return fixtures
   }, [fixtures, activeFilter])
 
-  const displayFixtures = (showAllForComp && activeFilter?.type === 'comp')
-    ? compAllFixtures
-    : visibleFixtures
+  const showingAll = showAllForComp && activeFilter?.type === 'comp'
+  const displayFixtures = showingAll ? compAllFixtures : visibleFixtures
 
   const grouped = groupByDate(displayFixtures)
   const dateKeys = Object.keys(grouped)
@@ -605,11 +604,11 @@ const toggleDayReveal = (date) => {
 
         <div className="p-4 sm:p-6 lg:p-6 pb-48 lg:pb-16">
 
-          {loading || loadingCompAll ? (
+          {(loading && !showingAll) || loadingCompAll ? (
             <div className="flex justify-center py-16">
               <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : fixtures.length === 0 ? (
+          ) : !showingAll && fixtures.length === 0 ? (
             <div className="flex flex-col items-center py-16 gap-4 text-center">
               <Users size={40} className="text-slate-600" />
               <div>
@@ -626,12 +625,6 @@ const toggleDayReveal = (date) => {
                 <div className="py-12 text-center text-slate-500 text-sm">No fixtures match this filter.</div>
               ) : (
                 <div className="space-y-1">
-                  {streamingComp && showAllForComp && activeFilter?.type === 'comp' && compAllFixtures.length > 0 && (
-                    <div className="flex items-center justify-center gap-2 py-1 pb-2 text-slate-500 text-xs">
-                      <div className="w-3 h-3 border border-slate-600 border-t-transparent rounded-full animate-spin" />
-                      Loading more…
-                    </div>
-                  )}
                   {renderItems.map((item, i) => {
                     if (item.type === 'divider') {
                       return (
@@ -677,6 +670,12 @@ const toggleDayReveal = (date) => {
                       </div>
                     )
                   })}
+                </div>
+              )}
+              {streamingComp && showingAll && compAllFixtures.length > 0 && (
+                <div className="flex items-center justify-center gap-2 py-6 text-slate-500 text-xs">
+                  <div className="w-3 h-3 border border-slate-600 border-t-transparent rounded-full animate-spin" />
+                  Loading more…
                 </div>
               )}
             </>
