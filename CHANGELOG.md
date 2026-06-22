@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.7] — 2026-06-22
+
+### Fixed
+- Scroll-to-today not firing when clicking through league filters in "All" mode. Root cause: the scroll effect ran on `activeFilter` change while the old league's fixtures were still in `compAllFixtures` (SSE reset happens in a later effect), so it scrolled to the old data and set the dedup key — meaning when the new league's SSE data arrived, the key matched and no re-scroll happened. Fix: split into two effects — a reset effect that clears the key when the filter changes, and a scroll effect that triggers on `dateKeys` (the data-ready signal) rather than on `activeFilter` directly.
+
 ## [0.28.6] — 2026-06-21
 
 ### Fixed

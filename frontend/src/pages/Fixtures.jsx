@@ -343,14 +343,22 @@ const toggleDayReveal = (date) => {
   // Re-check after renders triggered by filter/load changes
   useEffect(() => { updateTodayVisibility() }, [activeFilter, loading, loadingCompAll, loadingSidebar, showAllForComp, updateTodayVisibility])
 
+  // Mark as unscrolled whenever the view changes so the scroll fires again for
+  // the new filter's data (not the previous filter's stale fixture list).
+  useEffect(() => {
+    scrolledForKey.current = null
+  }, [activeFilter, showAllForComp])
+
+  // Scroll to today once per view state, deferred until data is actually ready.
+  // dateKeys is used as the "data changed" signal so the effect re-evaluates when
+  // the new SSE batch arrives, not when activeFilter changes (old data still showing).
   useEffect(() => {
     if ((loading && !showingAll) || loadingCompAll || !todayRef.current) return
-    const key = `${activeFilter?.type}:${activeFilter?.value}:${showAllForComp}`
-    if (scrolledForKey.current === key) return
-    scrolledForKey.current = key
+    if (scrolledForKey.current !== null) return
+    scrolledForKey.current = 'done'
     const el = todayRef.current
     requestAnimationFrame(() => el?.scrollIntoView({ behavior: 'instant', block: 'start' }))
-  }, [loading, showingAll, loadingCompAll, activeFilter, showAllForComp])
+  }, [loading, showingAll, loadingCompAll, dateKeys])
 
   const revealOne = (id) => {
     setRevealedIds(prev => new Set([...prev, id]))
