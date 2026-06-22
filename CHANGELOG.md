@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.5] — 2026-06-21
+
+### Fixed
+- Blank page crash on Tables page: `EyeOff` was inadvertently removed from the lucide import when cleaning up unused icons, but it is still used by the per-table hidden-state view.
+
 ## [0.28.4] — 2026-06-21
 
 ### Added
