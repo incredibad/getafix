@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.4] — 2026-06-21
+
+### Added
+- Reveal all tables button (top-right eye icon in BrowseHeader) now active on the Tables page when spoilers mode is on. Toggles all groups/tables in the current competition view at once; resets when switching competitions.
+
 ## [0.28.3] — 2026-06-21
 
 ### Fixed

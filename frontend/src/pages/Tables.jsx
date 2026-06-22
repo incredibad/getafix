@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Trophy, ChevronDown, Calendar, Search, X, EyeOff } from 'lucide-react'
+import { Trophy, ChevronDown, Calendar, Search, X } from 'lucide-react'
 import BrowseHeader from '../components/BrowseHeader'
 import { SourceLED } from '../components/FixtureCard'
 import api from '../api/client'
@@ -50,7 +50,7 @@ function RoundStatus({ startDate, endDate }) {
   )
 }
 
-function StandingsTable({ table, group, stage, startDate, endDate, followed = [] }) {
+function StandingsTable({ table, group, stage, startDate, endDate, followed = [], revealAll = false }) {
   const [hoveredRow, setHoveredRow] = useState(null)
   const [revealed, setRevealed] = useState(false)
   const navigate = useNavigate()
@@ -86,7 +86,7 @@ function StandingsTable({ table, group, stage, startDate, endDate, followed = []
 
   const hideMode = getHideTables()
   const hasAnyFollowed = table.some(row => !!findFollowedTeam(row.team_name))
-  const shouldHide = !revealed && getSpoilersMode() && (hideMode === 'all' || (hideMode === 'followed' && hasAnyFollowed))
+  const shouldHide = !revealed && !revealAll && getSpoilersMode() && (hideMode === 'all' || (hideMode === 'followed' && hasAnyFollowed))
 
   return (
     <div className="mb-4">
@@ -641,6 +641,9 @@ export default function Tables() {
     navigate('/fixtures', { state: { initialFilter: { type: 'comp', value: allSelected.name, sofascore_id: allSelected.id } } })
   }
 
+  const [revealAllTables, setRevealAllTables] = useState(false)
+  useEffect(() => { setRevealAllTables(false) }, [selectedName, allSelected])
+
   // All Tables standings grouped
   const allStandingsGroups = useMemo(() => {
     if (!allStandings.length) return []
@@ -659,7 +662,7 @@ export default function Tables() {
   return (
     <div className="flex flex-col lg:h-full">
       <div className="h-14 lg:hidden" />
-      <BrowseHeader hideBack canReveal={false} />
+      <BrowseHeader hideBack canReveal={getSpoilersMode()} revealed={revealAllTables} onToggleReveal={() => setRevealAllTables(r => !r)} />
 
     <div className="lg:flex flex-1 min-h-0">
 
@@ -740,7 +743,7 @@ export default function Tables() {
                   </button>
                 </div>
                 {selectedMyComp.groups.map((g, i) => (
-                  <StandingsTable key={`${selectedMyComp.name}:${g.group ?? g.stage ?? i}`} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
+                  <StandingsTable key={`${selectedMyComp.name}:${g.group ?? g.stage ?? i}`} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} revealAll={revealAllTables} />
                 ))}
               </>
             ) : null
@@ -784,7 +787,7 @@ export default function Tables() {
                 </div>
                 {allStandingsGroups.map(comp =>
                   comp.groups.map((g, i) => (
-                    <StandingsTable key={`${comp.name}:${g.group ?? g.stage ?? i}`} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} />
+                    <StandingsTable key={`${comp.name}:${g.group ?? g.stage ?? i}`} table={g.table} group={g.group} stage={g.stage} startDate={g.start_date} endDate={g.end_date} followed={followed} revealAll={revealAllTables} />
                   ))
                 )}
               </>
