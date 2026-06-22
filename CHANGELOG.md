@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.6] — 2026-06-21
+
+### Fixed
+- Intermittent scroll-to-today failure on fixtures page load. Two changes: (1) `displayFixtures`, `grouped`, and `dateKeys` are now memoized so sidebar background refreshes (teams/competitions) no longer cause the fixture list to re-derive unnecessarily; (2) the scroll-to-today call is deferred one animation frame (`requestAnimationFrame`) to ensure the browser has finished layout before scrolling. Also added an `offsetParent` guard on the sidebar scroll so it never fires on display-none elements (mobile).
+
 ## [0.28.5] — 2026-06-21
 
 ### Fixed

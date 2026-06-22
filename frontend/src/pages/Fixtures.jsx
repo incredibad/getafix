@@ -314,8 +314,9 @@ const toggleDayReveal = (date) => {
 
   const activeFilterRef = useRef(null)
   useEffect(() => {
-    if (!loadingSidebar && activeFilterRef.current) {
-      activeFilterRef.current.scrollIntoView({ behavior: 'instant', block: 'center' })
+    const el = activeFilterRef.current
+    if (!loadingSidebar && el && el.offsetParent !== null) {
+      el.scrollIntoView({ behavior: 'instant', block: 'center' })
     }
   }, [loadingSidebar])
 
@@ -347,7 +348,8 @@ const toggleDayReveal = (date) => {
     const key = `${activeFilter?.type}:${activeFilter?.value}:${showAllForComp}`
     if (scrolledForKey.current === key) return
     scrolledForKey.current = key
-    todayRef.current.scrollIntoView({ behavior: 'instant', block: 'start' })
+    const el = todayRef.current
+    requestAnimationFrame(() => el?.scrollIntoView({ behavior: 'instant', block: 'start' }))
   }, [loading, showingAll, loadingCompAll, activeFilter, showAllForComp])
 
   const revealOne = (id) => {
@@ -413,10 +415,13 @@ const toggleDayReveal = (date) => {
     return fixtures
   }, [fixtures, activeFilter])
 
-  const displayFixtures = showingAll ? compAllFixtures : visibleFixtures
+  const displayFixtures = useMemo(
+    () => showingAll ? compAllFixtures : visibleFixtures,
+    [showingAll, compAllFixtures, visibleFixtures]
+  )
 
-  const grouped = groupByDate(displayFixtures)
-  const dateKeys = Object.keys(grouped)
+  const grouped = useMemo(() => groupByDate(displayFixtures), [displayFixtures])
+  const dateKeys = useMemo(() => Object.keys(grouped), [grouped])
 
   const renderItems = useMemo(() => {
     const hasTodayFixtures = dateKeys.some(d => getDateCategory(grouped[d][0].utc_date) === 'today')
