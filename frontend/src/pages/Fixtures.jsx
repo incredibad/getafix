@@ -312,6 +312,31 @@ const toggleDayReveal = (date) => {
   const loadingCompAll = streamingComp && compAllFixtures.length === 0
   const showingAll = showAllForComp && activeFilter?.type === 'comp'
 
+  const visibleFixtures = useMemo(() => {
+    if (!activeFilter) return fixtures
+    if (activeFilter.type === 'team') {
+      const t = activeFilter.value.toLowerCase()
+      return fixtures.filter(f =>
+        f.home_team.name.toLowerCase().includes(t) ||
+        f.away_team.name.toLowerCase().includes(t) ||
+        t.includes(f.home_team.name.toLowerCase()) ||
+        t.includes(f.away_team.name.toLowerCase())
+      )
+    }
+    if (activeFilter.type === 'comp') {
+      return fixtures.filter(f => f.competition.name === activeFilter.value)
+    }
+    return fixtures
+  }, [fixtures, activeFilter])
+
+  const displayFixtures = useMemo(
+    () => showingAll ? compAllFixtures : visibleFixtures,
+    [showingAll, compAllFixtures, visibleFixtures]
+  )
+
+  const grouped = useMemo(() => groupByDate(displayFixtures), [displayFixtures])
+  const dateKeys = useMemo(() => Object.keys(grouped), [grouped])
+
   const activeFilterRef = useRef(null)
   useEffect(() => {
     const el = activeFilterRef.current
@@ -405,31 +430,6 @@ const toggleDayReveal = (date) => {
     [...teams].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
   [teams])
 
-
-  const visibleFixtures = useMemo(() => {
-    if (!activeFilter) return fixtures
-    if (activeFilter.type === 'team') {
-      const t = activeFilter.value.toLowerCase()
-      return fixtures.filter(f =>
-        f.home_team.name.toLowerCase().includes(t) ||
-        f.away_team.name.toLowerCase().includes(t) ||
-        t.includes(f.home_team.name.toLowerCase()) ||
-        t.includes(f.away_team.name.toLowerCase())
-      )
-    }
-    if (activeFilter.type === 'comp') {
-      return fixtures.filter(f => f.competition.name === activeFilter.value)
-    }
-    return fixtures
-  }, [fixtures, activeFilter])
-
-  const displayFixtures = useMemo(
-    () => showingAll ? compAllFixtures : visibleFixtures,
-    [showingAll, compAllFixtures, visibleFixtures]
-  )
-
-  const grouped = useMemo(() => groupByDate(displayFixtures), [displayFixtures])
-  const dateKeys = useMemo(() => Object.keys(grouped), [grouped])
 
   const renderItems = useMemo(() => {
     const hasTodayFixtures = dateKeys.some(d => getDateCategory(grouped[d][0].utc_date) === 'today')

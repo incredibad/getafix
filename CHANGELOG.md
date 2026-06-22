@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.8] — 2026-06-22
+
+### Fixed
+- Blank page (TDZ crash) introduced in 0.28.7: `visibleFixtures`, `displayFixtures`, `grouped`, and `dateKeys` were declared after the scroll effect that referenced `dateKeys` in its deps array. Moved all four `useMemo` declarations above the effects.
+
 ## [0.28.7] — 2026-06-22
 
 ### Fixed
