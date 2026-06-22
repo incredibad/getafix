@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -121,13 +122,21 @@ async def get_standings_for_followed_teams(
         for tc in ft.team.competitions:
             comp_ids.add(tc.competition_id)
 
+    comps = db.query(models.Competition).filter(models.Competition.id.in_(comp_ids)).all()
+
+    # Fetch all competitions in parallel rather than sequentially
+    fetched = await asyncio.gather(
+        *[_fetch_standings(comp, db, disable_sofascore) for comp in comps],
+        return_exceptions=True,
+    )
+
     results = []
-    for comp_id in comp_ids:
-        comp = db.query(models.Competition).filter(models.Competition.id == comp_id).first()
-        if comp:
-            data = await _fetch_standings(comp, db, disable_sofascore)
-            if data:
-                results.extend(data)
+    for data in fetched:
+        if isinstance(data, Exception):
+            logger.warning("Error fetching standings for a competition: %s", data)
+            continue
+        if data:
+            results.extend(data)
     return results
 
 

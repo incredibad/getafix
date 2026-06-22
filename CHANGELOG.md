@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.3] — 2026-06-21
+
+### Fixed
+- Tables initial load reduced from ~5–10s to ~1s: the `/standings/followed` endpoint was fetching each followed competition's standings sequentially. Replaced the loop with `asyncio.gather` so all Sofascore requests fire in parallel. Also replaced an N+1 DB query (one `SELECT` per competition) with a single `IN` query.
+
 ## [0.28.2] — 2026-06-21
 
 ### Fixed
