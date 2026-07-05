@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.28.9] — 2026-07-05
+
+### Fixed
+- Path traversal in the SPA static file handler (`GET /{full_path}`): a request like `/..%2fmain.py` resolved outside `static/` and returned raw backend source (`main.py`, `requirements.txt`, etc.) to unauthenticated requests. The handler now resolves the candidate path and rejects anything outside the static directory before serving it.
+
 ## [0.28.8] — 2026-06-22
 
 ### Fixed

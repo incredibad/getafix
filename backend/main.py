@@ -172,10 +172,15 @@ if serving_dir:
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
+    serving_dir_resolved = serving_dir.resolve()
+
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
-        candidate = serving_dir / full_path
-        if candidate.exists() and candidate.is_file():
+        candidate = (serving_dir / full_path).resolve()
+        if (
+            candidate.is_relative_to(serving_dir_resolved)
+            and candidate.is_file()
+        ):
             return FileResponse(str(candidate))
         index = serving_dir / "index.html"
         if index.exists():
