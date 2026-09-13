@@ -325,6 +325,15 @@ const toggleDayReveal = (date) => {
       )
     }
     if (activeFilter.type === 'comp') {
+      // Match by the stable Sofascore tournament ID when we have one — competition
+      // display names can drift between what's seeded in the DB and what the live
+      // API currently returns (e.g. "Champions League" vs "UEFA Champions League"),
+      // which would silently filter out every fixture on a pure name match.
+      if (activeFilter.sofascore_id != null) {
+        return fixtures.filter(f =>
+          f.competition.id === activeFilter.sofascore_id || f.competition.name === activeFilter.value
+        )
+      }
       return fixtures.filter(f => f.competition.name === activeFilter.value)
     }
     return fixtures

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.31.1] — 2026-09-13
+
+### Fixed
+- Fixtures page competition filter (e.g. Champions League) showed "No fixtures match this filter" even with fixtures present. The filter matched by competition display name, but the name seeded in the database can drift from what Sofascore's live API currently returns (confirmed on this instance: "Champions League" vs "UEFA Champions League", "La Liga" vs "LaLiga", "International Friendlies" vs "International Friendly"/"International Friendly Games") — any such mismatch silently filtered out every fixture. Now matches by the stable Sofascore tournament ID when available, falling back to name only if it isn't.
+
 ## [0.31.0] — 2026-09-13
 
 ### Added
