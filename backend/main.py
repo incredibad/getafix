@@ -22,7 +22,7 @@ logging.getLogger().setLevel(logging.INFO)
 from sqlalchemy import text
 from database import Base, engine
 import models
-from routers import auth, teams, fixtures, standings, matches, competitions, admin
+from routers import auth, teams, fixtures, standings, matches, competitions, admin, user_settings
 from seed import seed_competitions
 
 Base.metadata.create_all(bind=engine)
@@ -114,6 +114,7 @@ app.include_router(standings.router,    prefix="/api/standings",    tags=["stand
 app.include_router(matches.router,      prefix="/api/matches",      tags=["matches"])
 app.include_router(competitions.router, prefix="/api/competitions", tags=["competitions"])
 app.include_router(admin.router,        prefix="/api/admin",        tags=["admin"])
+app.include_router(user_settings.router, prefix="/api/settings",    tags=["settings"])
 
 
 _IMG_CACHE_DIR = Path("/data/img_cache")

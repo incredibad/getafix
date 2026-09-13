@@ -15,6 +15,21 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class UserSettings(Base):
+    """Account-wide app preferences (spoilers, fixture history window, etc.).
+    Stored server-side so they're consistent across browsers/devices instead
+    of living only in one browser's localStorage."""
+    __tablename__ = "user_settings"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    days_back = Column(String, nullable=False, default="90")
+    spoilers_mode = Column(Boolean, nullable=False, default=True)
+    reveal_persist = Column(String, nullable=False, default="forever")
+    auto_reveal_age = Column(String, nullable=False, default="never")
+    hide_tables = Column(String, nullable=False, default="off")
+
+
 class Team(Base):
     __tablename__ = "teams"
 

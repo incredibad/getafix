@@ -38,6 +38,20 @@ export function getDisableSofascore() {
   return localStorage.getItem(DISABLE_SOFASCORE_KEY) === 'true'
 }
 
+// Account-wide settings (days_back, spoilers_mode, reveal_persist, auto_reveal_age,
+// hide_tables) are persisted server-side so they're consistent across browsers and
+// devices, but every getter above still reads synchronously from localStorage — that
+// keeps every consuming page's code unchanged. This writes the server's values into
+// those same localStorage keys, so callers must run it (and await it) before the app
+// renders anything that reads them, e.g. once at startup in App.jsx.
+export function hydrateSettingsCache(data) {
+  if (data.days_back != null) localStorage.setItem(DAYS_BACK_KEY, data.days_back)
+  if (data.spoilers_mode != null) localStorage.setItem(SPOILERS_KEY, String(data.spoilers_mode))
+  if (data.reveal_persist != null) localStorage.setItem(REVEAL_PERSIST_KEY, data.reveal_persist)
+  if (data.auto_reveal_age != null) localStorage.setItem(AUTO_REVEAL_AGE_KEY, data.auto_reveal_age)
+  if (data.hide_tables != null) localStorage.setItem(HIDE_TABLES_KEY, data.hide_tables)
+}
+
 const AUTO_REVEAL_AGE_MS = {
   '1d': 86400000,
   '1w': 604800000,
@@ -239,21 +253,32 @@ export default function Settings() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
+  // Account-wide settings are saved to localStorage immediately (so the UI stays
+  // instant) and pushed to the server in the background so they're consistent
+  // across browsers/devices instead of reverting to defaults if this browser's
+  // storage is ever cleared.
+  const syncSetting = (field, value) => {
+    api.put('/settings', { [field]: value }).catch(() => toast.error('Failed to save setting — it may not persist across devices.'))
+  }
+
   const handleDaysBack = (val) => {
     localStorage.setItem(DAYS_BACK_KEY, val)
     setDaysBackState(val)
+    syncSetting('days_back', val)
   }
 
   const handleSpoilersMode = (val) => {
     if (!val) { setShowSpoilerOffWarning(true); return }
     localStorage.setItem(SPOILERS_KEY, 'true')
     setSpoilersMode(true)
+    syncSetting('spoilers_mode', true)
   }
 
   const confirmSpoilersOff = () => {
     localStorage.setItem(SPOILERS_KEY, 'false')
     setSpoilersMode(false)
     setShowSpoilerOffWarning(false)
+    syncSetting('spoilers_mode', false)
   }
 
   const handleKeepForever = (val) => {
@@ -261,26 +286,31 @@ export default function Settings() {
       const prev = localStorage.getItem(REVEAL_PERSIST_PREV_KEY) ?? 'forever'
       localStorage.setItem(REVEAL_PERSIST_KEY, prev)
       setRevealPersistState(prev)
+      syncSetting('reveal_persist', prev)
     } else {
       localStorage.setItem(REVEAL_PERSIST_PREV_KEY, revealPersist)
       localStorage.setItem(REVEAL_PERSIST_KEY, 'session')
       setRevealPersistState('session')
+      syncSetting('reveal_persist', 'session')
     }
   }
 
   const handleRevealPersist = (val) => {
     localStorage.setItem(REVEAL_PERSIST_KEY, val)
     setRevealPersistState(val)
+    syncSetting('reveal_persist', val)
   }
 
   const handleAutoRevealAge = (val) => {
     localStorage.setItem(AUTO_REVEAL_AGE_KEY, val)
     setAutoRevealAgeState(val)
+    syncSetting('auto_reveal_age', val)
   }
 
   const handleHideTables = (val) => {
     localStorage.setItem(HIDE_TABLES_KEY, val)
     setHideTablesState(val)
+    syncSetting('hide_tables', val)
   }
 
   const handleDisableSofascore = (val) => {

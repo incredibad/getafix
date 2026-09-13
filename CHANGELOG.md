@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.32.0] — 2026-09-13
+
+### Changed
+- Fixture History and Spoilers settings (days back, spoilers mode, keep-revealed persistence, auto-reveal age, hide tables) are now account-wide instead of living only in one browser's `localStorage`. Previously these reset to defaults whenever browser storage was cleared and never carried over between browsers or devices. They're now persisted server-side and fetched once at app startup into the same local cache every page already reads from, so no page's code needed to change. The "Disable Sofascore" developer toggle stays local-only (it's a per-browser debug aid, not a real preference).
+- Backend: `GET/PUT /api/settings` (GET is public like followed teams/fixtures already are, since this is a single-admin app; PUT requires login).
+
 ## [0.31.1] — 2026-09-13
 
 ### Fixed

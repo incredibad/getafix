@@ -248,3 +248,21 @@ class ScanScheduleResponse(BaseModel):
 class ScanScheduleUpdate(BaseModel):
     enabled: bool
     time_of_day: Optional[str] = None
+
+
+# ── Account-wide app settings ────────────────────────────────────────────────
+
+class UserSettingsResponse(BaseModel):
+    days_back: str
+    spoilers_mode: bool
+    reveal_persist: str
+    auto_reveal_age: str
+    hide_tables: str
+
+
+class UserSettingsUpdate(BaseModel):
+    days_back: Optional[str] = None
+    spoilers_mode: Optional[bool] = None
+    reveal_persist: Optional[str] = None
+    auto_reveal_age: Optional[str] = None
+    hide_tables: Optional[str] = None

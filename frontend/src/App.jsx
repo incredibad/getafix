@@ -14,6 +14,7 @@ import Browse from './pages/Browse'
 import BrowseTeam from './pages/BrowseTeam'
 import BrowseLeague from './pages/BrowseLeague'
 import api from './api/client'
+import { hydrateSettingsCache } from './pages/Settings'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
@@ -21,7 +22,12 @@ function AppRoutes() {
   const [needsSetup, setNeedsSetup] = useState(null)
 
   useEffect(() => {
-    api.get('/auth/setup-status').then(({ data }) => setNeedsSetup(data.needs_setup))
+    // Hydrate account-wide settings into localStorage before anything renders —
+    // every page reads them synchronously from there, so this has to land first.
+    Promise.all([
+      api.get('/auth/setup-status'),
+      api.get('/settings').then(({ data }) => hydrateSettingsCache(data)).catch(() => {}),
+    ]).then(([setupRes]) => setNeedsSetup(setupRes.data.needs_setup))
   }, [])
 
   if (loading || needsSetup === null) {
