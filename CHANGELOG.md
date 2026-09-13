@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.0] — 2026-09-13
+
+### Added
+- Fixtures page now renders instantly from a cached copy of the last successful `/fixtures` response (stale-while-revalidate, same pattern already used for the followed teams/competitions sidebar), instead of showing a blank spinner on every visit while the network request completes.
+
+### Changed
+- `GET /fixtures` now fetches each followed team's schedule in parallel (`asyncio.gather`) instead of sequentially, cutting worst-case load time roughly by the number of followed teams when the per-team Sofascore cache is cold or expired.
+
 ## [0.28.9] — 2026-07-05
 
 ### Fixed

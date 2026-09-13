@@ -203,10 +203,18 @@ async def get_fixtures(
     # Load permanently stored historical fixtures from DB (instant — no API calls)
     stored = _load_stored_fixtures(team_ids, db)
 
-    # Fetch fresh fixtures from API (live + upcoming + recent cache window)
+    # Fetch fresh fixtures from API (live + upcoming + recent cache window), in parallel across teams
+    fresh_results = await asyncio.gather(
+        *[_fetch_team_fixtures(ft.team, db, disable_sofascore) for ft in followed],
+        return_exceptions=True,
+    )
     fresh_by_team: dict[int, list[dict]] = {}
-    for ft in followed:
-        fresh_by_team[ft.team_id] = await _fetch_team_fixtures(ft.team, db, disable_sofascore)
+    for ft, result in zip(followed, fresh_results):
+        if isinstance(result, Exception):
+            logger.error(f"Fixture fetch failed for team {ft.team_id}: {result}")
+            fresh_by_team[ft.team_id] = []
+        else:
+            fresh_by_team[ft.team_id] = result
 
     # Persist any newly terminal fixtures into the permanent store
     for ft in followed:

@@ -6,7 +6,7 @@ import BrowseHeader from '../components/BrowseHeader'
 import api, { streamCompFixtures } from '../api/client'
 import { getDaysBack, getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
 import { useSidebarResize } from '../utils/useSidebarResize'
-import { getCachedTeams, setCachedTeams, getCachedCompetitions, setCachedCompetitions } from '../utils/sidebarCache'
+import { getCachedTeams, setCachedTeams, getCachedCompetitions, setCachedCompetitions, getCachedFixtures, setCachedFixtures } from '../utils/sidebarCache'
 import { groupByDate } from '../utils/date'
 import { imgUrl } from '../utils/img'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -193,10 +193,10 @@ const SHOW_ALL_KEY      = 'getafix:fixtures:show_all'
 const REVEALED_DAYS_KEY = 'getafix:fixtures:revealed_days'
 
 export default function Fixtures() {
-  const [fixtures, setFixtures] = useState([])
+  const [fixtures, setFixtures] = useState(() => getCachedFixtures() ?? [])
   const [teams, setTeams] = useState(() => getCachedTeams() ?? [])
   const [competitions, setCompetitions] = useState(() => getCachedCompetitions() ?? [])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !getCachedFixtures()?.length)
   const [loadingSidebar, setLoadingSidebar] = useState(() => !getCachedTeams()?.length)
   const location = useLocation()
   const [activeFilter, setActiveFilter] = useState(() => {
@@ -261,6 +261,7 @@ export default function Fixtures() {
     try {
       const { data } = await api.get('/fixtures', { params: { days_back: getDaysBack(), days_ahead: 365 } })
       setFixtures(data)
+      setCachedFixtures(data)
       if (showToast) toast.success('Fixtures refreshed.')
     } catch {
       toast.error('Failed to load fixtures.')

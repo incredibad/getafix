@@ -1,5 +1,6 @@
 const TEAMS_KEY = 'getafix:sidebar:teams'
 const COMPS_KEY = 'getafix:sidebar:competitions'
+const FIXTURES_KEY = 'getafix:cache:fixtures'
 
 function safeGet(key) {
   try { return JSON.parse(localStorage.getItem(key)) } catch { return null }
@@ -14,3 +15,6 @@ export const bustTeamsCache = () => localStorage.removeItem(TEAMS_KEY)
 
 export const getCachedCompetitions = () => safeGet(COMPS_KEY)
 export const setCachedCompetitions = data => safeSet(COMPS_KEY, data)
+
+export const getCachedFixtures = () => safeGet(FIXTURES_KEY)
+export const setCachedFixtures = data => safeSet(FIXTURES_KEY, data)
