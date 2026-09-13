@@ -159,6 +159,7 @@ async def get_team_schedule(
     ttl_hours: float = 24,
     league_slug: str | None = None,
     expected_name: str | None = None,
+    force: bool = False,
 ) -> list[dict] | None:
     """Fetch a team's schedule from ESPN.
 
@@ -169,7 +170,7 @@ async def get_team_schedule(
     cache_key = f"espn:team_schedule:{espn_id}"
     live_cache_key = f"espn:team_schedule_live:{espn_id}"
 
-    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    cached = None if force else _cache.get_cached(db, cache_key, ttl_hours)
     if cached is not None:
         fixtures = cached.get("fixtures", [])
         if fixtures:
@@ -229,7 +230,7 @@ async def get_team_schedule(
         return []
 
 
-async def get_competition_schedule(slug: str, days_back: int, days_ahead: int, db: Session) -> list[dict]:
+async def get_competition_schedule(slug: str, days_back: int, days_ahead: int, db: Session, force: bool = False) -> list[dict]:
     """Fetch all fixtures for a competition via the scoreboard endpoint.
 
     ESPN's scoreboard silently returns nothing for ranges > ~30 days, so we
@@ -249,7 +250,7 @@ async def get_competition_schedule(slug: str, days_back: int, days_ahead: int, d
         chunk_start = chunk_end + _td(days=1)
 
     cache_key = f"espn:comp_schedule:{slug}:{start.strftime('%Y%m%d')}-{end.strftime('%Y%m%d')}"
-    cached = _cache.get_cached(db, cache_key, 1)
+    cached = None if force else _cache.get_cached(db, cache_key, 1)
     if cached is not None:
         fixtures = cached.get("fixtures", [])
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -530,9 +531,9 @@ def _parse_standings(data: dict) -> dict:
     }
 
 
-async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 24) -> dict | None:
+async def get_competition_standings(slug: str, db: Session, ttl_hours: float = 24, force: bool = False) -> dict | None:
     cache_key = f"espn:standings:{slug}"
-    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    cached = None if force else _cache.get_cached(db, cache_key, ttl_hours)
     if cached is not None:
         return cached if cached else None
 

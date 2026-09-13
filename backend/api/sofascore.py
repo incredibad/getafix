@@ -536,9 +536,9 @@ async def resolve_sofascore_id(name: str, db: Session) -> int | None:
 
 # ── Team schedule ─────────────────────────────────────────────────────────────
 
-async def get_team_schedule(sofascore_id: int, db: Session, ttl_hours: float = 6) -> list[dict]:
+async def get_team_schedule(sofascore_id: int, db: Session, ttl_hours: float = 6, force: bool = False) -> list[dict]:
     cache_key = f"sofascore:team_schedule:{sofascore_id}"
-    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    cached = None if force else _cache.get_cached(db, cache_key, ttl_hours)
     if cached is not None:
         fixtures = cached.get("fixtures", [])
         if any(f["status"] == "LIVE" for f in fixtures):
@@ -712,14 +712,14 @@ async def stream_competition_fixtures(tournament_id: int, db: Session):
 
 # ── Standings ─────────────────────────────────────────────────────────────────
 
-async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: float = 24, season_id: int | None = None) -> dict | None:
+async def get_competition_standings(tournament_id: int, db: Session, ttl_hours: float = 24, season_id: int | None = None, force: bool = False) -> dict | None:
     if season_id is None:
         season_id = await get_current_season(tournament_id, db)
     if not season_id:
         return None
 
     cache_key = f"sofascore:standings:{tournament_id}:{season_id}"
-    cached = _cache.get_cached(db, cache_key, ttl_hours)
+    cached = None if force else _cache.get_cached(db, cache_key, ttl_hours)
     if cached is not None:
         return cached or None
 

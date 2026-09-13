@@ -157,13 +157,13 @@ async def get_standings_for_followed_teams(
     return results
 
 
-async def _fetch_standings(comp: models.Competition, db: Session, disable_sofascore: bool = False) -> list[dict]:
+async def _fetch_standings(comp: models.Competition, db: Session, disable_sofascore: bool = False, force: bool = False) -> list[dict]:
     ttl = _standings_ttl(db)
 
     # Sofascore primary
     ss_tid = getattr(comp, "sofascore_tournament_id", None)
     if ss_tid and not disable_sofascore:
-        result = await sofascore.get_competition_standings(ss_tid, db, ttl)
+        result = await sofascore.get_competition_standings(ss_tid, db, ttl, force=force)
         if result:
             result["source"] = "sofascore"
             result["competition"]["name"] = comp.name
@@ -174,7 +174,7 @@ async def _fetch_standings(comp: models.Competition, db: Session, disable_sofasc
     # ESPN fallback
     espn_slug = getattr(comp, "espn_slug", None)
     if espn_slug:
-        result = await espn.get_competition_standings(espn_slug, db, ttl)
+        result = await espn.get_competition_standings(espn_slug, db, ttl, force=force)
         if result:
             result["source"] = "espn"
             result["competition"]["name"] = comp.name

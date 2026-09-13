@@ -87,6 +87,8 @@ async def _competitions_refresh_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(_competitions_refresh_loop())
+    from scan_scheduler import scheduled_scan_loop
+    asyncio.create_task(scheduled_scan_loop())
     yield
 
 

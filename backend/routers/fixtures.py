@@ -334,7 +334,7 @@ async def _maybe_confirm_sofascore_id(team: models.Team, espn_fixtures: list[dic
         db.rollback()
 
 
-async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore: bool = False) -> list[dict]:
+async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore: bool = False, force: bool = False) -> list[dict]:
     is_national = team.team_type == "national"
     ss_id = getattr(team, "sofascore_id", None)
 
@@ -351,13 +351,13 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
                     db.rollback()
 
         if ss_id:
-            fixtures = await sofascore.get_team_schedule(ss_id, db)
+            fixtures = await sofascore.get_team_schedule(ss_id, db, force=force)
             if fixtures:
                 _auto_link_competitions(team, fixtures, db)
                 # Opportunistically confirm the ESPN ID against these Sofascore fixtures
                 await _maybe_confirm_espn_id(team, fixtures, db)
                 if is_national:
-                    fixtures = await _supplement_national_team_fixtures(team, fixtures, db)
+                    fixtures = await _supplement_national_team_fixtures(team, fixtures, db, force=force)
                 return fixtures
 
     # ESPN fallback
@@ -377,6 +377,7 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
             espn_id, db,
             league_slug=_espn_league_slug(team),
             expected_name=team.name,
+            force=force,
         )
         if result is None:
             # ESPN says this ID belongs to a different team — clear it so it re-resolves
@@ -395,7 +396,7 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
                 await _maybe_confirm_sofascore_id(team, fixtures, db)
 
         if is_national:
-            fixtures = await _supplement_national_team_fixtures(team, fixtures, db)
+            fixtures = await _supplement_national_team_fixtures(team, fixtures, db, force=force)
 
         if fixtures:
             return fixtures
@@ -404,7 +405,7 @@ async def _fetch_team_fixtures(team: models.Team, db: Session, disable_sofascore
 
 
 async def _supplement_national_team_fixtures(
-    team: models.Team, fixtures: list[dict], db: Session
+    team: models.Team, fixtures: list[dict], db: Session, force: bool = False
 ) -> list[dict]:
     team_comps = db.query(models.TeamCompetition).filter_by(team_id=team.id).all()
     slugs = [tc.competition.espn_slug for tc in team_comps if tc.competition and tc.competition.espn_slug]
@@ -412,7 +413,7 @@ async def _supplement_national_team_fixtures(
         return fixtures
 
     comp_schedules = await asyncio.gather(
-        *[espn.get_competition_schedule(slug, 365, 365, db) for slug in slugs],
+        *[espn.get_competition_schedule(slug, 365, 365, db, force=force) for slug in slugs],
         return_exceptions=True,
     )
 

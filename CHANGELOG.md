@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.31.0] — 2026-09-13
+
+### Added
+- Scheduled cache-warm scan: a new "Scheduled Cache Scan" card under Settings → System lets you enable a daily scan time (AEST). At that time, the server force-refreshes fixtures for every followed team and standings for every followed competition from Sofascore/ESPN, bypassing normal cache TTLs, so real page loads land on warm cache instead of paying a live-fetch cost. Also includes a "Run Now" button to trigger a scan on demand, and shows the status/duration of the last run.
+- Backend: `GET/PUT /api/admin/scan-schedule` and `POST /api/admin/scan-schedule/run-now`; a `force` parameter was threaded through the Sofascore/ESPN fetch functions used by both the fixtures and standings routers to support bypassing cache TTLs for the scan without affecting normal request behaviour (which still respects TTLs as before).
+
 ## [0.30.2] — 2026-09-13
 
 ### Fixed

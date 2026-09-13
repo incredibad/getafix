@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Eye, EyeOff, Trash2, ExternalLink } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Eye, EyeOff, Trash2, ExternalLink, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import toast from 'react-hot-toast'
 import { version } from '../../package.json'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { formatMatchDateTime } from '../utils/date'
 
 const DAYS_BACK_KEY           = 'getafix:settings:days_back'
 const SPOILERS_KEY            = 'getafix:settings:spoilers_mode'
@@ -132,6 +133,12 @@ export default function Settings() {
 
   // System state
   const [clearingCache, setClearingCache] = useState(false)
+  const [scanEnabled, setScanEnabledState] = useState(false)
+  const [scanTime, setScanTime] = useState('03:00')
+  const [scanLastRun, setScanLastRun] = useState(null) // { at, status, duration_s, error }
+  const [scanLoaded, setScanLoaded] = useState(false)
+  const [scanRunningNow, setScanRunningNow] = useState(false)
+  const lastSavedScanTime = useRef('03:00')
 
   // General state
   const [daysBack, setDaysBackState] = useState(() => localStorage.getItem(DAYS_BACK_KEY) ?? '90')
@@ -168,6 +175,65 @@ export default function Settings() {
       toast.error('Failed to clear cache.')
     } finally {
       setClearingCache(false)
+    }
+  }
+
+  const applyScanData = (data) => {
+    setScanEnabledState(data.enabled)
+    const time = data.time_of_day ?? '03:00'
+    setScanTime(time)
+    lastSavedScanTime.current = time
+    setScanLastRun({
+      at: data.last_run_at,
+      status: data.last_run_status,
+      duration_s: data.last_run_duration_s,
+      error: data.last_run_error,
+    })
+  }
+
+  useEffect(() => {
+    api.get('/admin/scan-schedule')
+      .then(({ data }) => applyScanData(data))
+      .catch(() => {})
+      .finally(() => setScanLoaded(true))
+  }, [])
+
+  const saveScanSchedule = async (enabled, timeOfDay) => {
+    try {
+      const { data } = await api.put('/admin/scan-schedule', { enabled, time_of_day: timeOfDay || null })
+      applyScanData(data)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update scan schedule.')
+    }
+  }
+
+  const handleScanToggle = (val) => {
+    const time = val && !scanTime ? '03:00' : scanTime
+    setScanEnabledState(val)
+    setScanTime(time)
+    saveScanSchedule(val, time)
+  }
+
+  const handleScanTimeBlur = () => {
+    if (scanTime === lastSavedScanTime.current) return
+    lastSavedScanTime.current = scanTime
+    saveScanSchedule(scanEnabled, scanTime)
+  }
+
+  const runScanNow = async () => {
+    setScanRunningNow(true)
+    try {
+      const { data } = await api.post('/admin/scan-schedule/run-now')
+      applyScanData(data)
+      if (data.last_run_status === 'error') {
+        toast.error(`Scan failed: ${data.last_run_error || 'unknown error'}`)
+      } else {
+        toast.success(`Scan complete in ${data.last_run_duration_s?.toFixed(1)}s.`)
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to run scan.')
+    } finally {
+      setScanRunningNow(false)
     }
   }
 
@@ -381,6 +447,58 @@ export default function Settings() {
                   <Trash2 size={14} />
                   {clearingCache ? 'Clearing…' : 'Clear Cache'}
                 </button>
+              </Card></Col>
+
+              <Col><Card title="Scheduled Cache Scan">
+                <p className="text-xs text-slate-500 mb-3">
+                  At the chosen time each day, refresh fixtures and tables for all followed teams from Sofascore/ESPN, so cached data stays fresh without a real request having to wait for it.
+                </p>
+                <div className="space-y-4">
+                  <SettingRow
+                    label="Enable daily scan"
+                    description="Run automatically once a day at the time below (AEST)."
+                    checked={scanEnabled}
+                    onChange={handleScanToggle}
+                  />
+                  {scanEnabled && (
+                    <div className="pl-4 border-l-2 border-slate-700">
+                      <p className="text-sm font-medium text-slate-200 mb-1">Scan time (AEST)</p>
+                      <input
+                        type="time"
+                        value={scanTime}
+                        onChange={e => setScanTime(e.target.value)}
+                        onBlur={handleScanTimeBlur}
+                        className="px-3 py-1.5 rounded-lg text-sm text-slate-200 outline-none focus:ring-1 focus:ring-green-500"
+                        style={{ background: '#0d0d14', border: '1px solid var(--border)' }}
+                      />
+                    </div>
+                  )}
+                  <div className="pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        {scanLastRun?.at ? (
+                          <p className="text-xs text-slate-500">
+                            Last scan: {formatMatchDateTime(scanLastRun.at)} AEST —{' '}
+                            {scanLastRun.status === 'error'
+                              ? <span className="text-red-400">failed</span>
+                              : <span className="text-green-400">success</span>}
+                            {scanLastRun.duration_s != null && ` (${scanLastRun.duration_s.toFixed(1)}s)`}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-500">{scanLoaded ? 'Never run yet.' : 'Loading…'}</p>
+                        )}
+                        {scanLastRun?.status === 'error' && scanLastRun.error && (
+                          <p className="text-xs text-red-400/80 mt-1 break-words">{scanLastRun.error}</p>
+                        )}
+                      </div>
+                      <button onClick={runScanNow} disabled={scanRunningNow}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600/10 hover:bg-green-600/20 text-green-400 text-xs font-medium transition-colors disabled:opacity-60 flex-shrink-0">
+                        <RefreshCw size={13} className={scanRunningNow ? 'animate-spin' : ''} />
+                        {scanRunningNow ? 'Scanning…' : 'Run Now'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </Card></Col>
 
               <Col><Card title="Developer">

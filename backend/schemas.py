@@ -232,3 +232,19 @@ class UsageEntry(BaseModel):
 class UsageResponse(BaseModel):
     today: List[UsageEntry]
     recent: List[UsageEntry]
+
+
+# ── Scheduled scan ────────────────────────────────────────────────────────────
+
+class ScanScheduleResponse(BaseModel):
+    enabled: bool
+    time_of_day: Optional[str] = None
+    last_run_at: Optional[datetime] = None
+    last_run_status: Optional[str] = None
+    last_run_duration_s: Optional[float] = None
+    last_run_error: Optional[str] = None
+
+
+class ScanScheduleUpdate(BaseModel):
+    enabled: bool
+    time_of_day: Optional[str] = None

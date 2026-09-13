@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Text, ForeignKey, UniqueConstraint,
+    Column, Integer, String, Boolean, DateTime, Float, Text, ForeignKey, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from database import Base
@@ -126,3 +126,17 @@ class TeamStoredFixture(Base):
 
     team = relationship("Team")
     fixture = relationship("StoredFixture", back_populates="team_links")
+
+
+class ScanSchedule(Base):
+    """Single-row config for the daily background cache-warm scan."""
+    __tablename__ = "scan_schedule"
+
+    id = Column(Integer, primary_key=True)
+    enabled = Column(Boolean, default=False, nullable=False)
+    time_of_day = Column(String, nullable=True)  # "HH:MM", interpreted in AEST
+    last_run_at = Column(DateTime, nullable=True)  # UTC
+    last_run_date = Column(String, nullable=True)  # AEST date "YYYY-MM-DD" — dedupes same-day runs
+    last_run_status = Column(String, nullable=True)  # "success" | "error"
+    last_run_duration_s = Column(Float, nullable=True)
+    last_run_error = Column(String, nullable=True)
