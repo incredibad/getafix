@@ -6,7 +6,7 @@ import BrowseHeader from '../components/BrowseHeader'
 import api, { streamCompFixtures } from '../api/client'
 import { getDaysBack, getSpoilersMode, getRevealPersist, getAutoRevealAge, isAutoRevealedByAge, REVEALED_IDS_KEY } from './Settings'
 import { useSidebarResize } from '../utils/useSidebarResize'
-import { getCachedTeams, setCachedTeams, getCachedCompetitions, setCachedCompetitions, getCachedFixtures, setCachedFixtures } from '../utils/sidebarCache'
+import { getCachedTeams, setCachedTeams, getCachedCompetitions, setCachedCompetitions, getCachedFixtures, setCachedFixtures, getCachedEntry, setCachedEntry } from '../utils/sidebarCache'
 import { groupByDate } from '../utils/date'
 import { imgUrl } from '../utils/img'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -405,19 +405,25 @@ const toggleDayReveal = (date) => {
       setStreamingComp(false)
       return
     }
+    const cacheKey = `getafix:cache:comp_all_fixtures:${activeFilter.sofascore_id ?? activeFilter.value}`
+    setCompAllFixtures(getCachedEntry(cacheKey) ?? [])
     const ctrl = new AbortController()
     setStreamingComp(true)
-    setCompAllFixtures([])
+    // Accumulate fresh batches separately — the first fresh batch replaces the
+    // (possibly stale) cached list shown above rather than merging with it.
+    let collected = []
     streamCompFixtures(
       { name: activeFilter.value, days_back: getDaysBack(), days_ahead: 365, sofascore_id: activeFilter.sofascore_id },
       {
         signal: ctrl.signal,
-        onBatch: (batch) => setCompAllFixtures(prev => {
-          const merged = [...prev, ...batch]
-          merged.sort((a, b) => a.utc_date.localeCompare(b.utc_date))
-          return merged
-        }),
-        onDone: () => setStreamingComp(false),
+        onBatch: (batch) => {
+          collected = [...collected, ...batch].sort((a, b) => a.utc_date.localeCompare(b.utc_date))
+          setCompAllFixtures(collected)
+        },
+        onDone: () => {
+          setStreamingComp(false)
+          setCachedEntry(cacheKey, collected)
+        },
         onError: () => {
           toast.error('Failed to load all competition fixtures.')
           setStreamingComp(false)

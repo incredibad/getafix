@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.30.0] — 2026-09-13
+
+### Added
+- Extended the stale-while-revalidate caching from 0.29.0 to the rest of the app: Tables (followed standings, all-competitions list, per-competition standings), Browse Team (fixtures, profile), Browse League (fixtures, standings), and Match Detail now all render instantly from their last cached response on revisit while quietly refreshing in the background, instead of blocking on a spinner every time.
+
 ## [0.29.0] — 2026-09-13
 
 ### Added

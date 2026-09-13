@@ -10,10 +10,14 @@ import { imgUrl } from '../utils/img'
 import toast from 'react-hot-toast'
 import { useSidebarResize } from '../utils/useSidebarResize'
 import { getSpoilersMode, getHideTables } from './Settings'
+import { getCachedTeams, setCachedTeams, getCachedEntry, setCachedEntry } from '../utils/sidebarCache'
 
 const STORAGE_KEY    = 'getafix:tables:competition'
 const ALL_TAB_KEY    = 'getafix:tables:tab'
 const ALL_SEL_KEY    = 'getafix:tables:all_selected'
+const STANDINGS_CACHE_KEY = 'getafix:cache:standings_followed'
+const ALL_COMPS_CACHE_KEY = 'getafix:cache:all_competitions'
+const compStandingsCacheKey = id => `getafix:cache:standings_by_comp:${id}`
 
 function CompLogo({ url, size = 'sm' }) {
   const [errored, setErrored] = useState(false)
@@ -242,10 +246,15 @@ function MyTablesSidebar({ competitions, selectedName, onSelect, loading }) {
 // ── All Tables sidebar ────────────────────────────────────────────────────────
 
 function AllTablesSidebar({ selectedId, onSelect }) {
-  const [allComps, setAllComps] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cachedComps = useMemo(() => getCachedEntry(ALL_COMPS_CACHE_KEY), [])
+  const [allComps, setAllComps] = useState(() => cachedComps ?? [])
+  const [loading, setLoading] = useState(() => !cachedComps?.length)
   const [query, setQuery] = useState('')
-  const [openGroups, setOpenGroups] = useState(new Set())
+  const [openGroups, setOpenGroups] = useState(() => {
+    if (!selectedId || !cachedComps) return new Set()
+    const sel = cachedComps.find(c => c.id === selectedId)
+    return sel ? new Set([sel.country]) : new Set()
+  })
   const inputRef = useRef(null)
   const selectedRef = useRef(null)
 
@@ -253,12 +262,13 @@ function AllTablesSidebar({ selectedId, onSelect }) {
     api.get('/competitions/sofascore/all')
       .then(({ data }) => {
         setAllComps(data)
+        setCachedEntry(ALL_COMPS_CACHE_KEY, data)
         if (selectedId) {
           const sel = data.find(c => c.id === selectedId)
           if (sel) setOpenGroups(new Set([sel.country]))
         }
       })
-      .catch(() => toast.error('Failed to load competitions.'))
+      .catch(() => { if (!cachedComps) toast.error('Failed to load competitions.') })
       .finally(() => setLoading(false))
   }, [])
 
@@ -517,13 +527,13 @@ export default function Tables() {
   const [activeTab, setActiveTab] = useState(() => location.state?.tab ?? localStorage.getItem(ALL_TAB_KEY) ?? 'my')
 
   // My Tables state
-  const [standings, setStandings] = useState([])
-  const [followed, setFollowed] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [standings, setStandings] = useState(() => getCachedEntry(STANDINGS_CACHE_KEY) ?? [])
+  const [followed, setFollowed] = useState(() => getCachedTeams() ?? [])
+  const [loading, setLoading] = useState(() => !getCachedEntry(STANDINGS_CACHE_KEY)?.length)
   const [selectedName, setSelectedName] = useState(() => localStorage.getItem(STORAGE_KEY))
 
   // All Tables state
-  const [allComps, setAllComps] = useState([])
+  const [allComps, setAllComps] = useState(() => getCachedEntry(ALL_COMPS_CACHE_KEY) ?? [])
   const [loadingAll, setLoadingAll] = useState(false)
   const [allFetched, setAllFetched] = useState(false)
   const [allSelected, setAllSelected] = useState(() => {
@@ -542,9 +552,11 @@ export default function Tables() {
         api.get('/teams/followed'),
       ])
       setStandings(standingsRes.data)
+      setCachedEntry(STANDINGS_CACHE_KEY, standingsRes.data)
       setFollowed(followedRes.data)
+      setCachedTeams(followedRes.data)
     } catch {
-      toast.error('Failed to load standings.')
+      if (!getCachedEntry(STANDINGS_CACHE_KEY)?.length) toast.error('Failed to load standings.')
     } finally {
       setLoading(false)
     }
@@ -561,22 +573,25 @@ export default function Tables() {
   // Fetch all competitions when All Tables tab is first opened
   useEffect(() => {
     if (activeTab !== 'all' || allFetched) return
-    setLoadingAll(true)
+    const cached = getCachedEntry(ALL_COMPS_CACHE_KEY)
+    setLoadingAll(!cached?.length)
     api.get('/competitions/sofascore/all')
-      .then(({ data }) => { setAllComps(data); setAllFetched(true) })
-      .catch(() => toast.error('Failed to load competitions.'))
+      .then(({ data }) => { setAllComps(data); setCachedEntry(ALL_COMPS_CACHE_KEY, data); setAllFetched(true) })
+      .catch(() => { if (!cached?.length) toast.error('Failed to load competitions.') })
       .finally(() => setLoadingAll(false))
   }, [activeTab, allFetched])
 
   // Fetch standings when All Tables selection changes
   useEffect(() => {
     if (!allSelected) { setAllStandings([]); return }
-    setLoadingAllStandings(true)
+    const cacheKey = compStandingsCacheKey(allSelected.id)
+    const cached = getCachedEntry(cacheKey)
+    setAllStandings(cached ?? [])
+    setLoadingAllStandings(!cached)
     setAllStandingsError(false)
-    setAllStandings([])
     api.get(`/standings/sofascore/${allSelected.id}`)
-      .then(({ data }) => setAllStandings(data))
-      .catch(() => setAllStandingsError(true))
+      .then(({ data }) => { setAllStandings(data); setCachedEntry(cacheKey, data) })
+      .catch(() => { if (!cached) setAllStandingsError(true) })
       .finally(() => setLoadingAllStandings(false))
   }, [allSelected])
 

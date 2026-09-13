@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Star, Eye, EyeOff, TrendingUp, Clock, Info, LayoutGrid, BarChart2, Trophy, ArrowLeftRight, ArrowDownLeft, Calendar, Users, ArrowUpRight, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import api from '../api/client'
-import { bustTeamsCache } from '../utils/sidebarCache'
+import { bustTeamsCache, getCachedTeams, setCachedTeams, getCachedEntry, setCachedEntry } from '../utils/sidebarCache'
 import { imgUrl } from '../utils/img'
 import { groupByDate } from '../utils/date'
 import { FixtureCard, RoundSeparator, SourceLED } from '../components/FixtureCard'
@@ -463,15 +463,17 @@ export default function BrowseTeam() {
 
   const spoilersMode = getSpoilersMode()
   const autoRevealAge = getAutoRevealAge()
-  const [fixtures, setFixtures] = useState([])
-  const [profile, setProfile] = useState(null)
+  const fixturesCacheKey = `getafix:cache:team_fixtures:${sofascoreId}`
+  const profileCacheKey = `getafix:cache:team_profile:${sofascoreId}`
+  const [fixtures, setFixtures] = useState(() => getCachedEntry(fixturesCacheKey) ?? [])
+  const [profile, setProfile] = useState(() => getCachedEntry(profileCacheKey))
   const [standingsMap, setStandingsMap] = useState({})
   const [cupMap, setCupMap] = useState({})
   const fetchedComps = useRef(new Set())
   const fetchedCupComps = useRef(new Set())
-  const [followedTeams, setFollowedTeams] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [profileLoading, setProfileLoading] = useState(true)
+  const [followedTeams, setFollowedTeams] = useState(() => getCachedTeams() ?? [])
+  const [loading, setLoading] = useState(() => !getCachedEntry(fixturesCacheKey)?.length)
+  const [profileLoading, setProfileLoading] = useState(() => !getCachedEntry(profileCacheKey))
   const [following, setFollowing] = useState(false)
   const [revealedSections, setRevealedSections] = useState(() => new Set())
   const [revealedIds, setRevealedIds] = useState(() => {
@@ -504,17 +506,20 @@ export default function BrowseTeam() {
   useEffect(() => {
     const fixtureParams = { days_back: 400, days_ahead: 365 }
     if (navState.name) fixtureParams.name = navState.name
+    const hadCachedFixtures = !!getCachedEntry(fixturesCacheKey)?.length
     Promise.all([
       api.get(`/fixtures/team/sofascore/${sofascoreId}`, { params: fixtureParams }),
       api.get('/teams/followed'),
     ]).then(([fixturesRes, followedRes]) => {
       setFixtures(fixturesRes.data)
+      setCachedEntry(fixturesCacheKey, fixturesRes.data)
       setFollowedTeams(followedRes.data)
-    }).catch(() => toast.error('Failed to load fixtures.'))
+      setCachedTeams(followedRes.data)
+    }).catch(() => { if (!hadCachedFixtures) toast.error('Failed to load fixtures.') })
       .finally(() => setLoading(false))
 
     api.get(`/teams/sofascore/${sofascoreId}/profile`)
-      .then(({ data }) => setProfile(data))
+      .then(({ data }) => { setProfile(data); setCachedEntry(profileCacheKey, data) })
       .catch(() => {})
       .finally(() => setProfileLoading(false))
   }, [sofascoreId])

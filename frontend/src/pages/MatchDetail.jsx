@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import BrowseHeader from '../components/BrowseHeader'
 import { SourceLED } from '../components/FixtureCard'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { getCachedEntry, setCachedEntry } from '../utils/sidebarCache'
 
 function Spoiler({ revealed, onReveal, children }) {
   if (revealed) return <>{children}</>
@@ -122,8 +123,9 @@ export default function MatchDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const [detail, setDetail] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const matchCacheKey = `getafix:cache:match:${id}:${location.state?.source ?? ''}`
+  const [detail, setDetail] = useState(() => getCachedEntry(matchCacheKey))
+  const [loading, setLoading] = useState(() => !getCachedEntry(matchCacheKey))
   const [revealed, setRevealed] = useState(location.state?.revealed ?? false)
 
   const _fix = detail?.fixture
@@ -141,8 +143,9 @@ export default function MatchDetail() {
         const params = { source, ...(leagueSlug ? { league_slug: leagueSlug } : {}) }
         const { data } = await api.get(`/matches/${id}`, { params })
         setDetail(data)
+        setCachedEntry(matchCacheKey, data)
       } catch {
-        toast.error('Failed to load match details.')
+        if (!getCachedEntry(matchCacheKey)) toast.error('Failed to load match details.')
       } finally {
         setLoading(false)
       }

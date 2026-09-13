@@ -18,3 +18,8 @@ export const setCachedCompetitions = data => safeSet(COMPS_KEY, data)
 
 export const getCachedFixtures = () => safeGet(FIXTURES_KEY)
 export const setCachedFixtures = data => safeSet(FIXTURES_KEY, data)
+
+// Generic stale-while-revalidate cache for any page-level data, keyed by caller.
+// Prefix keys with 'getafix:cache:' by convention.
+export const getCachedEntry = key => safeGet(key)
+export const setCachedEntry = (key, data) => safeSet(key, data)

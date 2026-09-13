@@ -9,6 +9,7 @@ import { FixtureCard, RoundSeparator } from '../components/FixtureCard'
 import { getSpoilersMode, getAutoRevealAge, getRevealPersist, isAutoRevealedByAge, getDaysBack, getHideTables, REVEALED_IDS_KEY } from './Settings'
 import BrowseHeader from '../components/BrowseHeader'
 import toast from 'react-hot-toast'
+import { getCachedTeams, setCachedTeams, getCachedEntry, setCachedEntry } from '../utils/sidebarCache'
 
 const BRISBANE_TZ = 'Australia/Brisbane'
 
@@ -141,10 +142,12 @@ export default function BrowseLeague() {
 
   const spoilersMode = getSpoilersMode()
   const autoRevealAge = getAutoRevealAge()
+  const fixturesCacheKey = `getafix:cache:league_fixtures:${tournamentId}`
+  const standingsCacheKey = `getafix:cache:league_standings:${tournamentId}`
   const [tab, setTab] = useState('fixtures')
-  const [fixtures, setFixtures] = useState([])
-  const [standings, setStandings] = useState([])
-  const [followedTeams, setFollowedTeams] = useState([])
+  const [fixtures, setFixtures] = useState(() => getCachedEntry(fixturesCacheKey) ?? [])
+  const [standings, setStandings] = useState(() => getCachedEntry(standingsCacheKey) ?? [])
+  const [followedTeams, setFollowedTeams] = useState(() => getCachedTeams() ?? [])
   const [streamingFixtures, setStreamingFixtures] = useState(false)
   const [loadingStandings, setLoadingStandings] = useState(false)
   const [fixturesFetched, setFixturesFetched] = useState(false)
@@ -189,7 +192,7 @@ export default function BrowseLeague() {
   usePageTitle(leagueName || null)
 
   useEffect(() => {
-    api.get('/teams/followed').then(({ data }) => setFollowedTeams(data)).catch(() => {})
+    api.get('/teams/followed').then(({ data }) => { setFollowedTeams(data); setCachedTeams(data) }).catch(() => {})
   }, [])
 
   // Fetch fixtures when tab becomes 'fixtures'
@@ -198,16 +201,22 @@ export default function BrowseLeague() {
     setFixturesFetched(true)
     setStreamingFixtures(true)
     const ctrl = new AbortController()
+    // Accumulate fresh batches separately from `fixtures` state, which may still
+    // hold the cached (stale) list — the first fresh batch replaces it outright
+    // rather than merging with potentially-outdated cached entries.
+    let collected = []
     streamCompFixtures(
       { name: leagueName, sofascore_id: parseInt(tournamentId), days_back: getDaysBack(), days_ahead: 365 },
       {
         signal: ctrl.signal,
-        onBatch: (batch) => setFixtures(prev => {
-          const merged = [...prev, ...batch]
-          merged.sort((a, b) => a.utc_date.localeCompare(b.utc_date))
-          return merged
-        }),
-        onDone: () => setStreamingFixtures(false),
+        onBatch: (batch) => {
+          collected = [...collected, ...batch].sort((a, b) => a.utc_date.localeCompare(b.utc_date))
+          setFixtures(collected)
+        },
+        onDone: () => {
+          setStreamingFixtures(false)
+          setCachedEntry(fixturesCacheKey, collected)
+        },
         onError: () => {
           toast.error('Failed to load fixtures.')
           setStreamingFixtures(false)
@@ -220,9 +229,10 @@ export default function BrowseLeague() {
   // Fetch standings when tab becomes 'table'
   useEffect(() => {
     if (tab !== 'table' || standingsFetched) return
-    setLoadingStandings(true)
+    const cached = getCachedEntry(standingsCacheKey)
+    setLoadingStandings(!cached?.length)
     api.get(`/standings/sofascore/${tournamentId}`)
-      .then(({ data }) => { setStandings(data); setStandingsFetched(true) })
+      .then(({ data }) => { setStandings(data); setCachedEntry(standingsCacheKey, data); setStandingsFetched(true) })
       .catch(() => {})
       .finally(() => setLoadingStandings(false))
   }, [tab, standingsFetched, tournamentId])
