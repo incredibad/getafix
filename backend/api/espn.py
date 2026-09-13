@@ -252,11 +252,24 @@ async def get_competition_schedule(slug: str, days_back: int, days_ahead: int, d
     cached = _cache.get_cached(db, cache_key, 1)
     if cached is not None:
         fixtures = cached.get("fixtures", [])
-        if fixtures and any(f["status"] == "LIVE" for f in fixtures):
-            live = _cache.get_cached(db, cache_key + ":live", 1 / 60)
-            if live:
-                return live.get("fixtures", fixtures)
-        return fixtures
+        now_iso = datetime.now(timezone.utc).isoformat()
+        # If a SCHEDULED fixture kicked off recently, the cache pre-dates that match
+        # starting — invalidate so next call gets fresh status. Bounded to a recent
+        # window (not "any time in the past") because this window spans up to 2 years
+        # and ESPN sometimes never updates the status of old fixtures away from
+        # SCHEDULED — without the bound, that stale entry would force a live refetch
+        # on every single call forever, defeating the cache entirely.
+        recent_iso = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
+        stale = any(
+            f.get("status") == "SCHEDULED" and recent_iso <= f.get("utc_date", "") <= now_iso
+            for f in fixtures
+        )
+        if not stale:
+            if fixtures and any(f["status"] == "LIVE" for f in fixtures):
+                live = _cache.get_cached(db, cache_key + ":live", 1 / 60)
+                if live:
+                    return live.get("fixtures", fixtures)
+            return fixtures
 
     try:
         responses = await asyncio.gather(

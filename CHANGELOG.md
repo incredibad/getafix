@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.1] — 2026-09-13
+
+### Fixed
+- `GET /fixtures` was taking 2-3 seconds on every load — including with a clear browser cache — regardless of the client-side caching added in 0.29.0/0.30.0. Root cause: an in-progress, uncommitted change to `espn.get_competition_schedule()`'s cache-staleness check invalidated its cache whenever *any* `SCHEDULED` fixture in its 2-year fetch window had a kickoff time in the past — which, over a 2-year span, is essentially always true. This forced a live ~1.4s multi-request ESPN refetch for followed national teams (any team using the ESPN competition-schedule supplement) on nearly every request, permanently bypassing the cache. Bounded the check to a 6-hour recent window so it only fires for a fixture that plausibly just kicked off.
+- `GET /fixtures` also did ~0.7s of DB writes (persisting newly-finished fixtures to permanent storage) synchronously on the request path, even though the response doesn't depend on them. Moved this to a FastAPI background task (with its own DB session) so it no longer adds to response latency.
+- Combined effect on this instance's live data: `/api/fixtures` cold/no-cache response time dropped from ~2.4-2.8s to ~0.7-1.5s.
+
 ## [0.30.0] — 2026-09-13
 
 ### Added

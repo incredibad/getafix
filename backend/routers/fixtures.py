@@ -2,7 +2,7 @@ import asyncio
 import json as _json
 import logging
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -183,6 +183,7 @@ async def get_fixtures_for_team(
 
 @router.get("", response_model=list[schemas.FixtureOut])
 async def get_fixtures(
+    background_tasks: BackgroundTasks,
     days_back: int = Query(365, ge=0, le=730),
     days_ahead: int = Query(90, ge=0, le=365),
     _: models.User | None = Depends(get_optional_user),
@@ -216,9 +217,14 @@ async def get_fixtures(
         else:
             fresh_by_team[ft.team_id] = result
 
-    # Persist any newly terminal fixtures into the permanent store
-    for ft in followed:
-        _persist_fixtures(ft.team_id, fresh_by_team.get(ft.team_id, []), grace, db)
+    # Persist any newly terminal fixtures into the permanent store. Deferred to a
+    # background task (own DB session) — nothing in the response depends on it, and
+    # it was adding several hundred ms of DB writes to every request.
+    background_tasks.add_task(
+        _persist_fixtures_background,
+        [(ft.team_id, fresh_by_team.get(ft.team_id, [])) for ft in followed],
+        grace,
+    )
 
     # Merge: fresh data wins; stored fills in history the API no longer returns.
     # Deduplicate by both source:id AND date+teams to collapse cross-source dupes
@@ -718,6 +724,19 @@ def _load_stored_fixtures(team_ids: list[int], db: Session) -> list[dict]:
         except Exception:
             pass
     return result
+
+
+def _persist_fixtures_background(
+    team_fixtures: list[tuple[int, list[dict]]], grace: datetime
+) -> None:
+    """BackgroundTasks entry point: owns its own DB session since the request's
+    session is closed by the time background tasks run."""
+    db = SessionLocal()
+    try:
+        for team_id, fixtures in team_fixtures:
+            _persist_fixtures(team_id, fixtures, grace, db)
+    finally:
+        db.close()
 
 
 def _persist_fixtures(
