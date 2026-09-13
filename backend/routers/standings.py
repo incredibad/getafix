@@ -21,10 +21,23 @@ def _disable_sofascore(request: Request) -> bool:
 
 
 def _is_matchday(db: Session) -> bool:
+    # Expensive: scans every cached schedule/fixtures blob (can be 100+ rows,
+    # megabytes of JSON) and fully deserializes each one. _fetch_standings calls
+    # this (via _standings_ttl) once per followed competition, so without caching
+    # a single /standings/followed request pays this cost N times over — and since
+    # it's synchronous CPU-bound work inside an async endpoint, it blocks the whole
+    # event loop (and, via the GIL, other threads) for the duration. Cache the
+    # result briefly; matchday status doesn't need to be recomputed every call.
+    cache_key = "internal:is_matchday"
+    cached = _cache.get_cached(db, cache_key, 0.1)
+    if cached is not None:
+        return cached.get("value", False)
+
     today = datetime.now(timezone.utc).date().isoformat()
     entries = db.query(models.ApiCache).filter(
         models.ApiCache.cache_key.contains("schedule") | models.ApiCache.cache_key.contains("fixtures")
     ).all()
+    result = False
     for entry in entries:
         import json
         try:
@@ -33,10 +46,14 @@ def _is_matchday(db: Session) -> bool:
             for f in fixtures:
                 date_str = f.get("utc_date", "")[:10]
                 if date_str == today and f.get("status") in ("LIVE", "FINISHED"):
-                    return True
+                    result = True
+                    break
         except Exception:
             pass
-    return False
+        if result:
+            break
+    _cache.set_cached(db, cache_key, {"value": result})
+    return result
 
 
 def _standings_ttl(db: Session) -> float:

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.30.2] — 2026-09-13
+
+### Fixed
+- Tables page was still taking ~2.5s to load (visible as a slow `GET /api/teams/followed`, even though that endpoint does no external work itself). Root cause: `standings.py`'s `_is_matchday()` — called once per followed competition by `/standings/followed` — does a full scan of every cached schedule/fixtures row (100+ rows, several MB of JSON) and fully deserializes each one, uncached, on every call. With 15 followed competitions that's 15x this ~0.15-0.2s scan per request (~2.3s total), and because it's synchronous CPU-bound work inside an `async def` endpoint, it holds the GIL for that whole time — stalling every other request being served by the process, including the trivial `/teams/followed` read running concurrently on another thread. Cached `_is_matchday()`'s result for 6 minutes so the expensive scan runs at most once per window instead of once per competition per request.
+- Measured effect on this instance's real data: `/api/standings/followed` dropped from ~2.3s to ~0.04s (warm), and the concurrent `/api/teams/followed` request that was getting stuck behind it now also completes in ~0.05s.
+
 ## [0.30.1] — 2026-09-13
 
 ### Fixed
