@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.32.2] — 2026-10-09
+
+### Fixed
+- "Page isn't loading" with `TypeError: e.filter is not a function` thrown from a `useMemo` on mount. The Fixtures page's stale-while-revalidate cache (`getCachedFixtures`/`getCachedTeams`/`getCachedCompetitions` in `sidebarCache.js`) trusted whatever was in `localStorage` to be an array and called `.filter()` on it synchronously during the initial render, before the fresh fetch could overwrite it — so a non-array value ever written there (e.g. from a past failed/error response) permanently bricked the page in that browser on every load. These getters/setters now validate the value is actually an array, falling back to `null`/skipping the write otherwise, so a bad cached value can no longer crash the page. Confirmed the live report was browser-local (incognito loaded fine) rather than a server-side issue.
+
 ## [0.32.1] — 2026-10-09
 
 ### Fixed
