@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.32.1] — 2026-10-09
+
+### Fixed
+- Followed teams were silently missing all future fixtures (only past/finished matches showed). Root cause: Sofascore's anti-bot layer intermittently 403s a fraction of requests even with a correct token/fingerprint (measured ~1-in-5 failing in bursts, confirmed on this instance from ~20:30 UTC 2026-10-08 onward) — not a hard IP block, just flaky. `sofascore.get_team_schedule()`'s "upcoming events" pagination had no retry: a single 403 on page 0 aborted the whole upcoming-fixtures fetch, and the resulting empty result was cached for 6 hours, so a brief flaky patch wiped out a team's future fixtures until the next lucky refresh. Added a retry with short backoff (up to 3 attempts) for transient 403s in the shared Sofascore request helper, and cleared the cache entries poisoned by the outage window so affected teams refetch immediately instead of waiting out the TTL.
+
 ## [0.32.0] — 2026-09-13
 
 ### Changed

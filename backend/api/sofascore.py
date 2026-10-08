@@ -29,7 +29,23 @@ _NORM_STATUS = {
 
 
 async def _get(path: str, params: dict | None = None) -> dict:
-    return await get_json(f"{BASE}{path}", params=params)
+    # Sofascore's anti-bot layer intermittently 403s a fraction of requests even
+    # with a valid token/fingerprint (observed ~1-in-5 failing in bursts) — not a
+    # hard block, just flaky. A single 403 on e.g. page 0 of a team's upcoming
+    # fixtures used to wipe out all future matches for that team for the full
+    # cache TTL. Retry transient 403s a few times with a short backoff before
+    # giving up.
+    last_exc: _HTTPError | None = None
+    for attempt in range(3):
+        try:
+            return await get_json(f"{BASE}{path}", params=params)
+        except _HTTPError as e:
+            if e.status_code != 403:
+                raise
+            last_exc = e
+            if attempt < 2:
+                await asyncio.sleep(0.4 * (attempt + 1))
+    raise last_exc
 
 
 def _team_crest(team_id) -> str | None:
@@ -567,6 +583,7 @@ async def get_team_schedule(sofascore_id: int, db: Session, ttl_hours: float = 6
                     fixtures.append(f)
 
     # Upcoming — paginate until 404 so all scheduled fixtures are included
+    upcoming_failed = False
     for page in range(10):
         try:
             data = await _get(f"/team/{sofascore_id}/events/next/{page}")
@@ -583,10 +600,26 @@ async def get_team_schedule(sofascore_id: int, db: Session, ttl_hours: float = 6
         except _HTTPError as e:
             if e.status_code != 404:
                 logger.error(f"Sofascore team next events error (id={sofascore_id}, page={page}): {e}")
+                upcoming_failed = True
             break
         except Exception as e:
             logger.error(f"Sofascore team next events error (id={sofascore_id}, page={page}): {e}")
+            upcoming_failed = True
             break
+
+    # Sofascore's anti-bot "challenge" response is flaky rather than a hard block —
+    # it can reject a request even after the shared retry in _get() exhausts its
+    # attempts. If the upcoming-fixtures fetch failed outright, don't let that wipe
+    # out future fixtures we already know about from the last successful fetch —
+    # merge in any still-cached SCHEDULED fixtures not present in this result.
+    if upcoming_failed:
+        stale = _cache.get_cached(db, cache_key, ttl_hours=None) or {}
+        for f in stale.get("fixtures", []):
+            if f.get("status") == "SCHEDULED":
+                fid = f.get("external_id")
+                if fid is not None and fid not in seen_ids:
+                    seen_ids.add(fid)
+                    fixtures.append(f)
 
     _cache.set_cached(db, cache_key, {"fixtures": fixtures})
     if any(f["status"] == "LIVE" for f in fixtures):
